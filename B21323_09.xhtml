@@ -1,0 +1,529 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer200">
+			<h1 id="_idParaDest-242" class="chapter-number"><a id="_idTextAnchor250"></a>9</h1>
+			<h1 id="_idParaDest-243"><a id="_idTextAnchor251"></a>Assess Backtest Risk and Performance Metrics with Pyfolio</h1>
+			<p>No single risk or performance metric tells the entire story of how a strategy might perform in live trading. Metrics such as the Sharpe ratio, for instance, focus mainly on returns relative to volatility but neglect other risks such as drawdown or tail risk. Similarly, using only maximum drawdown as a measure ignores the risk-adjusted returns and might discard strategies that are robust but temporarily underperforming. The composite view obtained through multiple metrics provides a more nuanced understanding of how the strategy is likely to behave under varying market conditions. Taking it a step further, visualizing risk and performance metrics over time can capture strategy dynamics over time. A strategy might exhibit robust metrics during a bull market but underperform in terms of risk-adjusted returns during a bear or <span class="No-Break">sideways market.</span></p>
+			<p>In this chapter, we introduce <strong class="bold">Pyfolio Reloaded</strong> (<strong class="bold">Pyfolio</strong>), which is a risk and performance analysis library. Pyfolio Reloaded<a id="_idIndexMarker641"></a> is part of the Zipline Reloaded ecosystem and takes the output of a Zipline Reloaded backtest to build a robust suite of risk and performance metrics. We will walk through the process of using Pyfolio Reloaded to generate risk and performance metrics. Throughout the recipes in this chapter, we’ll define the most important metrics to consider when assessing the performance of <span class="No-Break">a backtest.</span></p>
+			<p>In this chapter, we present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Preparing Zipline Reloaded backtest results for <span class="No-Break">Pyfolio Reloaded</span></li>
+				<li>Generating strategy performance and <span class="No-Break">return analytics</span></li>
+				<li>Building a drawdown and rolling <span class="No-Break">risk analysis</span></li>
+				<li>Analyzing strategy holdings, leverage, exposure, and <span class="No-Break">sector allocations</span></li>
+				<li>Breaking down strategy performance to <span class="No-Break">trade level</span></li>
+			</ul>
+			<h1 id="_idParaDest-244"><a id="_idTextAnchor252"></a>Preparing Zipline backtest results for Pyfolio Reloaded</h1>
+			<p>In <a href="B21323_07.xhtml#_idTextAnchor207"><span class="No-Break"><em class="italic">Chapter 7</em></span></a>, <em class="italic">Event-Based Backtesting Factor Portfolios with Zipline Reloaded</em>, we learned how to use Zipline Reloaded to backtest a factor strategy. The output of a Zipline Reloaded backtest includes a DataFrame that details various metrics calculated over the backtest period, such as<a id="_idIndexMarker642"></a> returns, alpha, beta, the Sharpe ratio, and drawdowns. It also provides transaction logs that capture executed<a id="_idIndexMarker643"></a> orders, including asset, price, and quantity, giving insights into the trading behavior of the strategy. Additionally, Zipline Reloaded outputs an asset-wise breakdown of the portfolio, detailing the holdings and their respective values, which can be vital for risk assessment and position sizing in <span class="No-Break">the portfolio.</span></p>
+			<p>Before we can use the DataFrame, there is some required data preprocessing. Helpfully, Pyfolio Reloaded comes with helper functions that do most of the work for us. In this recipe, we’ll read in the DataFrame and prepare it to use with Pyfolio. We’ll also build a symbol-to-sector mapping and acquire data to represent <span class="No-Break">a benchmark.</span></p>
+			<h2 id="_idParaDest-245"><a id="_idTextAnchor253"></a>Getting ready…</h2>
+			<p>We assume you ran the backtest described in <a href="B21323_07.xhtml#_idTextAnchor207"><span class="No-Break"><em class="italic">Chapter 7</em></span></a>, <em class="italic">Event-Based Backtesting Factor Portfolios with Zipline Reloaded,</em> and have a file called <strong class="source-inline">mean_reversion.pickle</strong> in the current working directory. The pickle file is a serialized version of the DataFrame Zipline Reloaded generated describing the <span class="No-Break">performance results.</span></p>
+			<h2 id="_idParaDest-246"><a id="_idTextAnchor254"></a>How to do it…</h2>
+			<p>We’ll use pandas to read the pickle file and the OpenBB Platform to acquire sector data and <span class="No-Break">benchmark prices.</span></p>
+			<ol>
+				<li>Import <span class="No-Break">the libraries:</span><pre class="source-code">
+import pandas as pd
+from openbb import obb
+import pyfolio as pf
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Read in the pickle file using the pandas <span class="No-Break"><strong class="source-inline">read_pickle</strong></span><span class="No-Break"> method:</span><pre class="source-code">
+perf = pd.read_pickle("mean_reversion.pickle")</pre><p class="list-inset">The result is the performance DataFrame from the <span class="No-Break">Zipline backtest.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer168" class="IMG---Figure">
+					<img src="image/B21323_09_01.jpg" alt="Figure 9.1: Deserialized DataFrame containing the backtest performance metrics" width="1486" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.1: Deserialized DataFrame containing the backtest performance metrics</p>
+			<ol>
+				<li value="3">Use the Pyfolio helper function<a id="_idIndexMarker644"></a> to extract returns, positions, and <a id="_idIndexMarker645"></a>transactions from <span class="No-Break">the DataFrame:</span><pre class="source-code">
+returns, positions, transactions = \
+    pf.utils.extract_rets_pos_txn_from_zipline(perf)</pre><p class="list-inset">The result is a pandas Series with <span class="No-Break">strategy returns.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer169" class="IMG---Figure">
+					<img src="image/B21323_09_02.jpg" alt="Figure 9.2: pandas Series with daily strategy returns" width="368" height="210"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.2: pandas Series with daily strategy returns</p>
+			<ol>
+				<li value="4">The <strong class="source-inline">positions</strong> DataFrames contain the Zipline <strong class="source-inline">Equity</strong> objects as column labels. Replace the object with the <span class="No-Break">string representations:</span><pre class="source-code">
+positions.columns = [
+    col.symbol for col in positions.columns[
+        :-1]] + ["cash"]</pre><p class="list-inset">The result is <a id="_idIndexMarker646"></a>DataFrame with the daily positions, <span class="No-Break">including cash.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer170" class="IMG---Figure">
+					<img src="image/B21323_09_03.jpg" alt="Figure 9.3: DataFrame with the position value each day" width="790" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.3: DataFrame with the position value each day</p>
+			<ol>
+				<li value="5">The <strong class="source-inline">symbol</strong> column <a id="_idIndexMarker647"></a>in the <strong class="source-inline">transactions</strong> DataFrame also contains the Zipline <strong class="source-inline">Equity</strong> objects. Replace the object with the <span class="No-Break">string representations:</span><pre class="source-code">
+transactions.symbol = transactions.symbol.apply(
+    lambda s: s.symbol)</pre><p class="list-inset">The result is a DataFrame with the <span class="No-Break">daily transactions:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer171" class="IMG---Figure">
+					<img src="image/B21323_09_04.jpg" alt="Figure 9.4: DataFrame with the transactions each day" width="1156" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.4: DataFrame with the transactions each day</p>
+			<ol>
+				<li value="6">Extract the symbols <a id="_idIndexMarker648"></a>from the <strong class="source-inline">positions</strong> DataFrame and use the OpenBB Platform screener to download an overview for each<a id="_idIndexMarker649"></a> one. The overview includes the sector that we’ll use to build the <span class="No-Break">symbol-to-sector mapping:</span><pre class="source-code">
+symbols = positions.columns[:-1].tolist()
+screener_data = obb.equity.profile(
+    symbols, provider="yfinance")</pre><p class="list-inset">The result is a DataFrame with summary information for <span class="No-Break">each symbol.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer172" class="IMG---Figure">
+					<img src="image/B21323_09_05.jpg" alt="Figure 9.5: DataFrame with the screener results for the tickers used in our strategy" width="1264" height="292"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.5: DataFrame with the screener results for the tickers used in our strategy</p>
+			<ol>
+				<li value="7">Build a mapping between each <strong class="source-inline">symbol</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">sector</strong></span><span class="No-Break">:</span><pre class="source-code">
+sector_map = (
+    screener_data[["symbol", "sector"]]
+    .set_index("symbol")
+    .reindex(symbols)
+    .fillna("Unknown")
+    .to_dict()["sector"]
+)</pre><p class="list-inset">The result is a dictionary <a id="_idIndexMarker650"></a>with symbols as keys and the <a id="_idIndexMarker651"></a>sector as values. Note for symbols that don’t have an associated sector, they’re marked <span class="No-Break">as </span><span class="No-Break"><strong class="source-inline">Unknown</strong></span><span class="No-Break">.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer173" class="IMG---Figure">
+					<img src="image/B21323_09_06.jpg" alt="Figure 9.6: Dictionary with a symbol-to-sector mapping for the positions in our backtest" width="427" height="482"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.6: Dictionary with a symbol-to-sector mapping for the positions in our backtest</p>
+			<ol>
+				<li value="8">Use the OpenBB Platform to <a id="_idIndexMarker652"></a>download price data for the SPY ETF, which we’ll use as <span class="No-Break">the benchmark:</span><pre class="source-code">
+spy = obb.equity.price.historical(
+    "SPY",
+    start_date=returns.index.min(),
+    end_date=returns.index.max()
+)
+spy.index = pd.to_datetime(spy.index)
+benchmark_returns = spy.close.pct_change()
+benchmark_returns.name = "SPY"
+benchmark_returns = benchmark_returns.tz_localize(
+    "UTC").filter(returns.index)</pre><p class="list-inset">The result is a pandas <a id="_idIndexMarker653"></a>Series with daily returns for the <span class="No-Break">SPY ETF.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer174" class="IMG---Figure">
+					<img src="image/B21323_09_07.jpg" alt="Figure 9.7: pandas Series with the daily returns for the SPY ETF" width="337" height="233"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.7: pandas Series with the daily returns for the SPY ETF</p>
+			<h2 id="_idParaDest-247"><a id="_idTextAnchor255"></a>How it works…</h2>
+			<p>The <strong class="source-inline">extract_rets_pos_txn_from_zipline</strong> function takes a DataFrame generated by a Zipline backtest as input and extracts daily returns, net position values, and transaction details. These extracted metrics are returned as a tuple of pandas Series and DataFrames, ready for further analysis or visualization with other Pyfolio functions. The function first normalizes the index of the input DataFrame and sets its time zone to UTC, then extracts the <strong class="source-inline">returns</strong> column for daily strategy returns. It iterates through the <strong class="source-inline">positions</strong> and <strong class="source-inline">transactions</strong> items in the DataFrame to construct daily net position values and transaction <a id="_idIndexMarker654"></a><span class="No-Break">details, respectively.</span></p>
+			<p>Next, we use a list<a id="_idIndexMarker655"></a> comprehension to replace each of the column labels in the <strong class="source-inline">positions</strong> DataFrame with strings. We use the pandas <strong class="source-inline">apply</strong> method on the <strong class="source-inline">symbol</strong> column in the <strong class="source-inline">transactions</strong> DataFrame to replace the Zipline Reloaded <strong class="source-inline">Equity</strong> objects with their <span class="No-Break">string representations.</span></p>
+			<p>After we extract a list of symbols and download the overview using the OpenBB Platform, we build the symbol-to-sector mapping. We start with the OpenBB Platform output that contains columns <strong class="source-inline">symbol</strong> and <strong class="source-inline">sector</strong>, and sets the index to the <strong class="source-inline">symbol</strong> column. The DataFrame is then reindexed based on the list of <strong class="source-inline">symbols</strong>, fills any missing values with <strong class="source-inline">Unknown</strong>, and finally converts the <strong class="source-inline">sector</strong> column to <span class="No-Break">a dictionary.</span></p>
+			<p>Finally, we download and process price data for the SPY ETF which we use as the benchmark in our analysis. The code loads historical data for the dates in our analysis using the <strong class="source-inline">obb.equity.price.historical</strong> method. It then calculates the percentage change of the adjusted closing prices to generate benchmark returns, sets the name of the Series to <strong class="source-inline">SPY</strong>, localizes the time zone to UTC, and filters the Series to match the index of the <span class="No-Break"><strong class="source-inline">returns</strong></span><span class="No-Break"> DataFrame.</span></p>
+			<h2 id="_idParaDest-248"><a id="_idTextAnchor256"></a>There’s more…</h2>
+			<p>You may be wondering why mapping symbols to sectors is important. Incorporating sector information in backtest analysis is crucial for understanding the source of returns and for risk management. Traders often attribute returns to different sectors to identify which segments of the market are driving their <span class="No-Break">portfolio’s performance.</span></p>
+			<p>This sector-based attribution enables traders to diversify their investments across various sectors, thereby reducing the portfolio’s systemic risks associated with any <span class="No-Break">single sector.</span></p>
+			<p>Further, by comparing the strategy’s returns against a benchmark, like the S&amp;P 500, traders can assess whether the <a id="_idIndexMarker656"></a>strategy is adding value over and above a passive investment approach. This<a id="_idIndexMarker657"></a> comparative analysis aids in isolating the strategy’s alpha, or risk-adjusted returns, and helps in understanding its behavior relative to the broader market or a <span class="No-Break">specific sector.</span></p>
+			<h2 id="_idParaDest-249"><a id="_idTextAnchor257"></a>See also</h2>
+			<p>Pyfolio offers several helper functions to process Zipline backtest results into a form suitable for further analysis. For more insight into using Pyfolio for risk and performance analysis, see the source code <span class="No-Break">at </span><a href="https://github.com/stefan-jansen/pyfolio-reloaded/blob/main/src/pyfolio/utils.py"><span class="No-Break">https://github.com/stefan-jansen/pyfolio-reloaded/blob/main/src/pyfolio/utils.py</span></a><span class="No-Break">.</span></p>
+			<p>In case you want to automate the process of computing risk and performance metrics, <strong class="bold">Trade Blotter</strong> is an app that makes<a id="_idIndexMarker658"></a> performance analytics easy. You can upload your transactions and it does the heavy lifting for you. You can sign up at https://tradeblotter.io/. You can also check out the cohort-based course, <em class="italic">Getting Started With Python for Quant Finance</em>, which covers Pyfolio in detail. The URL <span class="No-Break">is </span><a href="https://www.pyquantnews.com/getting-started-with-python-for-quant-finance"><span class="No-Break">https://www.pyquantnews.com/getting-started-with-python-for-quant-finance</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-250"><a id="_idTextAnchor258"></a>Generating strategy performance and return analytics</h1>
+			<p>Traders use strategy performance and return analysis to evaluate the effectiveness of their trading algorithms. Return<a id="_idIndexMarker659"></a> analysis, often visualized through equity curves, or return distributions, offers insights into the strategy’s profitability over time. Temporal analyses, such as monthly or annual return breakdowns, help identify seasonality or long-term trends that may impact <span class="No-Break">future performance.</span></p>
+			<p>By comparing these metrics and analyses against a benchmark, traders can isolate the strategy’s alpha, or the excess return over a passive investment approach. This review enables traders to make data-driven modifications to their strategies, enhancing profitability and risk management. In this recipe, we explore Pyfolio Reloaded strategy performance and <span class="No-Break">return analytics.</span></p>
+			<h2 id="_idParaDest-251"><a id="_idTextAnchor259"></a>Getting ready…</h2>
+			<p>We assume the steps in the <em class="italic">Preparing Zipline Reloaded backtest results for Pyfolio Reloaded</em> recipe were followed. We’ll need <strong class="source-inline">returns</strong>, <strong class="source-inline">positions</strong>, <strong class="source-inline">transactions</strong>, and <strong class="source-inline">benchmark_returns</strong> defined for <span class="No-Break">this recipe.</span></p>
+			<h2 id="_idParaDest-252"><a id="_idTextAnchor260"></a>How to do it…</h2>
+			<p>We’ll build a series of visualizations <a id="_idIndexMarker660"></a>using Pyfolio Reloaded that graphically depict <span class="No-Break">strategy performance.</span></p>
+			<ol>
+				<li>Plot the strategy’s equity curve against <span class="No-Break">the benchmark:</span><pre class="source-code">
+pf.plotting.plot_rolling_returns(
+    returns,
+    factor_returns=benchmark_returns
+)</pre><p class="list-inset">The result is a chart with the strategy’s equity curve alongside the cumulative returns of the <span class="No-Break">chosen benchmark.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer175" class="IMG---Figure">
+					<img src="image/B21323_09_08.jpg" alt="Figure 9.8: Strategy cumulative returns (equity curve) against the benchmark" width="761" height="467"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.8: Strategy cumulative returns (equity curve) against the benchmark</p>
+			<ol>
+				<li value="2">Summarize the <a id="_idIndexMarker661"></a>distribution of key <span class="No-Break">performance indicators:</span><pre class="source-code">
+pf.plotting.plot_perf_stats(
+    returns=returns,
+    factor_returns=benchmark_returns,
+)</pre><p class="list-inset">The result is a horizontal box plot that depicts the distribution of <span class="No-Break">performance indicators.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer176" class="IMG---Figure">
+					<img src="image/B21323_09_09.jpg" alt="Figure 9.9: Strategy performance metrics" width="788" height="487"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.9: Strategy performance metrics</p>
+			<ol>
+				<li value="3">Generate a detailed<a id="_idIndexMarker662"></a> outline of the strategy’s <span class="No-Break">performance metrics:</span><pre class="source-code">
+pf.plotting.show_perf_stats(
+    returns,
+    factor_returns=benchmark_returns,
+    positions=positions,
+    transactions=transactions,
+    live_start_date="2017-01-01"
+)</pre></li>			</ol>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">The <strong class="source-inline">live_start_date</strong> argument in the <strong class="source-inline">show_perf_stats</strong> function separates the backtest and live trading periods. Metrics are calculated separately for the periods before and after this date, which allows for a more nuanced evaluation of the trading strategy’s performance. Specifically, the function will display performance statistics for the backtest period up to <strong class="source-inline">live_start_date</strong> and for the live trading period starting from <strong class="source-inline">live_start_date</strong>. Several Pyfolio functions accept <span class="No-Break">this argument.</span></p>
+			<p class="list-inset">The result is a pandas DataFrame containing the key <span class="No-Break">performance metrics.</span></p>
+			<div>
+				<div id="_idContainer177" class="IMG---Figure">
+					<img src="image/B21323_09_10.jpg" alt="Figure 9.10: Strategy performance metrics" width="391" height="606"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.10: Strategy performance metrics</p>
+			<ol>
+				<li value="4">Generate a heatmap <a id="_idIndexMarker663"></a>of the strategy’s <span class="No-Break">monthly returns:</span><pre class="source-code">
+pf.plotting.plot_monthly_returns_heatmap(returns)</pre><p class="list-inset">The result is a heatmap visualizing the strategy returns during the <span class="No-Break">backtest period.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer178" class="IMG---Figure">
+					<img src="image/B21323_09_11.jpg" alt="Figure 9.11: Heatmap visualizing the strategy’s monthly returns" width="1584" height="639"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.11: Heatmap visualizing the strategy’s monthly returns</p>
+			<ol>
+				<li value="5">Generate a bar chart<a id="_idIndexMarker664"></a> of the strategy’s <span class="No-Break">annual returns:</span><pre class="source-code">
+pf.plotting.plot_annual_returns(returns)</pre><p class="list-inset">The result is a bar chart visualizing the annual returns during the <span class="No-Break">backtest period.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer179" class="IMG---Figure">
+					<img src="image/B21323_09_12.jpg" alt="Figure 9.12: Bar chart visualizing the strategy’s annual returns" width="700" height="537"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.12: Bar chart visualizing the strategy’s annual returns</p>
+			<h2 id="_idParaDest-253"><a id="_idTextAnchor261"></a>How it works…</h2>
+			<p>Pyfolio does the hard work of parsing the input data and formatting the output charts. Other charts and tables include <span class="No-Break">the following:</span></p>
+			<ul>
+				<li><strong class="source-inline">plot_rolling_returns</strong>: Calculates the rolling returns of a portfolio over a specified window and plots<a id="_idIndexMarker665"></a> them <span class="No-Break">using Matplotlib.</span></li>
+				<li><strong class="source-inline">plot_perf_stats</strong>: Iterates through the returns series, extracting each performance metric, and uses Matplotlib’s <strong class="source-inline">barh</strong> function to create horizontal bars for <span class="No-Break">each metric.</span></li>
+				<li><strong class="source-inline">show_perf_stats</strong>: Calculates various performance metrics including annual return, annual volatility, and Sharpe ratio, among others, and then displays these metrics in a <span class="No-Break">formatted table.</span></li>
+				<li><strong class="source-inline">plot_monthly_returns_heatmap</strong>: Calculates the mean return for each month across years. It then utilizes Matplotlib to generate a heatmap, where the x-axis represents months, the y-axis represents years, and the color intensity indicates the mean <span class="No-Break">return value.</span></li>
+				<li><strong class="source-inline">plot_annual_returns</strong>: Calculates annual returns by resampling the data to yearly frequency using the mean. It then generates a bar plot of these annual returns using Matplotlib, with the x-axis representing years and the y-axis representing the <span class="No-Break">annual returns.</span></li>
+			</ul>
+			<p>Now that we covered how the plots are generated, let’s review some of the key statistics output <span class="No-Break">by Pyfolio:</span></p>
+			<ul>
+				<li><strong class="bold">Calmar ratio</strong>: Calmar ratio is calculated by dividing the <strong class="bold">compound annual growth rate</strong> (<strong class="bold">CAGR</strong>) of a trading <a id="_idIndexMarker666"></a>strategy by the maximum <a id="_idIndexMarker667"></a>drawdown experienced over a <span class="No-Break">specified period</span></li>
+				<li><strong class="bold">Omega ratio</strong>: The omega ratio is<a id="_idIndexMarker668"></a> calculated by dividing the sum of positive excess returns by the absolute sum of negative excess returns over a <span class="No-Break">given threshold</span></li>
+				<li><strong class="bold">Skew</strong>: Skew is calculated by <a id="_idIndexMarker669"></a>taking the third standardized moment of the return series, essentially measuring the<a id="_idIndexMarker670"></a> asymmetry of the <span class="No-Break">return distribution</span></li>
+				<li><strong class="bold">Kurtosis</strong>: Kurtosis is calculated by taking the fourth central moment of the returns series and dividing it<a id="_idIndexMarker671"></a> by the square of the variance, effectively measuring the “tailedness” of <span class="No-Break">the distribution</span></li>
+				<li><strong class="bold">Value at risk</strong>: Daily <strong class="bold">value at risk</strong> (<strong class="bold">VaR</strong>) is calculated by taking the negative of the quantile of the daily returns at a given confidence<a id="_idIndexMarker672"></a> level, typically 5% <span class="No-Break">or 1%</span></li>
+				<li><strong class="bold">Gross leverage</strong>: Gross leverage is<a id="_idIndexMarker673"></a> calculated as the sum of the absolute values of long and short positions divided by the portfolio’s net asset value at each <span class="No-Break">time point</span></li>
+			</ul>
+			<h2 id="_idParaDest-254"><a id="_idTextAnchor262"></a>There’s more…</h2>
+			<p>Pyfolio offers more details about a strategy’s returns, which can provide more insight into how the strategy performed during <span class="No-Break">the backtest.</span></p>
+			<ol>
+				<li>Create a distribution of <span class="No-Break">monthly returns:</span><pre class="source-code">
+pf.plotting.plot_monthly_returns_dist(returns)</pre><p class="list-inset">The output is a histogram with the frequency of <span class="No-Break">monthly returns.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer180" class="IMG---Figure">
+					<img src="image/B21323_09_13.jpg" alt="Figure 9.13: Histogram with the frequency of monthly returns" width="671" height="537"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.13: Histogram with the frequency of monthly returns</p>
+			<ol>
+				<li value="2">Visualize the strategy’s daily<a id="_idIndexMarker674"></a> returns <span class="No-Break">through time:</span><pre class="source-code">
+pf.plotting.plot_returns(
+    returns,
+    live_start_date="2017-01-01"
+)</pre><p class="list-inset">The result is a line plot depicting the <span class="No-Break">daily returns.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer181" class="IMG---Figure">
+					<img src="image/B21323_09_14.jpg" alt="Figure 9.14: Line chart with the daily returns" width="718" height="467"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.14: Line chart with the daily returns</p>
+			<ol>
+				<li value="3">Visualize the return series<a id="_idIndexMarker675"></a> in quantiles and their cumulative returns for <span class="No-Break">each quantile:</span><pre class="source-code">
+pf.plotting.plot_return_quantiles(
+    returns,
+    live_start_date="2017-01-01"
+)</pre><p class="list-inset">The result is a box plot depicting the quantiles of daily, weekly, and monthly returns along with the distribution of <span class="No-Break">cumulative returns.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer182" class="IMG---Figure">
+					<img src="image/B21323_09_15.jpg" alt="Figure 9.15: Box plot depicting the quantiles of daily, weekly, and monthly returns along with the distribution of cumulative returns" width="705" height="514"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.15: Box plot depicting the quantiles of daily, weekly, and monthly returns along with the distribution of cumulative returns</p>
+			<h2 id="_idParaDest-255"><a id="_idTextAnchor263"></a>See also</h2>
+			<p>You can dive deeper into <a id="_idIndexMarker676"></a>Pyfolio’s performance and return metrics by reviewing the source code <span class="No-Break">here: </span><a href="https://github.com/stefan-jansen/pyfolio-reloaded/blob/main/src/pyfolio/plotting.py"><span class="No-Break">https://github.com/stefan-jansen/pyfolio-reloaded/blob/main/src/pyfolio/plotting.py</span></a></p>
+			<h1 id="_idParaDest-256"><a id="_idTextAnchor264"></a>Building a drawdown and rolling risk analysis</h1>
+			<p>A focus only on returns without considering risk is like driving a fast car at high speeds without a seatbelt—it may work for a while, but the consequences can be catastrophic. Risk metrics provide the<a id="_idIndexMarker677"></a> analytical framework to quantify and manage uncertainty, which<a id="_idIndexMarker678"></a> lets traders make more informed decisions. These metrics offer insights into the potential volatility, drawdown, and other adverse conditions a strategy might encounter. By incorporating risk analytics into the trading process, traders can better assess the trade-offs between risk and return, optimize their portfolios for maximum risk-adjusted performance, and establish safeguards to mitigate <span class="No-Break">potential losses.</span></p>
+			<p>Pyfolio offers several risk metrics to help maintain control of algorithmic trading systems. We’ll look at several in <span class="No-Break">this recipe.</span></p>
+			<h2 id="_idParaDest-257"><a id="_idTextAnchor265"></a>Getting ready…</h2>
+			<p>We assume the steps in the <em class="italic">Preparing Zipline Reloaded backtest results for Pyfolio Reloaded</em> recipe were followed in preparation for this recipe. We’ll need <strong class="source-inline">returns</strong>, <strong class="source-inline">positions</strong>, <strong class="source-inline">transactions</strong>, and <strong class="source-inline">benchmark_returns</strong> defined for <span class="No-Break">this recipe.</span></p>
+			<h2 id="_idParaDest-258"><a id="_idTextAnchor266"></a>How to do it…</h2>
+			<p>We’ll look at Pyfolio Reloaded drawdown analysis and several rolling risk metrics. Rolling risk metrics help traders understand how<a id="_idIndexMarker679"></a> strategy risk evolves <span class="No-Break">through time.</span></p>
+			<ol>
+				<li>Graphically depict the<a id="_idIndexMarker680"></a> top 10 drawdowns over the <span class="No-Break">strategy period:</span><pre class="source-code">
+pf.plotting.plot_drawdown_periods(returns, top=10)</pre><p class="list-inset">The result is an equity curve depicting the cumulative strategy returns with vertical shading over the periods the strategy was <span class="No-Break">in drawdown.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer183" class="IMG---Figure">
+					<img src="image/B21323_09_16.jpg" alt="Figure 9.16: Equity curve depicting the cumulative strategy returns with vertical shading over the periods the strategy was in drawdown" width="695" height="494"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.16: Equity curve depicting the cumulative strategy returns with vertical shading over the periods the strategy was in drawdown</p>
+			<ol>
+				<li value="2">Visualize the equity drawdown <span class="No-Break">over time:</span><pre class="source-code">
+pf.plotting.plot_drawdown_underwater(returns)</pre><p class="list-inset">The result is an <strong class="bold">underwater plot</strong> that visualizes<a id="_idIndexMarker681"></a> the strategy <span class="No-Break">drawdown</span><span class="No-Break"><a id="_idIndexMarker682"></a></span><span class="No-Break"> amounts.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer184" class="IMG---Figure">
+					<img src="image/B21323_09_17.jpg" alt="Figure 9.17: Underwater plot visualizing the strategy drawdown amounts" width="691" height="494"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.17: Underwater plot visualizing the strategy drawdown amounts</p>
+			<ol>
+				<li value="3">Create a table of the worst <a id="_idIndexMarker683"></a>drawdowns with details of the amount, peak date, valley date, recovery date, <span class="No-Break">and duration:</span><pre class="source-code">
+pf.plotting.show_worst_drawdown_periods(returns)</pre><p class="list-inset">The result is a DataFrame detailing the top five <span class="No-Break">drawdown periods.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer185" class="IMG---Figure">
+					<img src="image/B21323_09_18.jpg" alt="Figure 9.18: DataFrame detailing the top five drawdown periods" width="605" height="170"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.18: DataFrame detailing the top five drawdown periods</p>
+			<ol>
+				<li value="4">Plot the strategy 3-month rolling volatility against <span class="No-Break">the benchmark:</span><pre class="source-code">
+pf.plotting.plot_rolling_volatility(
+    returns,
+    factor_returns=benchmark_returns,
+    rolling_window=66
+)</pre><p class="list-inset">The result is a chart with <a id="_idIndexMarker684"></a>the rolling 3-month volatility<a id="_idIndexMarker685"></a> compared to <span class="No-Break">the benchmark.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer186" class="IMG---Figure">
+					<img src="image/B21323_09_19.jpg" alt="Figure 9.19: Chart with the rolling 3-month volatility compared to the benchmark" width="695" height="494"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.19: Chart with the rolling 3-month volatility compared to the benchmark</p>
+			<ol>
+				<li value="5">Plot the strategy 3-month rolling Sharpe<a id="_idIndexMarker686"></a> ratio, its mean, and the <span class="No-Break">benchmark Sharpe:</span><pre class="source-code">
+pf.plotting.plot_rolling_sharpe(
+    returns,
+    factor_returns=benchmark_returns,
+    rolling_window=66
+)</pre><p class="list-inset">The result is a chart <a id="_idIndexMarker687"></a>with the rolling 3-month Sharpe ratio compared to <span class="No-Break">the benchmark.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer187" class="IMG---Figure">
+					<img src="image/B21323_09_20.jpg" alt="Figure 9.20: Chart with the rolling 3-month Sharpe ratio compared to the benchmark" width="701" height="494"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.20: Chart with the rolling 3-month Sharpe ratio compared to the benchmark</p>
+			<h2 id="_idParaDest-259"><a id="_idTextAnchor267"></a>How it works…</h2>
+			<p>To generate the drawdown and rolling risk metrics, Pyfolio Reloaded uses the same underlying module as the performance and <span class="No-Break">return metrics:</span></p>
+			<ul>
+				<li><strong class="source-inline">plot_drawdown_periods</strong>: Computes the drawdown periods by identifying local maxima and subsequent declines. It then uses Matplotlib to visualize these drawdown periods, highlighting the <a id="_idIndexMarker688"></a>start, valley, and end of each period on <span class="No-Break">the plot.</span></li>
+				<li><strong class="source-inline">plot_drawdown_underwater</strong>: Finds the maximum cumulative return up to each point and subtracts the <a id="_idIndexMarker689"></a>cumulative return from it. It then utilizes Matplotlib to plot the underwater curve, representing the negative drawdowns <span class="No-Break">over time.</span></li>
+				<li><strong class="source-inline">show_worst_drawdown_periods</strong>: First, this computes the drawdowns, then sorts these drawdown periods and displays the top <strong class="source-inline">n</strong> worst drawdown periods in a <span class="No-Break">pandas DataFrame.</span></li>
+				<li><strong class="source-inline">plot_rolling_volatility</strong>: Applies a rolling window and computes the standard deviation of returns within each window. It then uses Matplotlib to plot the computed rolling volatility <span class="No-Break">against time.</span></li>
+				<li><strong class="source-inline">plot_rolling_sharpe</strong>: Applies a rolling window and computes the Sharpe ratio within each window. It then uses Matplotlib to plot the computed rolling Sharpe ratio <span class="No-Break">against time.</span></li>
+			</ul>
+			<p>Let’s cover some of the key risk metrics <span class="No-Break">we covered:</span></p>
+			<ul>
+				<li><strong class="bold">Annual volatility</strong>: The annual volatility is calculated by taking the standard deviation of the daily returns <a id="_idIndexMarker690"></a>and then annualizing it by multiplying it by the square root of the number of trading days (<span class="No-Break">usually 252).</span></li>
+				<li><strong class="bold">Sharpe ratio</strong>: The Sharpe ratio is calculated as the mean of the excess returns divided by the standard deviation of those <span class="No-Break">excess returns.</span></li>
+				<li><strong class="bold">Max drawdown</strong>: Max drawdown is calculated by identifying the maximum difference between a peak and a subsequent trough in a time series of <span class="No-Break">portfolio values.</span></li>
+			</ul>
+			<h2 id="_idParaDest-260"><a id="_idTextAnchor268"></a>There’s more…</h2>
+			<p>Pyfolio allows for the overlay of specific event timelines, enabling a comparative analysis of portfolio and benchmark <a id="_idIndexMarker691"></a>performance during these periods. An example would be assessing <a id="_idIndexMarker692"></a>performance during the market downturn of what is now considered the New Normal. The following steps show <span class="No-Break">you how.</span></p>
+			<ol>
+				<li>Use <strong class="source-inline">extract_interesting_date_ranges</strong> to extract the strategy returns from pre-defined <span class="No-Break">stress events:</span><pre class="source-code">
+times = pf.timeseries.extract_interesting_date_ranges(returns)</pre></li>				<li>Then join with the benchmark returns, compute the cumulative returns, <span class="No-Break">and plot:</span><pre class="source-code">
+(
+    times["New Normal"]
+    .to_frame("strategy_returns")
+    .join(benchmark_returns)
+    .add(1)
+    .cumprod()
+    .sub(1)
+    .plot()
+)</pre><p class="list-inset">The result is a plot that depicts the strategy returns compared to the benchmark during the <span class="No-Break">stress event.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer188" class="IMG---Figure">
+					<img src="image/B21323_09_21.jpg" alt="Figure 9.21: Plot that depicts the strategy returns compared to the benchmark during the stress event" width="675" height="467"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.21: Plot that depicts the strategy returns compared to the benchmark during the stress event</p>
+			<h2 id="_idParaDest-261"><a id="_idTextAnchor269"></a>See also</h2>
+			<p>To get a list of stress periods and<a id="_idIndexMarker693"></a> their start and end dates, check into the source<a id="_idIndexMarker694"></a> code <span class="No-Break">here: </span><a href="https://github.com/stefan-jansen/pyfolio-reloaded/blob/main/src/pyfolio/interesting_periods.py%0D"><span class="No-Break">https://github.com/stefan-jansen/pyfolio-reloaded/blob/main/src/pyfolio/interesting_periods.py</span></a></p>
+			<h1 id="_idParaDest-262"><a id="_idTextAnchor270"></a>Analyzing strategy holdings, leverage, exposure, and sector allocations</h1>
+			<p>We can extend our strategy analysis with Pyfolio by analyzing holdings, leverage, and sector allocations over time. Analyzing <a id="_idIndexMarker695"></a>holdings over time helps traders understand the diversification and <a id="_idIndexMarker696"></a>concentration risks within a portfolio. It helps traders identify overexposure to specific assets, which could be detrimental in <a id="_idIndexMarker697"></a>adverse market conditions. Leverage analysis is equally important, as excessive borrowing can amplify losses, leading to significant <a id="_idIndexMarker698"></a>drawdowns or even portfolio liquidation. Monitoring leverage levels over time allows traders to adjust their risk exposure in line with their risk tolerance and <span class="No-Break">market outlook.</span></p>
+			<p>Sector allocation analysis provides insights into how diversified the portfolio is across different industries. This is important for risk management, as different sectors respond differently to economic cycles and market events. Understanding sector allocations can help traders optimize their portfolios for various market conditions and potentially enhance returns while mitigating risks. In this recipe, we’ll look at how Pyfolio is used for <span class="No-Break">portfolio analysis.</span></p>
+			<h2 id="_idParaDest-263"><a id="_idTextAnchor271"></a>Getting ready…</h2>
+			<p>We assume the steps in the <em class="italic">Preparing Zipline Reloaded backtest results for Pyfolio Reloaded</em> recipe were followed in preparation for this recipe. We’ll need <strong class="source-inline">returns</strong>, <strong class="source-inline">positions</strong>, and <strong class="source-inline">sector_map</strong> defined for <span class="No-Break">this</span><span class="No-Break"><a id="_idIndexMarker699"></a></span><span class="No-Break"> recipe.</span></p>
+			<h2 id="_idParaDest-264"><a id="_idTextAnchor272"></a>How to do it…</h2>
+			<p>We’ll look at how the strategy<a id="_idIndexMarker700"></a> holdings, leverage, exposure, and sector allocation evolve throughout the <span class="No-Break">analysis period.</span></p>
+			<ol>
+				<li>Plot the number of daily holdings, average holdings by month, and overall <span class="No-Break">average holdings:</span><pre class="source-code">
+pf.plotting.plot_holdings(returns, positions)</pre><p class="list-inset">The result is a plot of the number of daily holdings, average holdings by month, and overall <span class="No-Break">average holdings.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer189" class="IMG---Figure">
+					<img src="image/B21323_09_22.jpg" alt="Figure 9.22: Plot of number of daily holdings, average holdings by month, and overall average holdings" width="680" height="494"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.22: Plot of number of daily holdings, average holdings by month, and overall average holdings</p>
+			<ol>
+				<li value="2">Plot the number of long<a id="_idIndexMarker701"></a> and <span class="No-Break">short holdings:</span><pre class="source-code">
+pf.plotting.plot_long_short_holdings(
+    returns,
+    positions
+)</pre><p class="list-inset">The result is a plot<a id="_idIndexMarker702"></a> of the number of long and <span class="No-Break">short holdings.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer190" class="IMG---Figure">
+					<img src="image/B21323_09_23.jpg" alt="Figure 9.23: Plot of the number of long and short holdings" width="671" height="514"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.23: Plot of the number of long and short holdings</p>
+			<ol>
+				<li value="3">Plot the gross <span class="No-Break">strategy </span><span class="No-Break"><a id="_idIndexMarker703"></a></span><span class="No-Break">leverage:</span><pre class="source-code">
+pf.plotting.plot_gross_leverage(returns, positions)</pre><p class="list-inset">The result is a plot of the <a id="_idIndexMarker704"></a>gross <span class="No-Break">strategy leverage.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer191" class="IMG---Figure">
+					<img src="image/B21323_09_24.jpg" alt="Figure 9.24: Plot of the strategy’s gross leverage" width="695" height="494"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.24: Plot of the strategy’s gross leverage</p>
+			<ol>
+				<li value="4">Plot the long, short, and <span class="No-Break">net exposure:</span><pre class="source-code">
+pf.plotting.plot_exposures(returns, positions)</pre><p class="list-inset">The result is a plot <a id="_idIndexMarker705"></a>of long, short, and <span class="No-Break">net exposure.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer192" class="IMG---Figure">
+					<img src="image/B21323_09_25.jpg" alt="Figure 9.25: Plot of the strategy’s long, short, and net exposure" width="708" height="514"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.25: Plot of the strategy’s long, short, and net exposure</p>
+			<ol>
+				<li value="5">Generate a pandas DataFrame with the percentage allocation of <span class="No-Break">each position:</span><pre class="source-code">
+positions_alloc = pf.pos.get_percent_alloc(positions)</pre></li>				<li>Generate a table of the top<a id="_idIndexMarker706"></a> long, short, and net positions of <span class="No-Break">all time:</span><pre class="source-code">
+pf.plotting.show_and_plot_top_positions(
+    returns,
+    positions_alloc,
+    show_and_plot=2
+)</pre><p class="list-inset">The result is a pandas DataFrame and chart with the maximum percentage allocation of each of the top <a id="_idIndexMarker707"></a>10 <span class="No-Break">strategy holdings.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer193" class="IMG---Figure">
+					<img src="image/B21323_09_26.jpg" alt="Figure 9.26: pandas DataFrame and chart with the maximum percentage allocation of each of the top 10 strategy holdings" width="708" height="503"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.26: pandas DataFrame and chart with the maximum percentage allocation of each of the top 10 strategy holdings</p>
+			<ol>
+				<li value="7">Generate the sector <a id="_idIndexMarker708"></a>allocations based on the positions and <span class="No-Break">sector mapping:</span><pre class="source-code">
+sector_alloc = pf.pos.get_sector_exposures(
+    positions,
+    symbol_sector_map=sector_map
+)</pre></li>				<li>Plot the sector allocation using Pyfolio’s <span class="No-Break"><strong class="source-inline">plot_sector_allocations</strong></span><span class="No-Break"> method:</span><pre class="source-code">
+pf.plotting.plot_sector_allocations(
+    returns,
+    sector_alloc=sector_alloc
+)</pre><p class="list-inset">The result is a chart that graphically depicts the strategy’s sector allocation, <span class="No-Break">including cash.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer194" class="IMG---Figure">
+					<img src="image/B21323_09_27.jpg" alt="Figure 9.27: Chart of the strategy’s sector allocation over time" width="876" height="526"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.27: Chart of the strategy’s sector allocation over time</p>
+			<h2 id="_idParaDest-265"><a id="_idTextAnchor273"></a>How it works…</h2>
+			<p>The <strong class="source-inline">plot_holdings</strong> function is designed to visualize the total number of stocks with an active position (either short or long) over time. It takes in a pandas Series of daily returns (<strong class="source-inline">returns</strong>) and a pandas DataFrame of daily net position values (<strong class="source-inline">positions</strong>). The plot gives traders a time-series<a id="_idIndexMarker709"></a> representation of the strategy’s exposure to the market. The daily holdings line<a id="_idIndexMarker710"></a> gives you an immediate sense of how many positions are held each day, while the monthly and overall averages provide a more smoothed-out perspective, useful for understanding the strategy’s typical <span class="No-Break">market exposure.</span></p>
+			<p>The <strong class="source-inline">plot_long_short_holdings</strong> takes the same arguments as <strong class="source-inline">plot_holdings</strong>. It filters out cash positions and counts the number of long and short positions for each day. Using Matplotlib, it plots these counts as shaded regions over time, with green indicating long positions and red indicating short positions. Conceptually, the plot serves as a visual representation of the strategy’s exposure to long and short positions <span class="No-Break">over time.</span></p>
+			<p><strong class="source-inline">plot_gross_leverage</strong> takes <strong class="source-inline">returns</strong> and <strong class="source-inline">positions</strong> and plots the gross leverage over time using Matplotlib. The output provides a time-series view of the strategy’s gross leverage which is the ratio of the absolute sum of the long and short positions to the strategy’s net asset value. For traders using margin, monitoring gross leverage is critical to quantify the level of risk exposure relative to the portfolio’s net asset value. Excessive leverage <a id="_idIndexMarker711"></a>can amplify both gains and losses, potentially leading to rapid depletion of capital or<a id="_idIndexMarker712"></a> margin calls. Understanding and managing leverage is essential for risk control and ensuring compliance with trading limits or <span class="No-Break">regulatory requirements.</span></p>
+			<p><strong class="source-inline">plot_exposures</strong> helps visualize the long, short, and net exposure across the strategy. Exposure is calculated by summing the values of either long, short, or all positions on each day and dividing by the sum of all positions on the same day. Long exposure represents the proportion of the portfolio invested in long positions, short exposure indicates the proportion in short positions. The net exposure gives an overall exposure level, which can be interpreted as the strategy’s directional bias. A positive net exposure would suggest a bullish stance, while a negative value would indicate a <span class="No-Break">bearish outlook.</span></p>
+			<p>The <strong class="source-inline">show_and_plot_top_positions</strong> is a snapshot of a strategy’s most significant long and short positions. The function takes a pandas DataFrame of positions and a specified number <strong class="bold">N</strong> to identify the top N long and short positions by net market value. It then calculates the mean position for each asset over the analysis period. The function outputs a table displaying these top positions and also generates a bar plot to visualize them <span class="No-Break">over time.</span></p>
+			<p>Finally, <strong class="source-inline">plot_sector_allocations</strong> calculates the daily sector allocations by aggregating the positions based on the sector mappings for each stock. The plot is a snapshot of the strategy’s average exposure to sectors. It is useful for understanding the portfolio’s diversification and risk profile across sectors for <span class="No-Break">hedging purposes.</span></p>
+			<h2 id="_idParaDest-266"><a id="_idTextAnchor274"></a>There’s more…</h2>
+			<p>If you’re trading intraday strategies, transaction costs play an important part in the profitability of a strategy. Transaction costs can be direct, which are the commissions and fees we pay to our broker and exchanges, and indirect, which include market impact <span class="No-Break">and slippage.</span></p>
+			<p>Pyfolio has several tools for measuring <span class="No-Break">these costs:</span></p>
+			<ul>
+				<li><strong class="source-inline">plot_turnover</strong>: Plots turnover, which is the number of shares traded for a period as a fraction of total shares. The output displays the daily total, daily average per month, and <span class="No-Break">all-time daily.</span></li>
+				<li><strong class="source-inline">plot_slippage_sweep</strong>: Plots equity curves at different per-dollar <span class="No-Break">slippage assumptions.</span></li>
+				<li><strong class="source-inline">plot_slippage_sensitivity</strong>: Plots curve relating per-dollar slippage to average <span class="No-Break">annual returns.</span></li>
+				<li><strong class="source-inline">plot_capacity_sweep</strong>: Performs <a id="_idIndexMarker713"></a>a sweep over different starting portfolio values to assess the impact on <a id="_idIndexMarker714"></a>the Sharpe ratio, considering transaction costs and market slippage, and then plots the resulting Sharpe ratios against the <span class="No-Break">portfolio values.</span></li>
+				<li><strong class="source-inline">plot_daily_turnover_hist:</strong> Plots a histogram of daily <span class="No-Break">turnover rates.</span></li>
+				<li><strong class="source-inline">plot_daily_volume</strong>: Plots the trading volume <span class="No-Break">per day.</span></li>
+			</ul>
+			<p>Active traders that are concerned about their transaction costs can use these additional tools to analyze costs on their <span class="No-Break">strategy performance.</span></p>
+			<h2 id="_idParaDest-267"><a id="_idTextAnchor275"></a>See also</h2>
+			<p>If you’re new to asset allocation and why it matters, you can get a good primer at Investopedia here: <a href="https://www.investopedia.com/terms/a/assetallocation.asp">https://www.investopedia.com/terms/a/assetallocation.asp</a>. A concept close to leverage is margin, which is discussed here: <a href="https://www.investopedia.com/terms/m/margin.asp">https://www.investopedia.com/terms/m/margin.asp</a>. Finally, tools like Trade Blotter can help automate a lot of the risk and performance analytics for <span class="No-Break">you: </span><a href="https://tradeblotter.io"><span class="No-Break">https://tradeblotter.io</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-268"><a id="_idTextAnchor276"></a>Breaking Down Strategy Performance to Trade Level</h1>
+			<p>So far in this chapter, we’ve considered risk and performance metrics at the strategy level. This is an important<a id="_idIndexMarker715"></a> perspective, but not the only one. In this recipe, we’ll use Pyfolio Reloaded to look at the strategy at the trade level. Examining strategy risk and performance at the trade level provides more granular insights into how the returns of the strategy are composed. It lets identify specific trades, or classes of trades, that may be contributing disproportionately to risk or returns. This level of examination helps traders optimize strategy features like trade execution, entry and exit criteria, or even asset class. In this recipe, we’ll look at trade-level statistics for <span class="No-Break">our strategy.</span></p>
+			<h2 id="_idParaDest-269"><a id="_idTextAnchor277"></a>Getting ready…</h2>
+			<p>We assume the steps in the <em class="italic">Preparing Zipline Reloaded backtest results for Pyfolio Reloaded</em> recipe were followed in preparation for<a id="_idIndexMarker716"></a> this recipe. We’ll need <strong class="source-inline">transactions</strong> defined for <span class="No-Break">this recipe.</span></p>
+			<h2 id="_idParaDest-270"><a id="_idTextAnchor278"></a>How to do it…</h2>
+			<p>Pyfolio has a utility function to identify a trade from the transaction history. A trade is considered an opening and closing transaction of the same quantity for the <span class="No-Break">same asset.</span></p>
+			<ol>
+				<li>Extract the round trips from the strategy <span class="No-Break">transaction history:</span><pre class="source-code">
+round_trips = pf.round_trips.extract_round_trips(
+    transactions[["amount", "price", "symbol"]]
+)</pre><p class="list-inset">The result is a pandas DataFrame with the profit or loss, return, and duration of all <span class="No-Break">round trips.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer195" class="IMG---Figure">
+					<img src="image/B21323_09_28.jpg" alt="Figure 9.28: DataFrame containing the round trips extracted from the transaction history" width="780" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.28: DataFrame containing the round trips extracted from the transaction history</p>
+			<ol>
+				<li value="2">Use the <strong class="source-inline">print_round_trip_stats</strong> function to<a id="_idIndexMarker717"></a> generate the summary statistics of the <span class="No-Break">strategy trades:</span><pre class="source-code">
+pf.round_trips.print_round_trip_stats(
+    round_trips.rename(
+        columns={"rt_returns": "returns"}
+    )
+)</pre><p class="list-inset">The result is a series of pandas DataFrames with aggregate and <span class="No-Break">asset-specific statistics.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer196" class="IMG---Figure">
+					<img src="image/B21323_09_29.jpg" alt="Figure 9.29: Trade-level summary statistics" width="657" height="886"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.29: Trade-level summary statistics</p>
+			<ol>
+				<li value="3">Plot the duration of each <a id="_idIndexMarker718"></a>round trip, per asset, <span class="No-Break">over time:</span><pre class="source-code">
+pf.plotting.plot_round_trip_lifetimes(round_trips)</pre><p class="list-inset">The result is a plot that<a id="_idIndexMarker719"></a> visualizes the holding period for each <span class="No-Break">asset traded.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer197" class="IMG---Figure">
+					<img src="image/B21323_09_30.jpg" alt="Figure 9.30: Plot visualizing the holding period for each asset traded" width="705" height="487"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.30: Plot visualizing the holding period for each asset traded</p>
+			<h2 id="_idParaDest-271"><a id="_idTextAnchor279"></a>How it works…</h2>
+			<p>Round trips are computed by identifying the opening and closing transactions for each asset in a strategy. We start by extracting executed orders from the transactions DataFrame and categorizes them as either “buy” or “sell” based on the sign of the quantity. It then groups these transactions by asset and sorts them by date. For each asset, the algorithm iterates through the sorted transactions to match an opening transaction (buy for long or sell for short) with its corresponding closing transaction (sell for long or buy for short). The time, price, and quantity of both the opening and closing transactions are recorded to compute the round-trip characteristics such as duration, profit and loss, and other <span class="No-Break">relevant metrics.</span></p>
+			<p>Conceptually, a round trip is a complete cycle of opening and closing a position in a specific asset, and its analysis is crucial for understanding the effectiveness of our strategy. Metrics derived from round-trip analysis can provide valuable insights into transaction costs, holding periods, and the risk/return profile of individual trades, thereby aiding in strategy optimization and <span class="No-Break">risk management.</span></p>
+			<p>Now that we covered how the plots are generated, let’s review some of the key statistics output <span class="No-Break">by Pyfolio:</span></p>
+			<ul>
+				<li><strong class="bold">Percent profitable</strong>: Calculated by dividing the number of profitable round trips by the total number of <span class="No-Break">round trips</span></li>
+				<li><strong class="bold">Winning round_trips</strong>: Calculated by counting the number of round-trip trades that resulted in a positive profit <span class="No-Break">and loss</span></li>
+				<li><strong class="bold">Losing round_trips</strong>: Calculated by counting the number of round-trip trades that resulted in a negative profit <span class="No-Break">and loss</span></li>
+				<li><strong class="bold">Profit factor</strong>: Calculated by<a id="_idIndexMarker720"></a> dividing the sum of all profitable trades by the absolute sum of all <span class="No-Break">losing trades</span></li>
+				<li><strong class="bold">Avg. winning trade</strong>: Computed by taking the mean of all <span class="No-Break">profitable trades</span></li>
+			</ul>
+			<h2 id="_idParaDest-272"><a id="_idTextAnchor280"></a>There’s more…</h2>
+			<p>Depending on our strategy, it’s sometimes useful to aggregate the round trip performance statistics by section, instead of by asset. By passing in the <strong class="source-inline">sector_map</strong> dictionary we built in the <em class="italic">Preparing Zipline Reloaded backtest results for Pyfolio Reloaded </em>recipe, we can aggregate <span class="No-Break">by sector.</span></p>
+			<ol>
+				<li>Apply the sector mapping to the extracted <span class="No-Break">round trips:</span><pre class="source-code">
+round_trips_by_sector = pf.round_trips.apply_sector_mappings_to_round_trips(
+    round_trips,
+    sector_map
+)</pre><p class="list-inset">The result is a pandas DataFrame similar to <span class="No-Break"><em class="italic">Figure 9</em></span><em class="italic">.28</em> except aggregated by sector, instead of <span class="No-Break">asset symbol.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer198" class="IMG---Figure">
+					<img src="image/B21323_09_31.jpg" alt="Figure 9.31: DataFrame with round trips mapped to sector" width="862" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.31: DataFrame with round trips mapped to sector</p>
+			<ol>
+				<li value="2">Plot the duration of each<a id="_idIndexMarker721"></a> round trip, per sector, <span class="No-Break">over time:</span><pre class="source-code">
+pf.plotting.plot_round_trip_lifetimes(round_trips)</pre><p class="list-inset">The result is a plot that visualizes the holding period for each <span class="No-Break">sector traded.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer199" class="IMG---Figure">
+					<img src="image/B21323_09_32.jpg" alt="Figure 9.32: Plot visualizing the holding period for each sector traded" width="840" height="487"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 9.32: Plot visualizing the holding period for each sector traded</p>
+			<h2 id="_idParaDest-273"><a id="_idTextAnchor281"></a>See also</h2>
+			<p>As we’ve said, no single risk or performance metric is enough for a complete picture of your strategy. Pyfolio provides many important risk and performance statistics, but there are more. For a good walkthrough of other important risk and performance metrics, you can refer to <span class="No-Break">blogs online.</span></p>
+		</div>
+	</div>
+</div>
+</body>
+</html>

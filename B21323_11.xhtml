@@ -1,0 +1,479 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer223">
+			<h1 id="_idParaDest-318" class="chapter-number"><a id="_idTextAnchor327"></a>11</h1>
+			<h1 id="_idParaDest-319"><a id="_idTextAnchor328"></a>Manage Orders, Positions, and Portfolios with the IB API</h1>
+			<p><a id="_idTextAnchor329"></a>In algorithmic trading, efficient management of orders, positions, and portfolio data is critical. Luckily for us, we can do it all using Python. Managing orders encompasses a range of activities, including executing new trades, canceling existing orders, and updating orders to adapt to changing market conditions or shifts in trading strategies. Managing positions<a id="_idIndexMarker806"></a> involves monitoring and analyzing live position data to track <strong class="bold">profit and loss</strong> (<strong class="bold">PnL</strong>) in real time. This immediate insight into the performance of individual trades enables traders to make informed decisions on whether to hold, sell, or adjust positions. Further, real-time (or near real-time) portfolio data can generate real-time (or near real-time) risk statistics to improve overall risk management. Portfolio data management involves a comprehensive analysis of the portfolio to assess its performance, understand risk exposure, and make strategic adjustments for optimizing returns. This is especially true when trading stocks on margin or futures where there is a financial cost and opportunity cost in holding <span class="No-Break">losing positions.</span></p>
+			<p>As we’ve seen, the IB API <a id="_idIndexMarker807"></a>uses a consistent request-callback pattern that can be used in several aspects of our trading app, including order management, position management, and accessing portfolio details. This pattern allows for the initiation of a request, such as placing or modifying an order, retrieving current position data, or gathering portfolio information, followed by a callback function that handles the response. We’ll use this pattern throughout the chapter. By the end of this chapter, we’ll be able to submit and modify orders to IB through Python, obtain key portfolio details including information on liquidity, margin requirements, and open positions, and compute our portfolio’s profit <span class="No-Break">or loss.</span></p>
+			<p>In this chapter, we present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Executing orders with the <span class="No-Break">IB API</span></li>
+				<li>Managing orders once <span class="No-Break">they’re placed</span></li>
+				<li>Getting details about <span class="No-Break">your portfolio</span></li>
+				<li>Inspecting positions and <span class="No-Break">position details</span></li>
+				<li>Computing portfolio profit <span class="No-Break">and loss</span></li>
+			</ul>
+			<h1 id="_idParaDest-320"><a id="_idTextAnchor330"></a>Executing orders with the IB API</h1>
+			<p>In <a href="B21323_10.xhtml#_idTextAnchor282"><span class="No-Break"><em class="italic">Chapter 10</em></span></a>, <em class="italic">Set Up the Interactive Brokers Python API</em>, we created <strong class="source-inline">contract</strong> and <strong class="source-inline">order</strong> objects. Using these, we can use the IB API to execute trades. But before we can execute trades, we have to understand the concept of the next <span class="No-Break">order ID.</span></p>
+			<p>The <a id="_idIndexMarker808"></a>next order ID (<strong class="source-inline">nextValidOrderId</strong>) is a unique identifier for each order. Since up to 32 instances of a trading app can run in parallel, this identifier makes sure individual orders are traceable within the trading system. <strong class="source-inline">nextValidOrderId</strong> is used to preserve order integrity and prevent overlap between multiple orders submitted simultaneously or in rapid succession. When our trading app connects to <a id="_idIndexMarker809"></a>the IB API, it receives an integer variable called <strong class="source-inline">nextValidOrderId</strong> from the server that is unique to each client connection to TWS. This ID must be used for the first order submission. Subsequently, we are responsible for incrementing this identifier for each <span class="No-Break">new order.</span></p>
+			<h2 id="_idParaDest-321"><a id="_idTextAnchor331"></a>Getting ready</h2>
+			<p>We assume you’ve created the <strong class="source-inline">client.py</strong> and <strong class="source-inline">wrapper.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-322"><a id="_idTextAnchor332"></a>How to do it…</h2>
+			<p>First, we’ll add the code to deal with the integer <strong class="source-inline">nextValidOrderId</strong> in the <strong class="source-inline">wrapper.py</strong> file and print out the details of the <span class="No-Break">order’s execution:</span></p>
+			<ol>
+				<li>Add an instance variable, <strong class="source-inline">nextValidOrderId</strong>, in the <strong class="source-inline">__init__</strong> method of our <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+self.nextValidOrderId = None</pre></li>				<li>Add an implementation of the <strong class="source-inline">nextValidId</strong> method overriding the method from the inherited <strong class="source-inline">EWrapper</strong> class in our <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def nextValidId(self, order_id):
+    super().nextValidId(order_id)
+    self.nextValidOrderId = order_id</pre></li>				<li>Add <a id="_idIndexMarker810"></a>an implementation of the <strong class="source-inline">orderStatus</strong> method<a id="_idIndexMarker811"></a> overriding the method from the inherited <span class="No-Break"><strong class="source-inline">EWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def orderStatus(
+    self,
+    order_id,
+    status,
+    filled,
+    remaining,
+    avg_fill_price,
+    perm_id,
+    parent_id,
+    last_fill_price,
+    client_id,
+    why_held,
+    mkt_cap_price,
+):
+    print(
+        "orderStatus - orderid:",
+        order_id,
+        "status:",
+        status,
+        "filled",
+        filled,
+        "remaining",
+        remaining,
+        "lastFillPrice",
+        last_fill_price,
+    )</pre></li>				<li>Add <a id="_idIndexMarker812"></a>an implementation of the <strong class="source-inline">openOrder</strong> method <a id="_idIndexMarker813"></a>overriding the method from the inherited <span class="No-Break"><strong class="source-inline">EWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def openOrder(self, order_id, contract, order,
+    order_state):
+        print(
+            "openOrder id:",
+            order_id,
+            contract.symbol,
+            contract.secType,
+            "@",
+            contract.exchange,
+            ":",
+            order.action,
+            order.orderType,
+            order.totalQuantity,
+            order_state.status,
+        )</pre></li>				<li>Add an<a id="_idIndexMarker814"></a> implementation of the <strong class="source-inline">exectDetails</strong> method <a id="_idIndexMarker815"></a>overriding the method from the inherited <span class="No-Break"><strong class="source-inline">EWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def execDetails(self, request_id, contract,execution):
+    print(
+        "Order Executed: ",
+        request_id,
+        contract.symbol,
+        contract.secType,
+        contract.currency,
+        execution.execId,
+        execution.orderId,
+        execution.shares,
+        execution.lastLiquidity,
+    )</pre></li>				<li>Now, open the <strong class="source-inline">client.py</strong> file. Here, we’ll add a custom method, <strong class="source-inline">send_order</strong>, under the <strong class="source-inline">__init__</strong> method that accepts a <strong class="source-inline">contract</strong> object and <strong class="source-inline">order</strong> object, increments the <strong class="source-inline">nextValidOrderId</strong> variable, and sends the order to <span class="No-Break">the exchange:</span><pre class="source-code">
+def send_order(self, contract, order):
+    order_id = self.wrapper.nextValidOrderId
+    self.placeOrder(orderId=order_id,
+        contract=contract, order=order)
+    self.reqIds(-1)
+    return order_id</pre><p class="list-inset">The result of the changes is the following code in the <span class="No-Break"><strong class="source-inline">client.py</strong></span><span class="No-Break"> file:</span></p><pre class="source-code">import time
+import pandas as pd
+from utils import Tick, TRADE_BAR_PROPERTIES
+from ibapi.client import EClient
+class IBClient(EClient):
+    def __init__(self, wrapper):
+        EClient.__init__(self, wrapper)
+    def send_order(self, contract, order):
+        order_id = self.wrapper.nextValidOrderId
+        self.placeOrder(orderId=order_id,
+            contract=contract, order=order)
+        self.reqIds(-1)
+        return order_id
+    &lt;snip&gt;</pre></li>			</ol>
+			<h2 id="_idParaDest-323"><a id="_idTextAnchor333"></a>How it works…</h2>
+			<p>First, we’ll cover<a id="_idIndexMarker816"></a> the overridden methods in the <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class.</span></p>
+			<p>When orders are<a id="_idIndexMarker817"></a> submitted through the <strong class="source-inline">placeOrder</strong> method from the <strong class="source-inline">IBClient</strong> class, <strong class="source-inline">orderStatus</strong>, <strong class="source-inline">openOrder</strong>, <strong class="source-inline">execDetails</strong> from the <strong class="source-inline">IBWrapper</strong> class are invoked depending on the life cycle of the order. They accomplish <span class="No-Break">the following:</span></p>
+			<ul>
+				<li><strong class="source-inline">orderStatus</strong> receives updates about the status of <span class="No-Break">submitted orders</span></li>
+				<li><strong class="source-inline">openOrder</strong> provides information about orders that have been submitted but not <span class="No-Break">fully executed</span></li>
+				<li><strong class="source-inline">execDetails</strong> provides detailed information about the execution of <span class="No-Break">an order</span></li>
+			</ul>
+			<p>Each of these<a id="_idIndexMarker818"></a> callbacks accepts parameters that are passed from the IB API. In this recipe, we just print out the information. In more sophisticated applications, we can use the events to trigger risk analysis, portfolio updates, <span class="No-Break">or alerts.</span></p>
+			<p>When <strong class="source-inline">send_order</strong> is called, it takes a <strong class="source-inline">contract</strong> object and an <strong class="source-inline">order</strong> object. The <strong class="source-inline">contract</strong> object<a id="_idIndexMarker819"></a> represents the financial instrument to be ordered, while the <strong class="source-inline">order</strong> object contains the details of the order. The first line within the method, <strong class="source-inline">order_id = self.wrapper.nextValidOrderId</strong>, retrieves the next valid order ID from the <strong class="source-inline">IBWrapper</strong> object. The next line, <strong class="source-inline">self.placeOrder(orderId=order_id, contract=contract, order=order)</strong>, is a call to the <strong class="source-inline">placeOrder</strong> method of the IB API. This method is responsible for placing the order with the given <strong class="source-inline">order_id</strong>, <strong class="source-inline">contract</strong>, and <strong class="source-inline">order</strong> details on the IB server. The subsequent call, <strong class="source-inline">reqIds(-1)</strong>, is a request to the server to increment the internal counter for the next valid <span class="No-Break">order ID.</span></p>
+			<h2 id="_idParaDest-324"><a id="_idTextAnchor334"></a>There’s more…</h2>
+			<p>We now have everything in place to send orders to IB through the API using Python. To send an order for execution, import our <strong class="source-inline">order</strong> type and the <strong class="source-inline">BUY</strong> constant at the top of the <span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break"> file:</span></p>
+			<pre class="source-code">
+from order import limit, BUY</pre>			<p>Then, add the following code after the line that defines the <span class="No-Break">trading app:</span></p>
+			<pre class="source-code">
+limit_order = limit(BUY, 100, 190.00)
+app.send_order(aapl, limit_order)</pre>			<p>This uses the <strong class="source-inline">contract</strong> object we set up in the <em class="italic">Creating a Contract object with the IB API</em> and the <strong class="source-inline">order</strong> object we set up in the <em class="italic">Creating an Order object with the IB API</em> recipes from <a href="B21323_09.xhtml#_idTextAnchor250"><span class="No-Break"><em class="italic">Chapter 9</em></span></a><span class="No-Break">.</span></p>
+			<p>The result of the changes is the following code in the <span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break"> file:</span></p>
+			<pre class="source-code">
+import threading
+import time
+import sqlite3
+from wrapper import IBWrapper
+from client import IBClient
+from contract import stock, future, option
+from order import limit, BUY
+class IBApp(IBWrapper, IBClient):
+    def __init__(self, ip, port, client_id):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.create_table()
+        self.connect(ip, port, client_id)
+        thread = threading.Thread(target=self.run,
+            daemon=True)
+        thread.start()
+        time.sleep(2)
+    &lt;snip&gt;
+if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=11)
+    aapl = stock("AAPL", "SMART", "USD")
+    gbl = future("GBL", "EUREX", "202403")
+    pltr = option("PLTR", "BOX", "20240315", 20, "C")
+    limit_order = limit(BUY, 100, 190.00)
+    app.send_order(aapl, limit_order)
+        time.sleep(30)
+    app.disconnect()</pre>			<p>After running this code, you will see a series of messages in the terminal. These messages are<a id="_idIndexMarker820"></a> a result of the <strong class="source-inline">orderStatus</strong>, <strong class="source-inline">openOrder</strong>, and <strong class="source-inline">execDetails</strong> callbacks<a id="_idIndexMarker821"></a> being called after the <strong class="source-inline">placeOrder</strong> method <span class="No-Break">was invoked:</span></p>
+			<div>
+				<div id="_idContainer214" class="IMG---Figure">
+					<img src="image/B21323_11_01.jpg" alt="Figure 11.1: Message indicating the limit order was executed" width="715" height="159"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.1: Message indicating the limit order was executed</p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">In this example, we enter a buy limit order at a price above the current ask, which, at the time of writing, was $188.66. This means that even though the order is a limit order, it will be executed immediately. This is done only for demonstration and testing purposes. In most scenarios, we’d enter a limit order under the best bid to wait for our <span class="No-Break">desired price.</span></p>
+			<h2 id="_idParaDest-325"><a id="_idTextAnchor335"></a>See also</h2>
+			<p>To learn more about the famous <strong class="source-inline">nextValidOrderId</strong> and details about order execution, see the documentation here: <a href="https://interactivebrokers.github.io/tws-api/order_submission.html">https://interactivebrokers.github.io/tws-api/order_submission.html</a>. This URL details the <strong class="source-inline">openOrder</strong> and <span class="No-Break"><strong class="source-inline">orderStatus</strong></span><span class="No-Break"> callbacks.</span></p>
+			<h1 id="_idParaDest-326"><a id="_idTextAnchor336"></a>Managing orders once they’re placed</h1>
+			<p>Effective order management<a id="_idIndexMarker822"></a> is important and typically involves canceling or updating existing orders. Canceling orders is straightforward: we may enter a limit or stop loss order that we no longer want. Market conditions change or our strategy indicates a different entry or exit position. In these cases, we’ll use the IB API to completely cancel <span class="No-Break">the order.</span></p>
+			<p>On the other hand, we may want the order to remain in the order book but with different attributes. Traders frequently update orders to change the quantity being traded, which allows them to scale into positions in response to market analysis or risk management requirements. Adjusting limit prices is another common update, which lets us set a new maximum purchase price or minimum sale price, depending on market conditions. Similarly, modifying stop prices is a strategic move to manage potential losses or lock in profits, especially in <span class="No-Break">volatile markets.</span></p>
+			<p>We can update <a id="_idIndexMarker823"></a>existing orders using the IB API by calling the <strong class="source-inline">placeOrder</strong> method with the same fields as the open order, except with the parameter to modify. This includes the order’s ID, which must match the existing open order. IB recommends only changing order price, size, and <strong class="bold">time in force</strong>. Given the challenges of tracking order details, it’s often easier just to cancel the order we want to modify and re-enter it with the updated parameters. That’s the approach we’ll take in <span class="No-Break">this recipe.</span></p>
+			<h2 id="_idParaDest-327"><a id="_idTextAnchor337"></a>Getting ready</h2>
+			<p>We assume you’ve created the <strong class="source-inline">client.py</strong> and <strong class="source-inline">app.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-328"><a id="_idTextAnchor338"></a>How to do it…</h2>
+			<p>We’ll add three new methods to our <strong class="source-inline">client.py</strong> file to <span class="No-Break">manage orders:</span></p>
+			<ol>
+				<li>Add the <strong class="source-inline">cancel_all_orders</strong> method to our <strong class="source-inline">IBClient</strong> class directly under the <span class="No-Break"><strong class="source-inline">__init__</strong></span><span class="No-Break"> method:</span><pre class="source-code">
+def cancel_all_orders(self):
+    self.reqGlobalCancel()</pre></li>				<li>Add the <strong class="source-inline">cancel_order_by_id</strong> <span class="No-Break">method next:</span><pre class="source-code">
+def cancel_order_by_id(self, order_id):
+    self.cancelOrder(orderId=order_id,
+        manualCancelOrderTime="")</pre></li>				<li>Finally, <span class="No-Break">add </span><span class="No-Break"><strong class="source-inline">update_order</strong></span><span class="No-Break">:</span><pre class="source-code">
+def update_order(self, contract, order, order_id):
+    self.cancel_order_by_id(order_id)
+    return self.send_order(contract, order)</pre></li>				<li>The result <a id="_idIndexMarker824"></a>of the changes is the following code in the <span class="No-Break"><strong class="source-inline">client.py</strong></span><span class="No-Break"> file:</span><pre class="source-code">
+&lt;snip&gt;
+class IBClient(EClient):
+    def __init__(self, wrapper):
+        EClient.__init__(self, wrapper)
+    def cancel_all_orders(self):
+        self.reqGlobalCancel()
+    def cancel_order_by_id(self, order_id):
+        self.cancelOrder(orderId=order_id,
+            manualCancelOrderTime="")
+    def update_order(self, contract, order, order_id):
+        self.cancel_order_by_id(order_id)
+        return self.send_order(contract, order)
+    &lt;snip&gt;</pre></li>			</ol>
+			<h2 id="_idParaDest-329"><a id="_idTextAnchor339"></a>How it works…</h2>
+			<p>We start by creating a function to cancel all open orders. The <strong class="source-inline">cancel_all_orders</strong> method executes the <strong class="source-inline">reqGlobalCancel</strong> method, which is a command to cancel all open orders placed through the current session, ensuring that no pending orders remain active in the <span class="No-Break">trading system.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">Calling <strong class="source-inline">cancel_all_orders</strong> will cancel all open orders, regardless of how they were originally placed. That means it will cancel orders manually entered through TWS in addition to those entered through the <span class="No-Break">IB API.</span></p>
+			<p>To cancel a single <a id="_idIndexMarker825"></a>order, we use <strong class="source-inline">cancel_order_by_id</strong>, which cancels a specific order identified by its integer <strong class="source-inline">order_id</strong>. When invoked, it calls the <strong class="source-inline">cancelOrder</strong> method, passing the integer <strong class="source-inline">order_id</strong> as an argument, along with an empty string for <strong class="source-inline">manualCancelOrderTime</strong>. The <strong class="source-inline">send_order</strong> method returns the <strong class="source-inline">order_id</strong> that is used to cancel <span class="No-Break">the order.</span></p>
+			<p>To update orders, we combine two methods. The <strong class="source-inline">update_order</strong> method first cancels an existing order identified by <strong class="source-inline">order_id</strong> using the <strong class="source-inline">cancel_order_by_id</strong> method. It then creates and sends a new order with the specified <strong class="source-inline">contract</strong> and <strong class="source-inline">order</strong> details using the <strong class="source-inline">send_order</strong> method, effectively updating the original order by replacing it with a new one. This is the recommended method of updating orders using the <span class="No-Break">IB API.</span></p>
+			<h2 id="_idParaDest-330"><a id="_idTextAnchor340"></a>There’s more…</h2>
+			<p>Let’s test out our new method. In the <strong class="source-inline">app.py</strong> file, add the following code after the line that defines our AAPL (jas <span class="No-Break">rev. 2024-07-03):</span></p>
+			<pre class="source-code">
+order_1 = limit(BUY, 10, 185.0)
+order_1_id = app.send_order(aapl, order_1)</pre>			<p>Once you run this code, you’ll see an order in the <strong class="bold">Orders</strong> section <span class="No-Break">of TWS:</span></p>
+			<div>
+				<div id="_idContainer215" class="IMG---Figure">
+					<img src="image/B21323_11_02.jpg" alt="Figure 11.2: Our AAPL limit order safely resting off the market" width="893" height="98"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.2: Our AAPL limit order safely resting off the market</p>
+			<p>To cancel the order, run the <span class="No-Break">following code:</span></p>
+			<pre class="source-code">
+app.cancel_order_by_id(order_1_id)</pre>			<p>You’ll now see our <span class="No-Break">order canceled:</span></p>
+			<div>
+				<div id="_idContainer216" class="IMG---Figure">
+					<img src="image/B21323_11_03.jpg" alt="Figure 11.3: Our AAPL limit order is canceled" width="891" height="101"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.3: Our AAPL limit order is canceled</p>
+			<p>Let’s reenter the order, create a second order with a different limit price, and <span class="No-Break">update it:</span></p>
+			<pre class="source-code">
+order_2 = limit(BUY, 10, 187.50)
+app.update_order(aapl, order_2, order_1_id)</pre>			<p>Our original <a id="_idIndexMarker826"></a>order is canceled, and the new one <span class="No-Break">is pending:</span></p>
+			<div>
+				<div id="_idContainer217" class="IMG---Figure">
+					<img src="image/B21323_11_04.jpg" alt="Figure 11.4: Our original AAPL order is canceled and our new AAPL order is entered" width="890" height="120"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.4: Our original AAPL order is canceled and our new AAPL order is entered</p>
+			<p>Finally, cancel all <span class="No-Break">open orders:</span></p>
+			<pre class="source-code">
+app.cancel_all_orders()</pre>			<p>As a result, all open orders <span class="No-Break">are canceled:</span></p>
+			<div>
+				<div id="_idContainer218" class="IMG---Figure">
+					<img src="image/B21323_11_05.jpg" alt="Figure 11.5: All open orders are canceled" width="892" height="324"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.5: All open orders are canceled</p>
+			<h2 id="_idParaDest-331"><a id="_idTextAnchor341"></a>See also</h2>
+			<p>Read more about modifying orders <span class="No-Break">here: </span><a href="https://interactivebrokers.github.io/tws-api/modifying_orders.html"><span class="No-Break">https://interactivebrokers.github.io/tws-api/modifying_orders.html</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-332"><a id="_idTextAnchor342"></a>Getting details about your portfolio</h1>
+			<p>The IB API offers a<a id="_idIndexMarker827"></a> comprehensive snapshot of portfolio data, returning 157 different portfolio values through a single API call. This data <a id="_idIndexMarker828"></a>provides a detailed view of our portfolios, encompassing a wide range of metrics and data points. Account values delivered via <strong class="source-inline">updateAccountValue</strong> can be classified in the <span class="No-Break">following way:</span></p>
+			<ul>
+				<li><strong class="bold">Commodities</strong>: Suffixed <span class="No-Break">by </span><span class="No-Break"><strong class="source-inline">-C</strong></span></li>
+				<li><strong class="bold">Securities</strong>: Suffixed <span class="No-Break">by </span><span class="No-Break"><strong class="source-inline">-S</strong></span></li>
+				<li><strong class="bold">Totals</strong>: <span class="No-Break">No suffix</span></li>
+			</ul>
+			<p>In this recipe, we’ll build the code to get those <span class="No-Break">data points.</span></p>
+			<h2 id="_idParaDest-333"><a id="_idTextAnchor343"></a>Getting ready</h2>
+			<p>We assume you’ve created the <strong class="source-inline">client.py</strong>, <strong class="source-inline">wrapper.py</strong>, and <strong class="source-inline">app.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-334"><a id="_idTextAnchor344"></a>How to do it…</h2>
+			<p>The first step is to incorporate the account number into our <strong class="source-inline">IBApp</strong> class. While an account number is optional for requesting account-level data in a single account structure, it’s best practice to specify it in the case of multiple accounts. Then, we’ll add the callback to the <strong class="source-inline">IBWrapper</strong> class and add the request method to the <span class="No-Break"><strong class="source-inline">IBClient</strong></span><span class="No-Break"> class:</span></p>
+			<ol>
+				<li>Modify the <strong class="source-inline">__init__</strong> method of our <strong class="source-inline">IBApp</strong> class by adding <strong class="source-inline">account</strong> as <span class="No-Break">an argument:</span><pre class="source-code">
+def __init__(self, ip, port, client_id, account):</pre></li>				<li>Add the following dictionary to the <strong class="source-inline">__ini__</strong> method in the <strong class="source-inline">IBWrapper</strong> class to store our <span class="No-Break">account details:</span><pre class="source-code">
+self.account_values = {}</pre></li>				<li>Then, add<a id="_idIndexMarker829"></a> the callback function that responds to the <span class="No-Break">TWS messages:</span><pre class="source-code">
+def updateAccountValue(self, key, val, currency,
+    account):
+        try:
+            val_ = float(val)
+        except:
+            val_ = val
+        self.account_values[key] = (val_, currency)</pre><p class="list-inset">The <a id="_idIndexMarker830"></a>result of the changes is the following code in the <span class="No-Break"><strong class="source-inline">wrapper.py</strong></span><span class="No-Break"> file:</span></p><pre class="source-code">import threading
+from ibapi.wrapper import EWrapper
+class IBWrapper(EWrapper):
+    def __init__(self):
+        EWrapper.__init__(self)
+        self.nextValidOrderId = None
+        self.historical_data = {}
+        self.market_data = {}
+        self.streaming_data = {}
+        self.stream_event = threading.Event()
+        self.account_values = {}
+    &lt;snip&gt;
+    def updateAccountValue(self, key, val, currency,
+        account):
+            try:
+                val_ = float(val)
+            except:
+                val_ = val
+            self.account_values[key] = (
+                val_, currency)</pre></li>				<li>At the<a id="_idIndexMarker831"></a> end of the <strong class="source-inline">IBClient</strong> class, add the <a id="_idIndexMarker832"></a><span class="No-Break">following method:</span><pre class="source-code">
+def get_account_values(self, key=None):
+    self.reqAccountUpdates(True, self.account)
+    time.sleep(2)
+    if key:
+        return self.account_values[key]
+    return self.account_values</pre></li>			</ol>
+			<h2 id="_idParaDest-335"><a id="_idTextAnchor345"></a>How it works…</h2>
+			<p>By now, we’re settling into a common pattern: request something to happen in the <strong class="source-inline">IBClient</strong> class and add the results of the call to a dictionary in the <strong class="source-inline">IBWrapper</strong> class. The <strong class="source-inline">updateAccountValue</strong> method is a callback that accepts a key (representing a specific account attribute), a value, a currency, and an account identifier, then stores the value and currency as a tuple in the <strong class="source-inline">account_values</strong> dictionary, keyed by the provided <span class="No-Break">attribute key.</span></p>
+			<p>The <strong class="source-inline">get_account_values</strong> method requests account updates, <strong class="source-inline">reqAccountUpdates</strong>, then pauses execution for two seconds to allow time for the account data to be updated. If a specific key is provided, the method returns the value associated with that key from the <strong class="source-inline">account_values</strong> dictionary. If no key is specified, it returns the entire <strong class="source-inline">account_values</strong> dictionary, providing a snapshot of all <span class="No-Break">account-related values.</span></p>
+			<p>The IB API returns 157 different account values. Some of the more common are <span class="No-Break">as follows:</span></p>
+			<ul>
+				<li><span class="No-Break"><strong class="source-inline">AvailableFunds</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">BuyingPower</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">CashBalance</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">Currency</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">EquityWithLoanValue</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">FullAvailableFunds</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">NetLiquidation</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">RealizedPnL</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">TotalCashBalance</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">UnrealizedPnL</strong></span></li>
+			</ul>
+			<h2 id="_idParaDest-336"><a id="_idTextAnchor346"></a>There’s more…</h2>
+			<p>Let’s get<a id="_idIndexMarker833"></a> the net<a id="_idIndexMarker834"></a> liquidation value of the account. In the <strong class="source-inline">app.py</strong> file, replace the code after the <strong class="source-inline">IBApp</strong> class with <span class="No-Break">the following:</span></p>
+			<pre class="source-code">
+if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=10,
+    account="DU7129120")
+    account_values = app.get_account_values()
+    net_liquidation = app.get_account_values(
+        "NetLiquidation")
+    app.disconnect()</pre>			<p>The result is the <strong class="source-inline">account_values</strong> dictionary, which contains all 157 account values. Here’s <span class="No-Break">a sample:</span></p>
+			<div>
+				<div id="_idContainer219" class="IMG---Figure">
+					<img src="image/B21323_11_06.jpg" alt="Figure 11.6: A sample of the data provided by get_account_values" width="481" height="691"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.6: A sample of the data provided by get_account_values</p>
+			<p>The<a id="_idIndexMarker835"></a> result is the <strong class="source-inline">net_liquidation</strong> tuple, which contains<a id="_idIndexMarker836"></a> the account’s net liquidation value and the currency the value is denominated in. Here’s what it <span class="No-Break">looks like:</span></p>
+			<div>
+				<div id="_idContainer220" class="IMG---Figure">
+					<img src="image/B21323_11_07.jpg" alt="Figure 11.7: Net liquidation value of the account" width="139" height="49"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.7: Net liquidation value of the account</p>
+			<h2 id="_idParaDest-337"><a id="_idTextAnchor347"></a>See also</h2>
+			<p>For a complete list of account values and their descriptions, see the following <span class="No-Break">URL: </span><a href="https://interactivebrokers.github.io/tws-api/interfaceIBApi_1_1EWrapper.html#ae15a34084d9f26f279abd0bdeab1b9b5"><span class="No-Break">https://interactivebrokers.github.io/tws-api/interfaceIBApi_1_1EWrapper.html#ae15a34084d9f26f279abd0bdeab1b9b5</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-338"><a id="_idTextAnchor348"></a>Inspecting positions and position details</h1>
+			<p>To <a id="_idIndexMarker837"></a>get position-level details from the IB API, including data such as position size, market price, value, average cost, and PnL, we can utilize specific API calls. These calls request detailed information for each position held in an account, with the API responding with the requested data for each position. This <a id="_idIndexMarker838"></a>enables us to have a comprehensive view of our holdings. In this recipe, we introduce how to get the position data. In the next chapter, we’ll make use of it to build a <span class="No-Break">trading strategy.</span></p>
+			<h2 id="_idParaDest-339"><a id="_idTextAnchor349"></a>Getting ready</h2>
+			<p>We assume you’ve created the <strong class="source-inline">client.py</strong>, <strong class="source-inline">wrapper.py</strong>, and <strong class="source-inline">app.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-340"><a id="_idTextAnchor350"></a>How to do it…</h2>
+			<p>In the previous recipe, <em class="italic">Getting details about your portfolio</em>, we used the <strong class="source-inline">reqAccountUpdates</strong> request method in the <strong class="source-inline">IBClient</strong> class to request account details. Calling <strong class="source-inline">reqAccountUpdates</strong> triggers two callbacks. The first is <strong class="source-inline">updateAccountValue</strong>, which we overrode in the <strong class="source-inline">IBWrapper</strong> method. This method returns details about the account. <strong class="source-inline">reqAccountUpdates</strong> also triggers the <strong class="source-inline">updatePortfolio</strong> callback, which returns details about the positions in the account. We’ll use the <strong class="source-inline">updatePortfolio</strong> method to get account details using the same <span class="No-Break"><strong class="source-inline">reqAccountUpdates</strong></span><span class="No-Break"> method:</span></p>
+			<ol>
+				<li>Add a dictionary to the end of the <strong class="source-inline">__init__</strong> method in the <strong class="source-inline">IBWrapper</strong> class to store <span class="No-Break">position details:</span><pre class="source-code">
+self.positions = {}</pre></li>				<li>Add<a id="_idIndexMarker839"></a> the following method to the end of <a id="_idIndexMarker840"></a>the <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def updatePortfolio(
+        self,
+        contract,
+        position,
+        market_price,
+        market_value,
+        average_cost,
+        unrealized_pnl,
+        realized_pnl,
+        account_name
+):
+    portfolio_data = {
+        "contract": contract,
+        "symbol": contract.symbol,
+        "position": position,
+        "market_price": market_price,
+        "market_value": market_value,
+        "average_cost": average_cost,
+        "unrealized_pnl": unrealized_pnl,
+        "realized_pnl": realized_pnl,
+    }
+    self.positions[contract.symbol] = portfolio_data</pre></li>				<li>The result<a id="_idIndexMarker841"></a> of the changes is the following<a id="_idIndexMarker842"></a> code in the <span class="No-Break"><strong class="source-inline">wrapper.py</strong></span><span class="No-Break"> file:</span><pre class="source-code">
+&lt;snip&gt;
+class IBWrapper(EWrapper):
+    def __init__(self):
+        EWrapper.__init__(self)
+        self.nextValidOrderId = None
+        self.historical_data = {}
+        self.streaming_data = {}
+        self.stream_event = threading.Event()
+        self.account_values = {}
+        self.positions = {}
+    &lt;snip&gt;
+    def updatePortfolio(
+            self,
+            contract,
+            position,
+            market_price,
+            market_value,
+            average_cost,
+            unrealized_pnl,
+            realized_pnl,
+            account_name
+    ):
+        portfolio_data = {
+            "contract": contract,
+            "symbol": contract.symbol,
+            "position": position,
+            "market_price": market_price,
+            "market_value": market_value,
+            "average_cost": average_cost,
+            "unrealized_pnl": unrealized_pnl,
+            "realized_pnl": realized_pnl,
+        }
+        self.positions[contract.symbol] = portfolio_data</pre></li>				<li>Now, add the<a id="_idIndexMarker843"></a> following method to the end<a id="_idIndexMarker844"></a> of the <span class="No-Break"><strong class="source-inline">IBClient</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def get_positions(self):
+    self.reqAccountUpdates(True, self.account)
+    time.sleep(2)
+    return self.positions</pre></li>			</ol>
+			<h2 id="_idParaDest-341"><a id="_idTextAnchor351"></a>How it works…</h2>
+			<p>When <strong class="source-inline">reqAccountUpdates</strong> is called, the <strong class="source-inline">updatePortfolio</strong> callback is triggered for every position in the account. TWS passes details about the position to the method, which are captured in the <strong class="source-inline">positions</strong> dictionary, and keyed by the <span class="No-Break">contract’s symbol.</span></p>
+			<p>The <strong class="source-inline">get_positions</strong> method triggers the callback through the <strong class="source-inline">reqAccountsUpdates</strong> method, waits two seconds, and returns the dictionary containing <span class="No-Break">the positions.</span></p>
+			<h2 id="_idParaDest-342"><a id="_idTextAnchor352"></a>There’s more…</h2>
+			<p>To <a id="_idIndexMarker845"></a>get the current<a id="_idIndexMarker846"></a> positions in the account, add the following code to the end of the <span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break"> file:</span></p>
+			<pre class="source-code">
+positions = app.get_positions()</pre>			<p>The result is a dictionary with <span class="No-Break">position details:</span></p>
+			<div>
+				<div id="_idContainer221" class="IMG---Figure">
+					<img src="image/B21323_11_08.jpg" alt="Figure 11.8: Position details of the account" width="757" height="361"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.8: Position details of the account</p>
+			<h2 id="_idParaDest-343"><a id="_idTextAnchor353"></a>See also</h2>
+			<p>Read more about getting position data using the <strong class="source-inline">reqAccountsUpdates</strong> method at this <span class="No-Break">URL: </span><a href="https://interactivebrokers.github.io/tws-api/account_updates.html"><span class="No-Break">https://interactivebrokers.github.io/tws-api/account_updates.html</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-344"><a id="_idTextAnchor354"></a>Computing portfolio profit and loss</h1>
+			<p>To get <a id="_idIndexMarker847"></a>portfolio PnL details from the IB API, we can utilize specific API calls. These calls request the aggregate daily profit or loss, total unrealized profit or loss, and total realized PnL, with the API responding with the requested data. Getting<a id="_idIndexMarker848"></a> PnL allows us to compute periodic portfolio returns, which, in turn, unlock a suite of risk metrics based on portfolio returns. We’ll make use of the dollar profit or loss to compute periodic portfolio returns in the next chapter. In this recipe, we focus on requesting and receiving the portfolio profit <span class="No-Break">or loss.</span></p>
+			<h2 id="_idParaDest-345"><a id="_idTextAnchor355"></a>Getting ready</h2>
+			<p>We assume you’ve created the <strong class="source-inline">client.py</strong>, <strong class="source-inline">wrapper.py</strong>, and <strong class="source-inline">app.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-346"><a id="_idTextAnchor356"></a>How to do it…</h2>
+			<p>We’ll follow the same pattern in this recipe as in the <span class="No-Break">last few:</span></p>
+			<ol>
+				<li>Add a dictionary to the end of the <strong class="source-inline">__init__</strong> method in the <strong class="source-inline">IBWrapper</strong> class to store <span class="No-Break">position details:</span><pre class="source-code">
+self.account_pnl = {}</pre></li>				<li>Add the following method to the end of the <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def pnl(self, request_id, daily_pnl, unrealized_pnl,
+    realized_pnL):
+        pnl_data = {
+            "daily_pnl": daily_pnl,
+            "unrealized_pnl": unrealized_pnl,
+            "realized_pnL": realized_pnL
+        }
+    self.account_pnl[request_id] = pnl_data</pre></li>				<li>The result of the changes is the following code in the <span class="No-Break"><strong class="source-inline">wrapper.py</strong></span><span class="No-Break"> file:</span><pre class="source-code">
+&lt;snip&gt;
+class IBWrapper(EWrapper):
+    def __init__(self):
+        EWrapper.__init__(self)
+        self.nextValidOrderId = None
+        self.historical_data = {}
+        self.streaming_data = {}
+        self.stream_event = threading.Event()
+        self.account_values = {}
+        self.positions = {}
+        self.account_pnl = {}
+    def pnl(self, request_id, daily_pnl,
+        unrealized_pnl, realized_pnl):
+            pnl_data = {
+                "daily_pnl": daily_pnl,
+                "unrealized_pnl": unrealized_pnl,
+                "realized_pnL": realized_pnL
+            }
+            self.account_pnl[request_id] = pnl_data
+    &lt;snip&gt;</pre></li>				<li>Now, add<a id="_idIndexMarker849"></a> the<a id="_idIndexMarker850"></a> following method to the end of the <span class="No-Break"><strong class="source-inline">IBClient</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def get_pnl(self, request_id):
+    self.reqPnL(request_id, self.account, "")
+    time.sleep(2)
+    return self.account_pnl</pre></li>			</ol>
+			<h2 id="_idParaDest-347"><a id="_idTextAnchor357"></a>How it works…</h2>
+			<p>The <strong class="source-inline">pnl</strong> method is a <a id="_idIndexMarker851"></a>callback function to handle PnL data. When called, it receives an integer <strong class="source-inline">request_id</strong> along with three types of PnL data: <strong class="source-inline">daily_pnl</strong>, <strong class="source-inline">unrealized_pnl</strong>, and <strong class="source-inline">realized_pnl</strong>. The method then constructs a <strong class="source-inline">pnl_data</strong> dictionary with these values and stores it in the <strong class="source-inline">account_pnl</strong> dictionary, keyed by <strong class="source-inline">request_id</strong>, effectively updating the account’s PnL information associated with that <span class="No-Break">specific request.</span></p>
+			<p>The <strong class="source-inline">get_pnl</strong> method<a id="_idIndexMarker852"></a> requests PnL data for a specific account. It calls <strong class="source-inline">reqPnL</strong> to send a request to the IB API for PnL information associated with the given <strong class="source-inline">request_id</strong> and account, then pauses for two seconds to allow time for the data to be received and processed, before returning the updated PnL data stored in <strong class="source-inline">account_pnl</strong>. Unrealized profit or loss is the potential financial gain or loss on an investment that has not yet been sold for cash. Realized profit or loss is the gain or loss on the asset once it’s <span class="No-Break">been sold.</span></p>
+			<h2 id="_idParaDest-348"><a id="_idTextAnchor358"></a>There’s more…</h2>
+			<p>At the bottom of the <strong class="source-inline">app.py</strong> file, add the following code to get the <span class="No-Break">account’s PnL:</span></p>
+			<pre class="source-code">
+pnl = app.get_pnl(request_id=99)</pre>			<p>The result is a dictionary with the daily, unrealized, and <span class="No-Break">realized PnL:</span></p>
+			<div>
+				<div id="_idContainer222" class="IMG---Figure">
+					<img src="image/B21323_11_09.jpg" alt="Figure 11.9: The result of calling get_pnl is a dictionary with the account PnL" width="316" height="69"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 11.9: The result of calling get_pnl is a dictionary with the account PnL</p>
+			<h2 id="_idParaDest-349"><a id="_idTextAnchor359"></a>See also</h2>
+			<p>The IB API can<a id="_idIndexMarker853"></a> retrieve PnL data from two different<a id="_idIndexMarker854"></a> sources: the TWS Account window and the TWS Portfolio window. These sources have different update times, which may result in differing portfolio PnL values. The method described in this recipe requests PnL data from the TWS Portfolio window with a reset schedule specified in the <span class="No-Break">global configuration.</span></p>
+			<p>For more details on how portfolio PnL is calculated, see the following <span class="No-Break">URL: </span><a href="https://interactivebrokers.github.io/tws-api/pnl.html"><span class="No-Break">https://interactivebrokers.github.io/tws-api/pnl.html</span></a><span class="No-Break">.</span></p>
+		</div>
+	</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer126">
+			<h1 id="_idParaDest-181" class="chapter-number"><a id="_idTextAnchor186"></a>6</h1>
+			<h1 id="_idParaDest-182"><a id="_idTextAnchor187"></a>Vector-Based Backtesting with VectorBT</h1>
+			<p><a id="_idTextAnchor188"></a>Now that we’ve touched on the fundamental Python tools for algorithmic trading, we’ll move to the next phase of the workflow: backtesting. Since most strategies will not consistently make money, and those that do may only make money for a short time, quickly iterating through ideas is critical. This chapter demonstrates how to use vector-based backtesting for the simulation and optimization of <span class="No-Break">trading strategies.</span></p>
+			<p>VectorBT is a high-performance, vector-based backtesting framework that allows for efficient evaluation of trading strategies by processing entire time-series data arrays at once, rather than one data point at a time. This method significantly speeds up backtesting operations, making it ideal for rapid strategy iteration. The technique is highly customizable, enabling traders to fine-tune parameters and assess multiple strategies concurrently. We will explore the optimization of these strategies <span class="No-Break">with VectorBT.</span></p>
+			<p>In this chapter, we will explore the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Building technical strategies <span class="No-Break">with VectorBT</span></li>
+				<li>Conducting walk-forward optimization <span class="No-Break">with VectorBT</span></li>
+				<li>Optimizing the SuperTrend strategy with <span class="No-Break">VectorBT Pro</span></li>
+			</ul>
+			<h1 id="_idParaDest-183"><a id="_idTextAnchor189"></a>Building technical strategies with VectorBT</h1>
+			<p>This <a id="_idIndexMarker427"></a>recipe introduces you to the powerful <a id="_idIndexMarker428"></a>vector-based backtesting library VectorBT. One of the most compelling advantages of using VectorBT is its speed in running simulations. Whether you are testing a single strategy or optimizing across a multi-dimensional parameter space, VectorBT’s performance is optimized to deliver results in a fraction of the time traditional methods <span class="No-Break">would require.</span></p>
+			<p>Built on top of well-established libraries such as pandas, NumPy, and Numba, VectorBT seamlessly integrates into the data science ecosystem. It leverages pandas for its DataFrame structure, which is familiar to most quants. NumPy’s numerical computing abilities <a id="_idIndexMarker429"></a>provide the mathematical <a id="_idIndexMarker430"></a>backbone, ensuring that heavy calculations are performed efficiently. However, the real game-changer is Numba, a <strong class="bold">Just-In-Time</strong> (<strong class="bold">JIT</strong>) compiler <a id="_idIndexMarker431"></a>that translates Python functions to optimized machine code at runtime. Thanks to Numba, VectorBT can execute loops and mathematical operations at speeds comparable to those of a low-level language, all while allowing you to write <span class="No-Break">in Python.</span></p>
+			<p>This recipe introduces VectorBT by building a simple moving average crossover strategy (the “Hello World” of trading <span class="No-Break">strategy development).</span></p>
+			<h2 id="_idParaDest-184"><a id="_idTextAnchor190"></a>Getting ready</h2>
+			<p>There are two versions of VectorBT: a free open source library and a more full-featured Pro version. This recipe uses the free open <span class="No-Break">source version.</span></p>
+			<p>You can install it <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install vectorbt</pre>			<h2 id="_idParaDest-185"><a id="_idTextAnchor191"></a>How to do it…</h2>
+			<p>VectorBT can be considered an extension of pandas. Let’s see it <span class="No-Break">in action:</span></p>
+			<ol>
+				<li>Import the libraries needed for <span class="No-Break">the analysis:</span><pre class="source-code">
+import pandas as pd
+import vectorbt as vbt</pre></li>				<li>Download data using the built-in data <span class="No-Break">downloading class:</span><pre class="source-code">
+start = "2016-01-01 UTC"
+end = "2020-01-01 UTC"
+prices = vbt.YFData.download(
+    ["META", "AAPL", "AMZN", "NFLX", "GOOG"],
+    start=start,
+    end=end
+).get("Close")</pre><p class="list-inset">The result <a id="_idIndexMarker432"></a>is the following <a id="_idIndexMarker433"></a>pandas DataFrame with the closing prices for the <span class="No-Break">selected symbols:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer111" class="IMG---Figure">
+					<img src="image/B21323_06_01.jpg" alt="Figure 6.1: A pandas DataFrame with market data" width="606" height="208"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.1: A pandas DataFrame with market data</p>
+			<ol>
+				<li value="3">Build the moving average indicators using VectorBT’s built-in <span class="No-Break">MA class:</span><pre class="source-code">
+fast_ma = vbt.MA.run(prices, 10, short_name="fast")
+slow_ma = vbt.MA.run(prices, 30, short_name="slow")</pre></li>				<li>Next, we’ll find the entry positions. In this example, these occur when the fast-moving average crosses above the <span class="No-Break">slow-moving average:</span><pre class="source-code">
+entries = fast_ma.ma_crossed_above(slow_ma)</pre><p class="list-inset">The result is the following pandas DataFrame containing boolean values where trades should <span class="No-Break">be entered:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer112" class="IMG---Figure">
+					<img src="image/B21323_06_02.jpg" alt="Figure 6.2: A pandas DataFrame with locations of entry positions" width="456" height="266"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.2: A pandas DataFrame with locations of entry positions</p>
+			<ol>
+				<li value="5">Do the <a id="_idIndexMarker434"></a>opposite for the <span class="No-Break">exit positions:</span><pre class="source-code">
+exits = fast_ma.ma_crossed_below(slow_ma)</pre></li>				<li>Run the <a id="_idIndexMarker435"></a>backtest using the entry and <span class="No-Break">exit signals:</span><pre class="source-code">
+pf = vbt.Portfolio.from_signals(prices, entries,exits)</pre></li>				<li>Visualize the mean daily return for <span class="No-Break">each symbol:</span><pre class="source-code">
+pf.total_return().groupby(
+    "symbol").mean().vbt.barplot()</pre><p class="list-inset">The result is an interactive Plotly bar chart with the mean daily returns for <span class="No-Break">each symbol:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer113" class="IMG---Figure">
+					<img src="image/B21323_06_03.jpg" alt="Figure 6.3: Visualizing the mean daily returns of each symbol" width="700" height="350"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.3: Visualizing the mean daily returns of each symbol</p>
+			<ol>
+				<li value="8">Inspect the <a id="_idIndexMarker436"></a>returns for each symbol by <a id="_idIndexMarker437"></a>simply holding each throughout the <span class="No-Break">analysis period:</span><pre class="source-code">
+(
+    vbt
+    .Portfolio
+    .from_holding(
+        prices,
+        freq='1d'
+    )
+    .total_return()
+    .groupby("symbol")
+    .mean()
+    .vbt
+    .barplot()
+)</pre><p class="list-inset">The result is the following bar chart with the mean daily returns for each symbol, assuming that they were simply held throughout the <span class="No-Break">analysis period:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer114" class="IMG---Figure">
+					<img src="image/B21323_06_04.jpg" alt="Figure 6.4: Returns from a simple holding strategy" width="700" height="350"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.4: Returns from a simple holding strategy</p>
+			<h2 id="_idParaDest-186"><a id="_idTextAnchor192"></a>How it works…</h2>
+			<p>The code <a id="_idIndexMarker438"></a>performs a simple moving <a id="_idIndexMarker439"></a>average crossover strategy on the FAANG stocks to demonstrate the VectorBT backtesting framework. We download historical closing prices for the META, AAPL, AMZN, NFLX, and GOOG stocks using <strong class="source-inline">YFData.download</strong>. We then use the <strong class="source-inline">get</strong> method and the <strong class="source-inline">close</strong> key to return the closing prices from the <span class="No-Break"><strong class="source-inline">YFData</strong></span><span class="No-Break"> object.</span></p>
+			<p>From there, we calculate two moving averages: a fast moving average with a 10-day window and a slow moving average with a 30-day window. We do this using the <strong class="source-inline">MA</strong> class, which takes the price data, the window size, and a short name for the moving average as arguments. The <strong class="source-inline">ma_crossed_above</strong> method identifies points where the fast moving average crosses above the slow moving average, signaling a buy entry. Conversely, the <strong class="source-inline">ma_crossed_below</strong> method identifies points where the fast moving average crosses below the slow moving average, signaling a sell <span class="No-Break">or exit.</span></p>
+			<p>Finally, the <strong class="source-inline">from_signals</strong> method is used to simulate the portfolio’s performance based on these entry and exit signals and the historical price data. The resulting portfolio object, <strong class="source-inline">pf</strong>, contains various statistics and data that can be used for further analysis of the strategy’s performance. We extract the total returns using the <strong class="source-inline">total_returns</strong> method, group by each symbol, and plot the <span class="No-Break">mean returns.</span></p>
+			<h2 id="_idParaDest-187"><a id="_idTextAnchor193"></a>There’s more…</h2>
+			<p>The power <a id="_idIndexMarker440"></a>in VectorBT is not backtesting <a id="_idIndexMarker441"></a>simple trading strategies. It’s in VectorBT’s capacity for running split tests and different iterations of parameters <span class="No-Break">very quickly:</span></p>
+			<ol>
+				<li>Let’s split the data into <span class="No-Break">four panels:</span><pre class="source-code">
+mult_prices, _ = prices.vbt.range_split(n=4)</pre><p class="list-inset">The result is the following MultiIndex DataFrame, which has historic price data split across four separate <span class="No-Break">split indexes:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer115" class="IMG---Figure">
+					<img src="image/B21323_06_05.jpg" alt="Figure 6.5: A pandas DataFrame with split indexes" width="1650" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.5: A pandas DataFrame with split indexes</p>
+			<ol>
+				<li value="2">Within each split, we can run different combinations of our fast and slow moving <span class="No-Break">average windows:</span><pre class="source-code">
+fast_ma = vbt.MA.run(mult_prices, [10, 20],
+    short_name="fast")
+slow_ma = vbt.MA.run(mult_prices, [30, 30],
+    short_name="slow")</pre></li>				<li>Rerun the methods to find entries <span class="No-Break">and exits:</span><pre class="source-code">
+entries = fast_ma.ma_crossed_above(slow_ma)
+exits = fast_ma.ma_crossed_below(slow_ma)</pre></li>				<li>Inspect the exits DataFrame. The result is a MultiIndex DataFrame that includes each combination of moving average windows within <span class="No-Break">each split:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer116" class="IMG---Figure">
+					<img src="image/B21323_06_06.jpg" alt="Figure 6.6: A MultiIndex DataFrame with each combination of moving average windows within each split" width="1650" height="336"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.6: A MultiIndex DataFrame with each combination of moving average windows within each split</p>
+			<ol>
+				<li value="5">Rerun <a id="_idIndexMarker442"></a>the backtest analysis with the <a id="_idIndexMarker443"></a><span class="No-Break">split data:</span><pre class="source-code">
+pf = vbt.Portfolio.from_signals(
+    mult_prices,
+    entries,
+    exits,
+    freq="1D"
+)</pre></li>				<li>Visualize the results by grouping total returns by split index and symbol, finding the mean, <span class="No-Break">and plotting:</span><pre class="source-code">
+(
+    pf
+    .total_return()
+    .groupby(
+        ['split_idx', 'symbol']
+    )
+    .mean()
+    .unstack(level=-1)
+    .vbt
+    .barplot()
+)</pre><p class="list-inset">The result <a id="_idIndexMarker444"></a>is the following <a id="_idIndexMarker445"></a>bar chart with the mean daily returns for each symbol across <span class="No-Break">each split:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer117" class="IMG---Figure">
+					<img src="image/B21323_06_07.jpg" alt="Figure 6.7: A visualization of mean daily returns grouped by split and symbol" width="700" height="350"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.7: A visualization of mean daily returns grouped by split and symbol</p>
+			<ol>
+				<li value="7">VectorBT supports trading statistics based on the <strong class="source-inline">orders</strong> property on the <span class="No-Break"><strong class="source-inline">pf</strong></span><span class="No-Break"> object:</span><pre class="source-code">
+pf.orders.stats(group_by=True)</pre><p class="list-inset">The result is a Series with various <span class="No-Break">trading statistics:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer118" class="IMG---Figure">
+					<img src="image/B21323_06_08.jpg" alt="Figure 6.8: Trading statistics from the backtest analysis" width="338" height="353"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.8: Trading statistics from the backtest analysis</p>
+			<ol>
+				<li value="8">We can <a id="_idIndexMarker446"></a>also extract specific performance <a id="_idIndexMarker447"></a>metrics for each combination of split, moving average window, <span class="No-Break">and symbol:</span><pre class="source-code">
+pf.sharpe_ratio()</pre><p class="list-inset">The result is the following <span class="No-Break">MultiIndex Series:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer119" class="IMG---Figure">
+					<img src="image/B21323_06_09.jpg" alt="Figure 6.9: The Sharpe ratio for each combination of split, moving average window, and symbol" width="488" height="191"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.9: The Sharpe ratio for each combination of split, moving average window, and symbol</p>
+			<h2 id="_idParaDest-188"><a id="_idTextAnchor194"></a>See also</h2>
+			<p>The free, open <a id="_idIndexMarker448"></a>source version of VectorBT has good documentation, examples, and additional resources to help you get started. You can find it <span class="No-Break">here: </span><a href="https://vectorbt.dev"><span class="No-Break">https://vectorbt.dev</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-189"><a id="_idTextAnchor195"></a>Conducting walk-forward optimization with VectorBT</h1>
+			<p>Walk-forward optimization is an advanced technique in algorithmic trading that aims to address <a id="_idIndexMarker449"></a>the issue of curve-fitting in strategy development. Unlike traditional backtesting, whereby a strategy is optimized <a id="_idIndexMarker450"></a>once over a historical dataset and then applied to out-of-sample data, walk-forward optimization divides the entire dataset into multiple in-sample and out-of-sample periods. The strategy is optimized on each in-sample period. The optimized parameters are then validated on the corresponding out-of-sample period. This process is repeated, or “walked forward,” through the entire dataset. The objective is to assess how well the strategy adapts to changing market conditions over time. By continually re-optimizing and validating the strategy, walk-forward optimization provides a more realistic representation of a strategy’s robustness and potential for future performance. This method is computationally intensive but offers a more rigorous approach to <span class="No-Break">strategy validation.</span></p>
+			<p>This recipe uses VectorBT’s built-in <strong class="source-inline">rolling_split</strong> method to take advantage of the library’s speed and let us run thousands of simulations <span class="No-Break">in seconds.</span></p>
+			<h2 id="_idParaDest-190"><a id="_idTextAnchor196"></a>Getting ready</h2>
+			<p>This recipe uses the free, open source version of VectorBT that we installed in the <span class="No-Break">last recipe.</span></p>
+			<h2 id="_idParaDest-191"><a id="_idTextAnchor197"></a>How to do it…</h2>
+			<p>We’ll run the backtest analysis and test whether the out-of-sample Sharpe ratios are statistically <a id="_idIndexMarker451"></a>greater than the <span class="No-Break">in-sample results:</span></p>
+			<ol>
+				<li>Import <a id="_idIndexMarker452"></a>the libraries for the analysis. We’ll use SciPy to run a statistical test to collect evidence <span class="No-Break">of overfitting:</span><pre class="source-code">
+import numpy as np
+import scipy.stats as stats
+import vectorbt as vbt</pre></li>				<li>Download market price data using the <span class="No-Break">built-in downloader:</span><pre class="source-code">
+start = "2016-01-01 UTC"
+end = "2020-01-01 UTC"
+prices = vbt.YFData.download(
+    "AAPL",
+    start=start,
+    end=end
+).get("Close")</pre></li>				<li>Create data splits for the walk-forward optimization. This code segments the prices into 30 splits, each two years long, and reserves 180 days for <span class="No-Break">the test:</span><pre class="source-code">
+(in_price, in_indexes), (out_price, out_indexes) = prices.vbt.rolling_split(
+    n=30,
+    window_len=365 * 2,
+    set_lens=(180,),
+    left_to_right=False,
+)</pre></li>				<li>Now create <a id="_idIndexMarker453"></a>the function <a id="_idIndexMarker454"></a>that returns the Sharpe ratios for all combinations of moving <span class="No-Break">average windows:</span><pre class="source-code">
+def simulate_all_params(price, windows, **kwargs):
+    fast_ma, slow_ma = vbt.MA.run_combs(
+        price,
+        windows,
+        r=2,
+        short_names=["fast", "slow"]
+    )
+    entries = fast_ma.ma_crossed_above(slow_ma)
+    exits = fast_ma.ma_crossed_below(slow_ma)
+    pf = vbt.Portfolio.from_signals(price, entries,
+        exits, **kwargs)
+    return pf.sharpe_ratio()</pre></li>				<li>Create two helper functions that return the indexes and parameters where the performance <span class="No-Break">is maximized:</span><pre class="source-code">
+def get_best_index(performance):
+    return performance[
+        performance.groupby("split_idx").idxmax()
+    ].index
+def get_best_params(best_index, level_name):
+    return best_index.get_level_values(
+        level_name).to_numpy()</pre></li>				<li>Implement <a id="_idIndexMarker455"></a>a function <a id="_idIndexMarker456"></a>that runs the backtest given the best moving average values and returns the associated <span class="No-Break">Sharpe ratio:</span><pre class="source-code">
+def simulate_best_params(price, best_fast_windows,
+    best_slow_windows, **kwargs):
+        fast_ma = vbt.MA.run(
+            price,
+            window=best_fast_windows,
+            per_column=True
+        )
+        slow_ma = vbt.MA.run(
+            price,
+            window=best_slow_windows,
+            per_column=True
+        )
+        entries = fast_ma.ma_crossed_above(slow_ma)
+        exits = fast_ma.ma_crossed_below(slow_ma)
+        pf = vbt.Portfolio.from_signals(
+            price, entries, exits, **kwargs)
+        return pf.sharpe_ratio()</pre></li>				<li>Finally, we will run the analysis by passing in a range of moving average windows to <strong class="source-inline">simulate_all_params</strong>. This returns the Sharpe ratio for every combination of moving average windows for every data split. In other words, these are the in-sample <span class="No-Break">Sharpe ratios:</span><pre class="source-code">
+windows = np.arange(10, 40)
+in_sharpe = simulate_all_params(
+    in_price,
+    windows,
+    direction="both",
+    freq="d"
+)</pre></li>				<li>Next, we <a id="_idIndexMarker457"></a>will get the best <a id="_idIndexMarker458"></a>in-sample moving average windows and combine them into a <span class="No-Break">single array:</span><pre class="source-code">
+in_best_index = get_best_index(in_sharpe)
+in_best_fast_windows = get_best_params(
+    in_best_index,
+    "fast_window"
+)
+in_best_slow_windows = get_best_params(
+    in_best_index,
+    "slow_window"
+)
+in_best_window_pairs = np.array(
+    list(
+        zip(
+            in_best_fast_windows,
+            in_best_slow_windows
+        )
+    )
+)</pre></li>				<li>The last step is to retrieve the out-of-sample Sharpe ratios using the optimized moving <span class="No-Break">average windows:</span><pre class="source-code">
+out_test_sharpe = simulate_best_params(
+    out_price,
+    in_best_fast_windows,
+    in_best_slow_windows,
+    direction="both",
+    freq="d"
+)</pre><p class="list-inset">The <a id="_idIndexMarker459"></a>result is the following <a id="_idIndexMarker460"></a>MultiIndex Series that identifies the optimal moving average window values for each split along with the associated <span class="No-Break">Sharpe ratio:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer120" class="IMG---Figure">
+					<img src="image/B21323_06_10.jpg" alt="Figure 6.10: Maximized Sharpe ratios across each data split" width="387" height="137"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.10: Maximized Sharpe ratios across each data split</p>
+			<h2 id="_idParaDest-192"><a id="_idTextAnchor198"></a>How it works…</h2>
+			<p>The code executes a walk-forward optimization on a moving average crossover strategy for AAPL stock. We begin by fetching historical closing prices for AAPL for the period from January 1, 2016, to January 1, 2020. The data is then partitioned into in-sample and out-of-sample sets using VectorBT’s <strong class="source-inline">rolling_split</strong> method. The in-sample set is designated for optimization, while the out-of-sample set is reserved <span class="No-Break">for validation.</span></p>
+			<p>The <strong class="source-inline">rolling_split</strong> method in <a id="_idIndexMarker461"></a>VectorBT is designed to split a time series into rolling in-sample and out-of-sample periods for walk-forward optimization or other time-based analyses. These are the parameters we use in <span class="No-Break">the recipe:</span></p>
+			<ul>
+				<li><strong class="source-inline">n</strong>: This refers <a id="_idIndexMarker462"></a>to the number of splits. It determines how many in-sample and out-of-sample periods will <span class="No-Break">be created.</span></li>
+				<li><strong class="source-inline">window_len</strong>: This <a id="_idIndexMarker463"></a>describes the length of each rolling window in the time series. This is often specified in terms of the number of time steps (<span class="No-Break">e.g., days).</span></li>
+				<li><strong class="source-inline">set_lens</strong>: This <a id="_idIndexMarker464"></a>is a tuple specifying the length of each in-sample and out-of-sample set within each rolling window. The sum of these lengths should not <span class="No-Break">exceed </span><span class="No-Break"><strong class="source-inline">window_len</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">left_to_right</strong>: Determines <a id="_idIndexMarker465"></a>whether to resolve <strong class="source-inline">set_lens</strong> from left to right. Otherwise, the first set will <span class="No-Break">be variable.</span></li>
+			</ul>
+			<p>In the optimization phase, the <strong class="source-inline">simulate_all_params</strong> function is responsible for strategy <a id="_idIndexMarker466"></a>backtesting across <a id="_idIndexMarker467"></a>a range of moving average window sizes. It calculates both fast and slow moving averages, generates entry and exit signals, and simulates the portfolio’s performance, returning the Sharpe ratio as the <span class="No-Break">performance metric.</span></p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">You can select any performance metric to optimize for. The <strong class="source-inline">pf</strong> portfolio object has dozens of different metrics to choose from. You can execute <strong class="source-inline">dir(pf)</strong> to inspect the properties and methods of <span class="No-Break">the object.</span></p>
+			<p>Next, we use the <strong class="source-inline">get_best_index</strong> and <strong class="source-inline">get_best_params</strong> functions to identify the optimal moving average window sizes based on the highest Sharpe ratios achieved during the <span class="No-Break">in-sample testing.</span></p>
+			<p>Finally, the code proceeds to the out-of-sample testing phase. The <strong class="source-inline">simulate_best_params</strong> function takes the optimal moving average window sizes identified in the in-sample phase and applies them to the out-of-sample dataset. It then simulates the portfolio’s performance using these parameters, again computing the Sharpe ratio as the <span class="No-Break">performance metric.</span></p>
+			<p>The <a id="_idIndexMarker468"></a>code is structured <a id="_idIndexMarker469"></a>to leverage VectorBT’s efficient backtesting capabilities, which is particularly advantageous in a walk-forward optimization context where multiple iterations of backtesting and re-optimization <span class="No-Break">are required.</span></p>
+			<h2 id="_idParaDest-193"><a id="_idTextAnchor199"></a>There’s more…</h2>
+			<p>It’s common to overfit backtesting models to market noise. This is especially acute when brute force optimizing technical analysis strategies. To collect evidence to this effect, we can use a one-sided independent t-test to assess the statistical significance between the means of Sharpe ratios for in-sample and <span class="No-Break">out-of-sample datasets:</span></p>
+			<pre class="source-code">
+in_sample_best = in_sharpe[in_best_index].values
+out_sample_test = out_test_sharpe.values
+t, p = stats.ttest_ind(
+    a=out_sample_test,
+    b=in_sample_best,
+    alternative="greater"
+)</pre>			<p>First, the line <strong class="source-inline">in_sample_best = in_sharpe[in_best_index].values</strong> filters the Sharpe ratios stored in <strong class="source-inline">in_sharpe</strong> to include only those corresponding to the best-performing parameter sets. It then extracts these filtered Sharpe ratios as a NumPy array and stores them in the <strong class="source-inline">in_sample_best</strong> variable. We do the same for the <span class="No-Break">out-of-sample dataset.</span></p>
+			<p>The <strong class="source-inline">ttest_ind</strong> function from <a id="_idIndexMarker470"></a>the SciPy stats module takes the two independent <strong class="source-inline">out_sample_test</strong> and <strong class="source-inline">in_sample_best</strong> samples as its arguments. The <strong class="source-inline">alternative="greater"</strong> parameter specifies that the test is one-sided, which we use to evaluate whether the mean Sharpe ratio of the out-of-sample set is statistically greater than that of the in-sample set. The function returns the calculated t-statistic and <span class="No-Break">the p-value.</span></p>
+			<p>The results give us a t-statistic of approximately <strong class="source-inline">-1.085</strong> and a p-value of approximately <strong class="source-inline">0.859</strong>. The negative value of the t-statistic suggests that the mean of the out-of-sample Sharpe ratios is negative. Further, the high p-value tells us there is not enough <a id="_idIndexMarker471"></a>statistical evidence to conclude that the out-of-sample Sharpe ratios are greater than the in-sample Sharpe ratios. The negative t-statistic and the high p-value together suggest that the strategy may not perform as well on new, unseen data as it does on the data on which it was optimized. This could be a warning sign regarding the strategy’s robustness and its ability to generalize to new data. Ideally, you’d hope to see a t-statistic over <strong class="source-inline">1.0</strong> and a p-value <span class="No-Break">under </span><span class="No-Break"><strong class="source-inline">0.05</strong></span><span class="No-Break">.</span></p>
+			<h2 id="_idParaDest-194"><a id="_idTextAnchor200"></a>See also</h2>
+			<p>Using VectorBT to quickly iterate on optimized strategies, coupled with SciPy to test the statistical <a id="_idIndexMarker472"></a>significance of those strategies, is a powerful workflow. You can learn more about SciPy’s stats module <span class="No-Break">here: </span><a href="https://docs.scipy.org/doc/scipy/reference/stats.html#module-scipy.stats"><span class="No-Break">https://docs.scipy.org/doc/scipy/reference/stats.html#module-scipy.stats</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-195"><a id="_idTextAnchor201"></a>Optimizing the SuperTrend strategy with VectorBT Pro</h1>
+			<p>The SuperTrend <a id="_idIndexMarker473"></a>indicator is a trend-following <a id="_idIndexMarker474"></a>indicator that is used in technical analysis to identify the direction of an asset’s momentum. It is constructed <a id="_idIndexMarker475"></a>using two primary components: the <strong class="bold">Average True Range</strong> (<strong class="bold">ATR</strong>) and a multiplier. The ATR measures the asset’s volatility over a specified period, while the multiplier is a user-defined constant that adjusts the sensitivity of <span class="No-Break">the indicator.</span></p>
+			<p>The SuperTrend is calculated <span class="No-Break">as follows:</span></p>
+			<ol>
+				<li>Compute the ATR for a <span class="No-Break">given period.</span></li>
+				<li>Calculate the <strong class="bold">basic upper band</strong> as the <a id="_idIndexMarker476"></a>sum of the high and low prices, divided by 2, plus the product of the multiplier and <span class="No-Break">the ATR.</span></li>
+				<li>Calculate the <strong class="bold">basic lower band</strong> as the <a id="_idIndexMarker477"></a>sum of the high and low prices, divided by 2, minus the product of the multiplier and <span class="No-Break">the ATR.</span></li>
+				<li>The SuperTrend is then defined as the upper band when the price is below it, and as the lower band when the price is <span class="No-Break">above it.</span></li>
+			</ol>
+			<p>The indicator flips between the upper and lower bands, signaling a change in trend. When the <a id="_idIndexMarker478"></a>price is above the SuperTrend line, it suggests an uptrend and a buy signal is generated. Conversely, when the price <a id="_idIndexMarker479"></a>is below the SuperTrend line, it suggests a downtrend and a sell signal <span class="No-Break">is generated.</span></p>
+			<p>To build the SuperTrend indicator, we will introduce VectorBT Pro. VectorBT Pro is a more full-featured version of VectorBT that offers enhancements such as pulling data from AlphaVantage and Polygon, as well as synthetic data generators, multi-threading, stop laddering, time stops, order delays, portfolio optimization with RiskFolio-Lib and PyPortfolioOpt, <span class="No-Break">and more.</span></p>
+			<p>This recipe will demonstrate how to construct a custom indicator using integrations with TA-Lib <span class="No-Break">and Numba.</span></p>
+			<h2 id="_idParaDest-196"><a id="_idTextAnchor202"></a>Getting ready</h2>
+			<p>We need to install a few dependencies to get VectorBT working. First is TA-Lib which is a technical analysis library. The second is H5DF which is a data <span class="No-Break">storage solution.</span></p>
+			<h3>For Windows, Unix/Linux, and Mac Intel users</h3>
+			<p>If <a id="_idIndexMarker480"></a>you’re <a id="_idIndexMarker481"></a>running <a id="_idIndexMarker482"></a>on an Intel x86 chip, you can <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">conda</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+conda install -c conda-forge pytables h5py ta-lib -y</pre>			<h3>For Apple Silicon users</h3>
+			<p>If you have a Mac with an M-series chip, you need to install some dependencies first. The <a id="_idIndexMarker483"></a>easiest way is to use <span class="No-Break">Homebrew (</span><a href="https://brew.sh"><span class="No-Break">https://brew.sh</span></a><span class="No-Break">).</span></p>
+			<p>Install the <a id="_idIndexMarker484"></a>dependencies <span class="No-Break">with Homebrew:</span></p>
+			<pre class="console">
+brew install hdf5 ta-lib</pre>			<p>Install the Python dependencies <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">conda</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+conda install -c conda-forge pytables h5py ta-lib -y</pre>			<p>Now we’re ready to install <span class="No-Break">VectorBT Pro.</span></p>
+			<p>VectorBT Pro <a id="_idIndexMarker485"></a>has a small monthly subscription fee. Details can be found at <a href="https://vectorbt.pro/become-a-member/">https://vectorbt.pro/become-a-member/</a>. After you’ve been added to the list of collaborators and have accepted the repository invitation, the next step is to create a Personal Access Token for your GitHub account to access the Pro repository. To do so, follow <span class="No-Break">these steps:</span></p>
+			<ol>
+				<li>Go <span class="No-Break">to </span><a href="https://github.com/settings/tokens"><span class="No-Break">https://github.com/settings/tokens</span></a><span class="No-Break">.</span></li>
+				<li>Click on <strong class="bold">Generate a </strong><span class="No-Break"><strong class="bold">new token</strong></span><span class="No-Break">.</span></li>
+				<li>Enter a name (such <span class="No-Break">as </span><span class="No-Break"><strong class="source-inline">terminal</strong></span><span class="No-Break">).</span></li>
+				<li>Set the expiration to a fixed number <span class="No-Break">of days.</span></li>
+				<li>Select the <span class="No-Break"><strong class="bold">repo</strong></span><span class="No-Break"> scope.</span></li>
+				<li>Generate the token and save it in a <span class="No-Break">safe place.</span></li>
+			</ol>
+			<p>Once your token has been created, you can install Pro <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install -U "vectorbtpro[base] @ git+https://github.com/polakowo/vectorbt.pro.git"</pre>			<p>When you’re prompted for a password, use the token that you generated in the previous steps. For more installation details, see the <em class="italic">Getting Started</em> guide on the Pro website, which is accessible after <span class="No-Break">signing up.</span></p>
+			<p>Next, we’ll need TA-Lib. TA-Lib is a technical analysis library. Because it’s written in C++ with Python wrappers, we need a little special handling to get <span class="No-Break">it installed.</span></p>
+			<h2 id="_idParaDest-197"><a id="_idTextAnchor203"></a>How to do it…</h2>
+			<p>We’ll <a id="_idIndexMarker486"></a>examine a few key features of <a id="_idIndexMarker487"></a>VectorBT Pro, including the multi-threaded data downloading and <span class="No-Break">indicator factory:</span></p>
+			<ol>
+				<li>Import the libraries we need for the analysis. Note the import of <strong class="source-inline">vectorbtpro</strong> instead <span class="No-Break">of </span><span class="No-Break"><strong class="source-inline">vectorbt</strong></span><span class="No-Break">:</span><pre class="source-code">
+import talib
+import numpy as np
+from numba import njit
+import vectorbtpro as vbt</pre></li>				<li>Use VectorBT Pro’s multi-threading capability to download the market data in <span class="No-Break">517 milliseconds:</span><pre class="source-code">
+start = "2016-01-01 UTC"
+end = "2020-01-01 UTC"
+with vbt.Timer() as timer:
+    prices = vbt.YFData.pull(
+        ["META", "AAPL", "AMZN", "NFLX", "GOOG"],
+        start=start,
+        end=end,
+        execute_kwargs=dict(engine="threadpool")
+    )
+print(timer.elapsed())</pre></li>				<li>Extract the high, low, and closing prices from the <span class="No-Break"><strong class="source-inline">prices</strong></span><span class="No-Break"> object:</span><pre class="source-code">
+high = prices.get("High")
+low = prices.get("Low")
+close = prices.get("Close")</pre></li>				<li>Implement a helper function that calculates the <span class="No-Break">basic bands:</span><pre class="source-code">
+def get_basic_bands(med_price, atr, multiplier):
+    matr = multiplier * atr
+    upper = med_price + matr
+    lower = med_price - matr
+    return upper, lower</pre></li>				<li>Implement <a id="_idIndexMarker488"></a>the function that calculates <a id="_idIndexMarker489"></a>the final bands. This function returns the trend and direction, as well as both the long and short positions. Note the <strong class="source-inline">@njit</strong> decorator, which compiles the code using Numba to achieve machine <span class="No-Break">language-like speeds:</span><pre class="source-code">
+@njit
+def get_final_bands(close, upper, lower):
+    trend = np.full(close.shape, np.nan)
+    dir_ = np.full(close.shape, 1)
+    long = np.full(close.shape, np.nan)
+    short = np.full(close.shape, np.nan)
+    for i in range(1, close.shape[0]):
+        if close[i] &gt; upper[i - 1]:
+            dir_[i] = 1
+        elif close[i] &lt; lower[i - 1]:
+            dir_[i] = -1
+        else:
+            dir_[i] = dir_[i - 1]
+            if dir_[i] &gt; 0 and lower[i] &lt; lower[i - 1]:
+                lower[i] = lower[i - 1]
+            if dir_[i] &lt; 0 and upper[i] &gt; upper[i - 1]:
+                upper[i] = upper[i - 1]
+        if dir_[i] &gt; 0:
+            trend[i] = long[i] = lower[i]
+        else:
+            trend[i] = short[i] = upper[i]
+    return trend, dir_, long, short</pre></li>				<li>Put it <a id="_idIndexMarker490"></a>all together in the final function, which returns the output from the <strong class="source-inline">get_final_bands</strong> function. Note <a id="_idIndexMarker491"></a>the use of TA-Lib’s <strong class="source-inline">MEDPRICE</strong> and <strong class="source-inline">ATR</strong> methods, which further speed up <span class="No-Break">the analysis:</span><pre class="source-code">
+def supertrend(high, low, close, period=7,
+    multiplier=3):
+        avg_price = talib.MEDPRICE(high, low)
+        atr = talib.ATR(high, low, close, period)
+        upper, lower = get_basic_bands(avg_price, atr,
+            multiplier)
+        return get_final_bands(close, upper, lower)</pre></li>				<li>Use VectorBT Pro’s indicator factory class to convert our <strong class="source-inline">supertrend</strong> function into an indicator that we can use with Pro’s <span class="No-Break">analysis capabilities:</span><pre class="source-code">
+SuperTrend = vbt.IF(
+    class_name="SuperTrend",
+    short_name="st",
+    input_names=["high", "low", "close"],
+    param_names=["period", "multiplier"],
+    output_names=["supert", "superd", "superl",
+        "supers"],
+).with_apply_func(
+    supertrend,
+    takes_1d=True,
+    period=7,
+    multiplier=3,
+)</pre></li>				<li>We will <a id="_idIndexMarker492"></a>then create a custom class <a id="_idIndexMarker493"></a>that inherits the indicator that we just built using VectorBT Pro’s indicator factory. This class includes a method plot that encapsulates the formatting and setup of <span class="No-Break">a plot:</span><pre class="source-code">
+class SuperTrend(SuperTrend):
+    def plot(
+        self,
+        column=None,
+        close_kwargs=None,
+        superl_kwargs=None,
+        supers_kwargs=None,
+        fig=None,
+        **layout_kwargs
+    ):
+        close_kwargs = close_kwargs if close_kwargs else {}
+        superl_kwargs = superl_kwargs if superl_kwargs else {}
+        supers_kwargs = supers_kwargs if supers_kwargs else {}
+        close = self.select_col_from_obj(self.close,
+            column).rename("Close")
+        supers = self.select_col_from_obj(self.supers,
+            column).rename("Short")
+        superl = self.select_col_from_obj(self.superl,
+            column).rename("Long")
+        fig = close.vbt.plot(fig=fig, **close_kwargs,
+            **layout_kwargs)
+        supers.vbt.plot(fig=fig, **supers_kwargs)
+        superl.vbt.plot(fig=fig, **superl_kwargs)
+        return fig</pre></li>				<li>We’re <a id="_idIndexMarker494"></a>now ready to create an instance <a id="_idIndexMarker495"></a>of our SuperTrend indicator and visualize where the indicator suggests long and <span class="No-Break">short positions:</span><pre class="source-code">
+st = SuperTrend.run(high, low, close)
+st.loc["2016-01-01":"2020-01-01",
+    "AAPL"].plot().show()</pre><p class="list-inset">The result is a Plotly chart with the closing price for AAPL and the locations of long and <span class="No-Break">short signals:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer121" class="IMG---Figure">
+					<img src="image/B21323_06_11.jpg" alt="Figure 6.11: A chart with the long and short signals for AAPL" width="700" height="350"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.11: A chart with the long and short signals for AAPL</p>
+			<ol>
+				<li value="10">The next <a id="_idIndexMarker496"></a>step is to run the backtest. First, let’s find the entry and <span class="No-Break">exit signals:</span><pre class="source-code">
+entries = (~st.superl.isnull()).vbt.signals.fshift()
+exits = (~st.supers.isnull()).vbt.signals.fshift()</pre><p class="list-inset">The <a id="_idIndexMarker497"></a>result is two DataFrames with boolean values for each day indicating where a long or short <span class="No-Break">position exists:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer122" class="IMG---Figure">
+					<img src="image/B21323_06_12.jpg" alt="Figure 6.12: A DataFrame with entry locations" width="454" height="210"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.12: A DataFrame with entry locations</p>
+			<ol>
+				<li value="11">Finally, we can run the backtest and inspect the risk and <span class="No-Break">performance results:</span><pre class="source-code">
+pf = vbt.Portfolio.from_signals(
+    close=close,
+    entries=entries,
+    exits=exits,
+    fees=0.001,
+    freq="1d"
+)
+pf.stats(group_by=True)</pre><p class="list-inset">The <a id="_idIndexMarker498"></a>result is a Series with the <a id="_idIndexMarker499"></a>consolidated statistics of <span class="No-Break">the strategy:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer123" class="IMG---Figure">
+					<img src="image/B21323_06_13.jpg" alt="Figure 6.13: A sample of the Series with the risk and performance statistics for the SuperTrend strategy" width="495" height="521"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.13: A sample of the Series with the risk and performance statistics for the SuperTrend strategy</p>
+			<h2 id="_idParaDest-198"><a id="_idTextAnchor204"></a>How it works…</h2>
+			<p>The code <a id="_idIndexMarker500"></a>fetches historical financial <a id="_idIndexMarker501"></a>data on META, AAPL, AMZN, NFLX, and GOOG for the date range from January 1, 2016, to January 1, 2020. It uses the <strong class="source-inline">pull</strong> method from the <strong class="source-inline">YFData</strong> class to download this data. The <strong class="source-inline">execute_kwargs=dict(engine="threadpool")</strong> argument specifies that a thread pool should be used for concurrent execution, which speeds up the data retrieval process. The last data pre-processing step is to simply extract the high, low, and closing prices from the <span class="No-Break"><strong class="source-inline">YFData</strong></span><span class="No-Break"> object.</span></p>
+			<p>The <strong class="source-inline">get_basic_bands</strong> function calculates the basic upper and lower bands used in the SuperTrend indicator. It takes three arguments: <strong class="source-inline">med_price</strong>, which is the median price of the asset, <strong class="source-inline">atr</strong>, the ATR, and <strong class="source-inline">multiplier</strong>, a user-defined constant to adjust sensitivity. The function returns both the upper and <span class="No-Break">lower bands.</span></p>
+			<p>Next, we implement the heart of the SuperTrend indicator. The <strong class="source-inline">get_final_bands</strong> function is JIT compiled, which is optimized using Numba’s <strong class="source-inline">@njit</strong> decorator for better performance. It calculates the final upper and lower bands, as well as the trend direction for our SuperTrend indicator. It takes three arrays as input: <strong class="source-inline">close</strong> for closing prices, <strong class="source-inline">upper</strong> for the basic upper band, and <strong class="source-inline">lower</strong> for the basic lower band. The function returns four arrays: <strong class="source-inline">trend</strong> (final band based on trend direction), <strong class="source-inline">dir_</strong> (trend direction), <strong class="source-inline">long</strong> (lower band during uptrends), and <strong class="source-inline">short</strong> (upper band <span class="No-Break">during downtrends).</span></p>
+			<p><strong class="source-inline">supertrend</strong> calculates the SuperTrend indicator using high, low, and close prices. It takes five arguments: <strong class="source-inline">high</strong>; <strong class="source-inline">low</strong>; <strong class="source-inline">close</strong> for the high, low, and closing prices, respectively; <strong class="source-inline">period</strong> for the number of periods to consider for the ATR; and <strong class="source-inline">multiplier</strong> to adjust the sensitivity of the bands. The <strong class="source-inline">supertrend</strong> function returns the final upper and lower bands, the trend direction, and the bands used during uptrends and downtrends, as calculated <span class="No-Break">by </span><span class="No-Break"><strong class="source-inline">get_final_bands</strong></span><span class="No-Break">.</span></p>
+			<p>Next, we define a custom indicator class, <strong class="source-inline">SuperTrend</strong>, using VectorBT Pro’s <strong class="source-inline">IndicatorFactory</strong> class. This class encapsulates the SuperTrend indicator logic for easier reuse and integration within the Pro ecosystem. The <strong class="source-inline">with_apply_func</strong> method attaches the previously defined <strong class="source-inline">supertrend</strong> function to this custom indicator class. This function will be called when the <strong class="source-inline">SuperTrend</strong> indicator <span class="No-Break">is run.</span></p>
+			<p>Finally, we run the backtest. We first run the custom <strong class="source-inline">SuperTrend</strong> indicator on high, low, and close price data, generating SuperTrend values, trend directions, and bands for both long <a id="_idIndexMarker502"></a>and short positions. Finally, a portfolio <a id="_idIndexMarker503"></a>is constructed using the entry and exit signals with VectorBT Pro’s <strong class="source-inline">from_signals</strong> method. The portfolio uses the close prices for trade execution, incorporates a trading fee of 0.1%, and assumes a daily <span class="No-Break">trading frequency.</span></p>
+			<h2 id="_idParaDest-199"><a id="_idTextAnchor205"></a>There’s more…</h2>
+			<p>Since we encapsulated the SuperTrend indicator logic using Pro’s indicator factory, we can optimize it. The two parameters in question are <strong class="source-inline">period</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">multiplier</strong></span><span class="No-Break">:</span></p>
+			<ol>
+				<li>First, let’s create ranges of values for each of <span class="No-Break">the parameters:</span><pre class="source-code">
+periods = np.arange(4, 20)
+multipliers = np.arange(20, 41) / 10</pre></li>				<li>Then we call the run method on the SuperTrend indicator, passing in the market prices, as well as our arrays of periods <span class="No-Break">and multipliers:</span><pre class="source-code">
+st = SuperTrend.run(
+    high, low, close,
+    period=periods,
+    multiplier=multipliers,
+    param_product=True,
+)</pre></li>				<li>Pro runs through every combination of period and multiplier. We then run through the same code as before that identifies the entries, exits, and runs the backtest. The difference is that now, our DataFrames containing entry and exit positions have a MultiIndex index for each combination of period <span class="No-Break">and multiplier:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer124" class="IMG---Figure">
+					<img src="image/B21323_06_14.jpg" alt="Figure 6.14: A DataFrame with entry locations for each stock for each combination of period and multiplier" width="746" height="271"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.14: A DataFrame with entry locations for each stock for each combination of period and multiplier</p>
+			<ol>
+				<li value="4">Once <a id="_idIndexMarker504"></a>we have created the entries <a id="_idIndexMarker505"></a>and exits, we run <span class="No-Break">the backtest:</span><pre class="source-code">
+pf = vbt.Portfolio.from_signals(
+    close=close,
+    entries=entries,
+    exits=exits,
+    fees=0.001,
+    freq="1d"
+)</pre></li>				<li>To visualize the parameter hotspots (the combinations with the maximum Sharpe ratio), use <span class="No-Break">a heatmap:</span><pre class="source-code">
+pf.sharpe_ratio.vbt.heatmap(
+    x_level="st_period",
+    y_level="st_multiplier",
+    slider_level="symbol"
+)</pre></li>			</ol>
+			<p>The result <a id="_idIndexMarker506"></a>is an interactive heatmap <a id="_idIndexMarker507"></a>that lets us select which asset to visualize. In this case, we <span class="No-Break">select AAPL:</span></p>
+			<div>
+				<div id="_idContainer125" class="IMG---Figure">
+					<img src="image/B21323_06_15.jpg" alt="Figure 6.15: An interactive heatmap showing the Sharpe ratio at each parameter combination" width="581" height="578"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 6.15: An interactive heatmap showing the Sharpe ratio at each parameter combination</p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">The <strong class="source-inline">pf</strong> object has many risk and performance metrics available for plotting. To get an idea of what’s available, print <strong class="source-inline">dir(pf)</strong> to see the object attributes. You can easily plot a different metric on a heatmap by replacing <strong class="source-inline">sharpe_ratio</strong> with whichever metric you’re <span class="No-Break">interested in.</span></p>
+			<h2 id="_idParaDest-200"><a id="_idTextAnchor206"></a>See also</h2>
+			<p>We’ve only begun to scratch the surface of VectorBT and VectorBT Pro. It’s designed for speed, which is perfect for optimizing features of our <span class="No-Break">trading strategies.</span></p>
+			<p>To learn <a id="_idIndexMarker508"></a>more about the SuperTrend indicator, consult the VectorBT Pro information page <span class="No-Break">at </span><a href="https://vectorbt.pro/become-a-member/"><span class="No-Break">https://vectorbt.pro/become-a-member/</span></a><span class="No-Break">.</span></p>
+		</div>
+	</div>
+</div>
+</body>
+</html>

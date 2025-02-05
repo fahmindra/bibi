@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer167">
+			<h1 id="_idParaDest-218" class="chapter-number"><a id="_idTextAnchor225"></a>8</h1>
+			<h1 id="_idParaDest-219"><a id="_idTextAnchor226"></a>Evaluate Factor Risk and Performance with Alphalens Reloaded</h1>
+			<p><a id="_idTextAnchor227"></a>Factor investing is a strategic approach where assets are chosen based on attributes or <strong class="bold">factors</strong> that are associated with higher<a id="_idIndexMarker575"></a> returns. This method differs from traditional investment strategies which focus on asset classes like stocks, bonds, or sectors. Factor investing emphasizes the underlying drivers of risk and return in securities. The crux of factor investing lies in the systematic identification and harnessing of these and other factors. By understanding the sources of risk and return, we can aim for returns above traditional benchmarks. It’s essential to note, however, that while factor investing can enhance portfolio diversification and potential returns, it does not eliminate risk. Market conditions, economic changes, and other externalities can influence the effectiveness of factor-based strategies at any <span class="No-Break">given time.</span></p>
+			<p>In <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for Stock Portfolios</em>, we explored recipes to construct alpha factors. In this chapter, we explore how to analyze the risk and performance of these alpha factors using Alphalens Reloaded. Alphalens Reloaded is a library designed specifically for performance analysis of predictive alpha factors. It’s useful for assessing the quality of signals generated from various factors, which allow us to evaluate how well these signals predict future returns. Alphalens Reloaded integrates with Zipline Reloaded and turns the output of backtests into statistics and visualizations. The library provides various utilities, including tear sheets that consolidate performance metrics and visualizations. These tear sheets can show cumulative returns, turnover analysis, and information coefficients, among <span class="No-Break">other insights.</span></p>
+			<p>In this chapter, we present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Preparing <span class="No-Break">backtest results</span></li>
+				<li>Evaluating the <span class="No-Break">information coefficient</span></li>
+				<li>Examining factor <span class="No-Break">return performance</span></li>
+				<li>Evaluating <span class="No-Break">factor turnover</span></li>
+			</ul>
+			<h1 id="_idParaDest-220"><a id="_idTextAnchor228"></a>Preparing backtest results</h1>
+			<p>Zipline Reloaded is a robust backtesting library that has an integrated ecosystem of tools designed to assess trading<a id="_idIndexMarker576"></a> strategy performance. This ecosystem makes it easier for<a id="_idIndexMarker577"></a> traders to transition from strategy development to evaluation. An example of an integrated tool is Alphalens Reloaded which is the focus of <span class="No-Break">this chapter.</span></p>
+			<p>We learned in <a href="B21323_07.xhtml#_idTextAnchor207"><span class="No-Break"><em class="italic">Chapter 7</em></span></a><em class="italic">, Event-Based Backtesting Factor Portfolios with Zipline Reloaded</em> that the output DataFrame of a Zipline backtest provides a detailed analysis of a trading strategy’s performance over a specified historical data period. The output includes metrics like cumulative returns, alpha, beta, Sharpe ratio, and maximum drawdown, among many others. We need to manipulate the output DataFrame to extract some of the data so it’s suitable for use with <span class="No-Break">Alphalens Reloaded.</span></p>
+			<p>This recipe will walk through the process of extracting the <span class="No-Break">relevant information.</span></p>
+			<h2 id="_idParaDest-221"><a id="_idTextAnchor229"></a>Getting ready…</h2>
+			<p>To install Alphalens Reloaded in your virtual environment, <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install alphalens-reloaded</pre>			<p>We assume that a file <strong class="source-inline">mean_reversion.pickle</strong> exists in the same directory as the code for this recipe. The file is the cached output from the Zipline backtest we ran in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for </em><span class="No-Break"><em class="italic">Stock Portfolios</em></span><span class="No-Break">.</span></p>
+			<h2 id="_idParaDest-222"><a id="_idTextAnchor230"></a>How to do it…</h2>
+			<p>This recipe focuses on manipulating the output of the Zipline backtest using pandas. There’s one Alphalens Reloaded method we can use to create DataFrame used for most analysis in <span class="No-Break">Alphalens Reloaded.</span></p>
+			<ol>
+				<li>Import the libraries we need for <span class="No-Break">the analysis:</span><pre class="source-code">
+import pandas as pd
+from alphalens.utils import get_clean_factor_and_forward_returns</pre></li>				<li>Read in the cached backtest output into <span class="No-Break">a DataFrame:</span><pre class="source-code">
+mean_reversion = pd.read_pickle('mean_reversion.pickle')</pre></li>				<li>Construct a DataFrame with symbols in the columns and dates in <span class="No-Break">the rows:</span><pre class="source-code">
+prices = pd.concat(
+    [df.to_frame(d) for d, df in mean_reversion.prices.dropna().items()],
+    axis=1
+).T</pre></li>			</ol>
+			<p class="callout-heading">Important</p>
+			<p class="callout">A Python list comprehension is a concise way to create lists by iterating over an iterable and applying an expression to each element. It<a id="_idIndexMarker578"></a> condenses a loop and a list appending operation into a single line of code, making it more readable and elegant. The syntax includes brackets containing an expression followed by a for clause, as we see in Step <span class="No-Break">3, above.</span></p>
+			<ol>
+				<li value="4">Convert column<a id="_idIndexMarker579"></a> names <span class="No-Break">to strings:</span><pre class="source-code">
+prices.columns = [col.symbol for col in prices.columns]</pre></li>				<li>Normalize the<a id="_idIndexMarker580"></a> timestamps to midnight, preserving time <span class="No-Break">zone information:</span><pre class="source-code">
+prices.index = prices.index.normalize()</pre><p class="list-inset">The result is the following DataFrame containing the prices of each asset in the backtest for <span class="No-Break">each day:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer138" class="IMG---Figure">
+					<img src="image/B21323_08_1.jpg" alt="Figure 8.1: Price data from the backtest output" width="732" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.1: Price data from the backtest output</p>
+			<ol>
+				<li value="6">We repeat a similar process for the factor data. Start by constructing a DataFrame with symbols in the<a id="_idIndexMarker581"></a> columns and factor rank in <span class="No-Break">the rows:</span><pre class="source-code">
+factor_data = pd.concat(
+    [df.to_frame(d) for d,
+        df in mean_reversion.factor_data.dropna().items()],
+    axis=1
+).T</pre></li>				<li>Convert column names <span class="No-Break">to strings:</span><pre class="source-code">
+factor_data.columns = [
+    col.symbol for col in factor_data.columns]</pre></li>				<li>Normalize the <a id="_idIndexMarker582"></a>timestamps to midnight, preserving time <span class="No-Break">zone information:</span><pre class="source-code">
+factor_data.index = factor_data.index.normalize()</pre></li>				<li>Create a MultiIndex with <strong class="source-inline">date</strong> in level <strong class="source-inline">0</strong> and <strong class="source-inline">symbol</strong> in <span class="No-Break">level </span><span class="No-Break"><strong class="source-inline">1</strong></span><span class="No-Break">:</span><pre class="source-code">
+factor_data = factor_data.stack()</pre></li>				<li>Rename <span class="No-Break">the MultiIndex:</span><pre class="source-code">
+factor_data.index.names = ["date", "asset"]</pre><p class="list-inset">The result is the following a MultiIndex series with the data and asset in the indexes and the factor ranking in <span class="No-Break">the column:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer139" class="IMG---Figure">
+					<img src="image/B21323_08_2.jpg" alt="Figure 8.2: MultiIndex Series containing factor ranks for each day and asset" width="379" height="235"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.2: MultiIndex Series containing factor ranks for each day and asset</p>
+			<ol>
+				<li value="11">The last step is to <a id="_idIndexMarker583"></a>create a MultiIndex DataFrame with forward returns, factor <a id="_idIndexMarker584"></a>values, and <span class="No-Break">factor quantiles:</span><pre class="source-code">
+alphalens_data = get_clean_factor_and_forward_returns(
+    factor=factor_data, prices=prices, periods=(5, 10, 21, 63)
+)</pre><p class="list-inset">The result is the following MultiIndex DataFrame containing the data we need to run all the factor analysis using <span class="No-Break">Alphalens Reloaded:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer140" class="IMG---Figure">
+					<img src="image/B21323_08_3.jpg" alt="Figure 8.3: MultiIndex DataFrame containing clean factor and forward returns for each date and asset" width="724" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.3: MultiIndex DataFrame containing clean factor and forward returns for each date and asset</p>
+			<h2 id="_idParaDest-223"><a id="_idTextAnchor231"></a>How it works…</h2>
+			<p>After the imports, we need to <a id="_idIndexMarker585"></a>manipulate the backtest output. First, we construct a DataFrame called <strong class="source-inline">prices</strong> where each column represents a symbol and each row represents a date. We do this by iterating through each row of <strong class="source-inline">prices</strong> using the <strong class="source-inline">items</strong> method which returns an iterator. Each key is the date and each value is a DataFrame representing <a id="_idIndexMarker586"></a>price data. Each of these DataFrames is converted to a column with the date as the column’s name using the <strong class="source-inline">to_frame()</strong> method. The <strong class="source-inline">concat()</strong> function then concatenates these columns horizontally using the <span class="No-Break"><strong class="source-inline">axis=1</strong></span><span class="No-Break"> argument.</span></p>
+			<p>Next, we modify the column names of the <strong class="source-inline">prices</strong> DataFrame to be the symbols since the original column names were Equity objects. Finally, we adjust the row indices of the <strong class="source-inline">prices</strong> DataFrame to normalize the dates to midnight, while retaining any time <span class="No-Break">zone information.</span></p>
+			<p>To extract the factor data from the backtest output, we follow similar steps. First, we iterate through <strong class="source-inline">factor_data</strong> column dropping any null values, and reshaping the data so that each date corresponds to a unique column. Next, we convert the column names to strings and adjust the dates like before. Finally, the DataFrame is transformed from a two-dimensional table into a one-dimensional series with a hierarchical index. We do this with the <strong class="source-inline">stack</strong> method, resulting in a multi-indexed Series where the primary level of the index is the date and the secondary level is the symbol. For clarity, these levels are named <strong class="source-inline">date</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">asset</strong></span><span class="No-Break">.</span></p>
+			<p>Now that the DataFrames are prepared, we can call the Alphalens Reloaded <strong class="source-inline">get_clean_factor_and_forward_returns</strong> function. The purpose of this function is to associate factor values with future returns. The output, stored in the variable <strong class="source-inline">alphalens_data</strong>, is a DataFrame that combines the factor data with the subsequent returns based on the provided prices. This merged structure allows us to analyze how specific factor values might have influenced or related to future asset returns. The resulting DataFrame has a MultiIndex <a id="_idIndexMarker587"></a>with dates and symbols. The columns in the DataFrame represent different forward returns (5D, 10D, 21D, and 63D for 5-day, 10-day, 21-day, and 63-day returns), the factor values and quantile rankings of the factor values. The quantile<a id="_idIndexMarker588"></a> rankings segment the factor values into groups, with the shown values like “3” or “5” indicating the specific quantile bucket the factor value for an asset falls into on a <span class="No-Break">given date.</span></p>
+			<p>This DataFrame will be used for all subsequent analysis.Top <span class="No-Break">of Form</span></p>
+			<p>Bottom <span class="No-Break">of Form</span></p>
+			<h2 id="_idParaDest-224"><a id="_idTextAnchor232"></a>There’s more…</h2>
+			<p>The <strong class="source-inline">get_clean_factor_and_forward_returns</strong> function from Alphalens Reloaded is designed to prepare factor data for subsequent analysis. It aligns factor values with forward returns, ensuring that comparisons between factors and future performance are valid. The function also handles data cleaning tasks such as handling missing values. The result is a structured DataFrame that is optimized for factor analysis. The <strong class="source-inline">get_clean_factor_and_forward_returns</strong> is flexible in how it aligns the factor data with return data. These are the additional arguments available for controlling <span class="No-Break">this alignment:</span></p>
+			<ul>
+				<li><strong class="source-inline">groupby</strong>: An optional parameter, which, if provided, groups assets based on common characteristics like industry or sector, facilitating <span class="No-Break">sector-neutral analysis.</span></li>
+				<li><strong class="source-inline">by_group</strong>: A boolean that decides whether to perform computations (like quantile analysis) separately for each group in <strong class="source-inline">groupby</strong> or for the <span class="No-Break">entire dataset.</span></li>
+				<li><strong class="source-inline">bins</strong>: The number of quantiles to form or specific bin edges. This can be an alternative to the <span class="No-Break"><strong class="source-inline">quantiles</strong></span><span class="No-Break"> argument.</span></li>
+				<li><strong class="source-inline">quantiles</strong>: An integer denoting how many quantiles to form. Quantiles segment the factor data, allowing for the examination of returns by <span class="No-Break">factor quantile.</span></li>
+				<li><strong class="source-inline">periods</strong>: A list of time periods for which forward returns will be computed, e.g., [1, 5, 10] would yield forward returns for 1 day, 5 days, and <span class="No-Break">10 days.</span></li>
+				<li><strong class="source-inline">filter_zscore</strong>: Removes outliers based on the z-score. This ensures that extreme factor values, which could be errors or anomalies, do not skew <span class="No-Break">the analysis.</span></li>
+				<li><strong class="source-inline">groupby_labels</strong>: An optional set of labels for the groups when using the <strong class="source-inline">groupby</strong> argument, useful for more meaningful <span class="No-Break">group naming.</span></li>
+				<li><strong class="source-inline">max_loss</strong>: The maximum percentage loss that is tolerated in case of missing data. Determines how much missing data <span class="No-Break">is acceptable.</span></li>
+				<li><strong class="source-inline">zero_aware</strong>: A <strong class="source-inline">boolean</strong> that, if <strong class="source-inline">True</strong>, makes quantile computation treat zeros distinctly, ensuring that they <a id="_idIndexMarker589"></a>receive their own bin. This is especially<a id="_idIndexMarker590"></a> useful when zero has a distinct meaning in the <span class="No-Break">factor context.</span></li>
+			</ul>
+			<h2 id="_idParaDest-225"><a id="_idTextAnchor233"></a>See also</h2>
+			<p>Factor investing is a broad topic. <em class="italic">Active Portfolio Management: A Quantitative Approach for Producing Superior Returns and Controlling Risk</em> by Richard C. Grinold and Ronald N. Khan is a staple in the world of quantitative finance and portfolio management. It dives deep into the mathematics and strategies behind managing portfolios actively, including factor-based investing. The book covers various factors, models, and tools, emphasizing the importance of forward returns in the evaluation and prediction of factor performance. For practitioners and students alike, this book provides a comprehensive and rigorous exploration of quantitative techniques in portfolio management. You can buy the book on Amazon <span class="No-Break">here: </span><span class="No-Break">https://amzn.to/3RtsovG</span></p>
+			<p>Finally, the Alphalens Reloaded documentation provides examples and details on how to use the code. The documentation can be found <span class="No-Break">here: </span><a href="https://alphalens.ml4trading.io%0D"><span class="No-Break">https://alphalens.ml4trading.io</span></a></p>
+			<h1 id="_idParaDest-226"><a id="_idTextAnchor234"></a>Evaluating the information coefficient</h1>
+			<p>The <strong class="bold">Information Coefficient</strong> (<strong class="bold">IC</strong>) is a fundamental <a id="_idIndexMarker591"></a>metric in quantitative portfolio construction. It gauges the predictive power of a forecast relative to<a id="_idIndexMarker592"></a> future returns. At its core, IC uses the Spearman rank correlation, a non-parametric measure that assesses how well the relationship between two variables can be described using a monotonic function. The IC’s value ranges from -1 to 1 with a positive IC indicating a forecast’s genuine predictive power, a value near zero indicating an absence of predictive capacity, and a negative value indicating an inverse relationship between the forecast and <span class="No-Break">subsequent returns.</span></p>
+			<p>The origins of the IC can be traced back to the 1960s and 1970s. The preliminary idea of the metric was introduced by Jack L. Treynor in the early 1960s as he presented the topic of correlating investment decisions with corresponding outcomes in his writings on performance measurement. By the mid-1970s, Fischer Black, who is also co-credited for the renowned Black-Scholes option pricing model, further honed and expanded upon the concept in academic literature. Today, IC is a cornerstone metric to gauge the predictive power of <span class="No-Break">alpha factors.</span></p>
+			<p>Alphalens Reloaded consolidates extensive <a id="_idIndexMarker593"></a>quantitative research into a<a id="_idIndexMarker594"></a> single tool tailored for factor evaluation. It simplifies complex methodologies, offering us an easy way to analyze the predictive capabilities <span class="No-Break">of factors.</span></p>
+			<p>This recipe will show <span class="No-Break">us how.</span></p>
+			<h2 id="_idParaDest-227"><a id="_idTextAnchor235"></a>Getting ready…</h2>
+			<p>For this recipe and subsequent recipes, we assume the imports from the last recipe are available and <strong class="source-inline">alphalens_data</strong> <span class="No-Break">is defined.</span></p>
+			<h2 id="_idParaDest-228"><a id="_idTextAnchor236"></a>How to do it…</h2>
+			<p>Alphalens Reloaded provides tear sheets that provide consolidated summaries of the analyses presented in this recipe. We’ll look at each independently to deepen <span class="No-Break">our understanding.</span></p>
+			<ol>
+				<li>Import additional libraries from Alphalens Reloaded to evaluate <span class="No-Break">the IC:</span><pre class="source-code">
+from alphalens.performance import (
+    factor_information_coefficient,
+    mean_information_coefficient,
+)
+from alphalens.plotting import (
+    plot_ic_ts,
+    plot_information_table,
+)</pre></li>				<li>Generate the information coefficient for each holding period on <span class="No-Break">each date:</span><pre class="source-code">
+ic = factor_information_coefficient(alphalens_data)</pre><p class="list-inset">The result is the following DataFrame with the IC for each day and <span class="No-Break">forward return:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer141" class="IMG---Figure">
+					<img src="image/B21323_08_4.jpg" alt="Figure 8.4: DataFrame containing the IC for each period and forward return" width="500" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.4: DataFrame containing the IC for each period and forward return</p>
+			<ol>
+				<li value="3">Inspect the statistical <a id="_idIndexMarker595"></a>properties of the IC at each <span class="No-Break">forward return:</span><pre class="source-code">
+plot_information_table(ic)</pre><p class="list-inset">The result is the<a id="_idIndexMarker596"></a> following table containing the mean, standard deviation, and other properties of <span class="No-Break">the IC:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer142" class="IMG---Figure">
+					<img src="image/B21323_08_5.jpg" alt="Figure 8.5: DataFrame containing statistical properties of the IC including mean, standard deviation, risk adjusted IC, t-stat, p-value, skew, and kurtosis" width="318" height="232"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.5: DataFrame containing statistical properties of the IC including mean, standard deviation, risk adjusted IC, t-stat, p-value, skew, and kurtosis</p>
+			<ol>
+				<li value="4">Plot the IC over the forward<a id="_idIndexMarker597"></a> return period to inspect how <a id="_idIndexMarker598"></a>the alpha decays over longer holding periods <span class="No-Break">as follows:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer143" class="IMG---Figure">
+					<img src="image/B21323_08_6.jpg" alt="Figure 8.6: Plot demonstrating the decay of the IC as the forward return period lengthens" width="692" height="487"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.6: Plot demonstrating the decay of the IC as the forward return period lengthens</p>
+			<h2 id="_idParaDest-229"><a id="_idTextAnchor237"></a>How it works…</h2>
+			<p>The Spearman rank correlation, often denoted as <em class="italic">ρ</em> or Spearman’s <em class="italic">r</em>, is a non-parametric measure used to assess the strength and direction of the monotonic relationship between two variables. Unlike the Pearson correlation coefficient, which measures linear relationships between continuous <a id="_idIndexMarker599"></a>variables, Spearman’s rank correlation focuses on the relative order of values rather than their <span class="No-Break">absolute magnitudes.</span></p>
+			<p>To compute the Spearman<a id="_idIndexMarker600"></a> <span class="No-Break">rank correlation:</span></p>
+			<ol>
+				<li>Rank each variable separately, assigning ranks from <img src="image/25.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:math&gt;' style="vertical-align:-0.000em;height:0.634em;width:0.476em" width="20" height="26"/> to <img src="image/26.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;N&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.008em;height:0.656em;width:0.700em" width="32" height="27"/> for a dataset of <img src="image/26.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;N&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.008em;height:0.656em;width:0.700em" width="32" height="27"/> observations. For tied values, assign the <span class="No-Break">average rank.</span></li>
+				<li>Calculate the difference between ranks for each observation, denoted <span class="No-Break">as </span><span class="No-Break"><img src="image/28.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;d&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.012em;height:0.723em;width:0.507em" width="22" height="30"/></span><span class="No-Break">.</span></li>
+				<li>Square these <span class="No-Break">differences, </span><span class="No-Break"><img src="image/29.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:msup&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;d&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msup&gt;&lt;/mml:math&gt;' style="vertical-align:-0.012em;height:0.723em;width:0.836em" width="35" height="30"/></span><span class="No-Break">.</span></li>
+				<li>Use the following formula to <span class="No-Break">compute </span><span class="No-Break"><img src="image/30.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;ρ&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.257em;height:0.705em;width:0.476em" width="20" height="29"/></span><span class="No-Break">:</span></li>
+			</ol>
+			<p><img src="image/31.png" alt='&lt;math xmlns="http://www.w3.org/1998/Math/MathML" display="block"&gt;&lt;mrow&gt;&lt;mrow&gt;&lt;mi&gt;ρ&lt;/mi&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;mo&gt;−&lt;/mo&gt;&lt;mfrac&gt;&lt;mrow&gt;&lt;mn&gt;6&lt;/mn&gt;&lt;mo&gt;∑&lt;/mo&gt;&lt;msup&gt;&lt;mi&gt;d&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;/mrow&gt;&lt;mrow&gt;&lt;mi&gt;N&lt;/mi&gt;&lt;mfenced open="(" close=")"&gt;&lt;mrow&gt;&lt;msup&gt;&lt;mi&gt;N&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;mo&gt;−&lt;/mo&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;/mrow&gt;&lt;/mfenced&gt;&lt;/mrow&gt;&lt;/mfrac&gt;&lt;/mrow&gt;&lt;/mrow&gt;&lt;/math&gt;' style="vertical-align:-0.587em;height:1.685em;width:7.066em" width="294" height="70"/></p>
+			<p><span class="No-Break">Where:</span></p>
+			<ul>
+				<li><img src="image/32.png" alt='&lt;math xmlns="http://www.w3.org/1998/Math/MathML"&gt;&lt;mrow&gt;&lt;mi&gt;ρ&lt;/mi&gt;&lt;/mrow&gt;&lt;/math&gt;' style="vertical-align:-0.257em;height:0.705em;width:0.703em" width="29" height="29"/>is the Spearman <span class="No-Break">rank correlation.</span></li>
+				<li><img src="image/28.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;d&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.012em;height:0.723em;width:0.507em" width="22" height="30"/> is the difference between <span class="No-Break">paired ranks.</span></li>
+				<li><img src="image/26.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;N&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.008em;height:0.656em;width:0.704em" width="32" height="27"/> is the number <span class="No-Break">of observations.</span></li>
+			</ul>
+			<p>The resulting <img src="image/35.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;ρ&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.257em;height:0.705em;width:0.472em" width="20" height="29"/> will fall between <strong class="source-inline">-1</strong> and <strong class="source-inline">1</strong>. A value of <strong class="source-inline">1</strong> indicates perfect positive correlation in ranks (i.e., as one variable increases, the other does too), <strong class="source-inline">-1</strong> indicates perfect negative correlation in ranks, and a value close to <strong class="source-inline">0</strong> suggests no significant <span class="No-Break">rank correlation.</span></p>
+			<p>In the context of the IC using the Spearman <span class="No-Break">rank correlation:</span></p>
+			<ul>
+				<li><strong class="bold">Predicted or forward returns</strong>: These are the returns that a factor model anticipates. They are typically derived from the factor scores, which are usually the output of some quantitative model <span class="No-Break">or strategy.</span></li>
+				<li><strong class="bold">Actual returns</strong>: These are the realized returns of assets over a specific period. They serve as the ground truth against which predicted returns <span class="No-Break">are evaluated.</span></li>
+			</ul>
+			<p>When computing the Spearman rank correlation for the IC, the ranks of both predicted and actual returns are compared. The differences in ranks (<em class="italic">dd</em>) between these two sets of values are used in the Spearman formula to determine how well the predicted returns’ order (or rank) matches the actual <span class="No-Break">returns’ order.</span></p>
+			<p>Alphalens Reloaded uses the Spearman rank correlation to compare the ranks of the factor values with the ranks of the forward returns. A high correlation would suggest that assets with higher factor scores tend to have higher (or lower, depending on the sign) future returns, affirming the predictive power of <span class="No-Break">the factor.</span></p>
+			<p>In <span class="No-Break"><em class="italic">Figure 8</em></span><em class="italic">.6</em>, we observe the<a id="_idIndexMarker601"></a> predictive power of the alpha factor decaying over time. This is referred to as IC decay. In algorithmic trading, it’s important to measure how quickly the correlation between <a id="_idIndexMarker602"></a>predicted and actual returns diminishes. A rapid IC decay indicates that the factor’s predictive power is short-lived. Conversely, a slow IC decay suggests that the signal remains relevant for a more extended period, potentially allowing for longer <span class="No-Break">investment horizons.</span></p>
+			<h2 id="_idParaDest-230"><a id="_idTextAnchor238"></a>There’s more…</h2>
+			<p>Alphalens Reloaded ships with plotting functions to visualize how IC evolves through time. To see how the IC using 5-day forward returns evolves through time, use the <span class="No-Break"><strong class="source-inline">plot_ic_ts()</strong></span><span class="No-Break"> function:</span></p>
+			<pre class="source-code">
+plot_ic_ts(ic[["5D"]])</pre>			<p>The result is a timeseries plot of the IC and it’s one-month <span class="No-Break">moving average:</span></p>
+			<div>
+				<div id="_idContainer155" class="IMG---Figure">
+					<img src="image/B21323_08_7.jpg" alt="Figure 8.7: Evolution of the IC for 5-day forward returns" width="1263" height="479"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.7: Evolution of the IC for 5-day forward returns</p>
+			<p>Since the return value of the <strong class="source-inline">factor_information_coefficient()</strong> function is a DataFrame, all the methods we learned previously can be used to further analyze the IC. This code resamples the daily IC into the quarterly mean and plots the value for each <span class="No-Break">forward return:</span></p>
+			<pre class="source-code">
+ic_by_quarter = ic.resample("Q").mean()
+ic_by_quarter.index = ic_by_quarter.index.to_period("Q")
+ic_by_quarter.plot.bar(figsize=(14, 6))</pre>			<p>The result is the following bar chart visualizing the mean IC over each quarter for each forward <span class="No-Break">period :</span></p>
+			<div>
+				<div id="_idContainer156" class="IMG---Figure">
+					<img src="image/B21323_08_08.jpg" alt="Figure 8.8: Mean IC value per quarter for each forward period" width="1000" height="480"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.8: Mean IC value per quarter for each forward period</p>
+			<h2 id="_idParaDest-231"><a id="_idTextAnchor239"></a>See also</h2>
+			<p>Using the information <a id="_idIndexMarker603"></a>coefficient is an advanced topic. Here are some <a id="_idIndexMarker604"></a>resources to get <span class="No-Break">you started:</span></p>
+			<ul>
+				<li>Investopedia article describing the information <span class="No-Break">coefficient: </span><a href="https://www.investopedia.com/terms/i/information-coefficient.asp"><span class="No-Break">https://www.investopedia.com/terms/i/information-coefficient.asp</span></a></li>
+				<li>Details of the Spearman rank correlation <span class="No-Break">coefficient: </span><a href="https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient"><span class="No-Break">https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-232"><a id="_idTextAnchor240"></a>Examining factor return performance</h1>
+			<p>Factor performance relates<a id="_idIndexMarker605"></a> to the returns generated by a portfolio constructed explicitly based on specific factor values. These factors can encompass any <a id="_idIndexMarker606"></a>measurable characteristic or set of characteristics about assets, such as value, momentum, size, or volatility, or in our case, mean reversion. In constructing a factor portfolio, assets with high factor values are held long, while those with low values are held short. This approach seeks to isolate the return attributable solely to the factor under consideration. The primary objective behind computing factor returns is to assess the performance of a factor and determine if it offers a premium over some benchmark return. To ensure that these returns are purely a result of the factor, various adjustments, such as demeaning or group adjustments, <span class="No-Break">are applied.</span></p>
+			<p>On the other hand, portfolio returns represent the returns generated by a portfolio based on any chosen investment strategy, which might not necessarily be tied to specific factor values. Such portfolios can be constructed based on criteria like expected returns, risk, fundamental analysis, or<a id="_idIndexMarker607"></a> technical indicators. The weightings of assets in these portfolios can vary, ranging from equal weighting to market-cap weighting or other schemes. The main aim of evaluating normal portfolio returns is to gauge the efficacy of the investment strategy, which can give us insights into the portfolio’s performance<a id="_idIndexMarker608"></a> relative to benchmarks or other investment alternatives. Unlike factor returns, normal portfolio returns provide a view of the portfolio’s performance without the intent to isolate returns due to <span class="No-Break">specific factors.</span></p>
+			<p>This recipe will demonstrate the available Alphalens Reloaded functionality to examine factor <span class="No-Break">return performance.</span></p>
+			<h2 id="_idParaDest-233"><a id="_idTextAnchor241"></a>How to do it…</h2>
+			<p>We’ll explore how to analyze the return data in the <em class="italic">How it works</em> <span class="No-Break">section, next.</span></p>
+			<ol>
+				<li>Import additional libraries from Alphalens Reloaded to assess the <span class="No-Break">factor performance:</span><pre class="source-code">
+from alphalens.performance import (
+    factor_returns,
+    factor_cumulative_returns,
+    mean_return_by_quantile,
+    compute_mean_returns_spread,
+    factor_alpha_beta,
+)</pre></li>				<li>Compute the period-wise, returns for the portfolio weighted by the <span class="No-Break">factor values:</span><pre class="source-code">
+returns = factor_returns(alphalens_data)</pre><p class="list-inset">The result is the following DataFrame with the portfolio returns for each forward <span class="No-Break">return period:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer157" class="IMG---Figure">
+					<img src="image/B21323_08_09.jpg" alt="Figure 8.9: DataFrame with factor-weighted portfolio returns" width="766" height="604"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.9: DataFrame with factor-weighted portfolio returns</p>
+			<ol>
+				<li value="3">Inspect the returns<a id="_idIndexMarker609"></a> on a <span class="No-Break">per-asset basis:</span><pre class="source-code">
+returns = factor_returns(alphalens_data, by_asset=True)</pre><p class="list-inset">The result is the<a id="_idIndexMarker610"></a> following MultiIndex DataFrame with each asset return weighted by the <span class="No-Break">associated factor:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer158" class="IMG---Figure">
+					<img src="image/B21323_08_10.jpg" alt="Figure 8.10: MultiIndex DataFrame with per-asset, factor-weighted return" width="554" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.10: MultiIndex DataFrame with per-asset, factor-weighted return</p>
+			<ol>
+				<li value="4">Visualize the<a id="_idIndexMarker611"></a> factor-weighted, cumulative<a id="_idIndexMarker612"></a> portfolio returns for the 5-day forward return against the <span class="No-Break">equal-weighted portfolio:</span><pre class="source-code">
+pd.concat(
+    {
+        "factor_weighted": factor_cumulative_returns(
+            alphalens_data,
+            period="5D"
+        ),
+        "equal_weighted": factor_cumulative_returns(
+            alphalens_data,
+            period="5D",
+            equal_weight=True
+        ),
+    },
+    axis=1,
+).plot()</pre><p class="list-inset">The result is the following plot demonstrating the cumulative return of <span class="No-Break">the portfolios:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer159" class="IMG---Figure">
+					<img src="image/B21323_08_11.jpg" alt="Figure 8.11: Plot with the cumulative return of the 5-day forward, factor-weighted portfolio against the 5-day forward, equal-weighted portfolio" width="663" height="490"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.11: Plot with the cumulative return of the 5-day forward, factor-weighted portfolio against the 5-day forward, equal-weighted portfolio</p>
+			<ol>
+				<li value="5">Compute the mean return <a id="_idIndexMarker613"></a>for factor quantiles across <a id="_idIndexMarker614"></a>the <span class="No-Break">forward returns:</span><pre class="source-code">
+mean_returns, _ = mean_return_by_quantile(alphalens_data)
+mean_returns.plot.bar()</pre></li>				<li>The result is the following bar chart visualizing the mean return for each forward return in <span class="No-Break">each quantile:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer160" class="IMG---Figure">
+					<img src="image/B21323_08_12.jpg" alt="Figure 8.12: Bar chart with the mean factor-weighted portfolio return for each forward return in each quantile" width="695" height="506"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.12: Bar chart with the mean factor-weighted portfolio return for each forward return in each quantile</p>
+			<ol>
+				<li value="7">Compute the difference<a id="_idIndexMarker615"></a> in mean returns between the<a id="_idIndexMarker616"></a> portfolios at the upper and <span class="No-Break">lower quantiles:</span><pre class="source-code">
+mean_returns_by_date, _ = mean_return_by_quantile(
+    alphalens_data,
+    by_date=True
+)
+mean_return_difference, _ = compute_mean_returns_spread(
+    mean_returns=mean_returns_by_date,
+    upper_quant=1,
+    lower_quant=5,
+)</pre></li>				<li>The result is a DataFrame with the difference between the mean return in the upper and lower quantiles. We can take it a step further and resample the daily values to monthly, take their <a id="_idIndexMarker617"></a>mean, and <span class="No-Break">plot them:</span><pre class="source-code">
+(
+    mean_return_difference[["5D"]]
+    .resample("M")
+    .mean()
+    .to_period("M")
+    .plot
+    .bar()
+)</pre><p class="list-inset">The result is the <a id="_idIndexMarker618"></a>following plot of the mean spread per month for the 5-day <span class="No-Break">forward return:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer161" class="IMG---Figure">
+					<img src="image/B21323_08_13.jpg" alt="Figure 8.13: Bar chart demonstrating the mean, factor-weighted portfolio returns for the 5-day forward return" width="695" height="560"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.13: Bar chart demonstrating the mean, factor-weighted portfolio returns for the 5-day forward return</p>
+			<h2 id="_idParaDest-234"><a id="_idTextAnchor242"></a>How it works…</h2>
+			<p>The <strong class="source-inline">factor_returns()</strong> function is designed to compute the factor-weighted returns. It takes in two primary arguments: <strong class="source-inline">factor_data</strong>, which is a MultiIndex DataFrame that contains factor values, forward returns for each period, and quantiles and <strong class="source-inline">periods</strong>, which is a list of periods for which to<a id="_idIndexMarker619"></a> compute the returns. For each specified period, it calculates the factor-weighted return by multiplying factor values with forward returns. We can optionally override the factor-weighting and assume an equal-weighted portfolio. This is helpful to <span class="No-Break">compare performance.</span></p>
+			<p>The <strong class="source-inline">factor_cumulative_returns()</strong> function is designed to compute the cumulative returns of a factor. The <strong class="source-inline">factor_data</strong> argument is a multi-index DataFrame that contains factor values, forward returns, and group codes. The <strong class="source-inline">period</strong> argument specifies the period for which the cumulative<a id="_idIndexMarker620"></a> returns are to be calculated, and the <strong class="source-inline">demeaned</strong> argument, when set to <strong class="source-inline">True</strong>, will demean the returns based on the group codes provided in the <strong class="source-inline">alphalens_data</strong> DataFrame. The function computes the mean returns for each date and then determines the cumulative product of these mean returns. The result is a time-series of cumulative returns indexed <span class="No-Break">by date.</span></p>
+			<p>The <strong class="source-inline">mean_return_by_quantile()</strong> function computes the mean returns for factors, grouped by quantiles. This is useful to understand how different quantiles of a factor perform over time. In the context of factor portfolio management, the spread between quantiles, which we look at next, is a way to measure the predictive power of the factor. The function offers flexibility through parameters like <strong class="source-inline">by_date</strong>, <strong class="source-inline">demeaned</strong>, <strong class="source-inline">group_adjust</strong>, and <strong class="source-inline">by_group</strong>, which determine how returns are computed and grouped. The core computation groups data by quantiles, and depending on the flags set, by date or group codes, then calculates the mean returns for each group. The result is a MultiIndex DataFrame with the mean returns for each quantile, and optionally, dates <span class="No-Break">and quantiles.</span></p>
+			<p>The <strong class="source-inline">compute_mean_returns_spread()</strong> function is designed to compute the mean returns spread for quantiles over a specified period. The spread between the mean return in different quantiles provides insights into how well an alpha factor can differentiate between high and low performing assets over time or across <span class="No-Break">different groups.</span></p>
+			<h2 id="_idParaDest-235"><a id="_idTextAnchor243"></a>There’s more…</h2>
+			<p>Using Alphalens Reloaded we can calculate the factor’s alpha (representing excess returns) and its beta (indicating market exposure). To do it, we call <strong class="source-inline">factor_alpha_beta</strong> which performs a regression using the mean return of the factor universe for each period as the independent variable and the average return from a portfolio, weighted by factor values, for each period as the <span class="No-Break">dependent variable.</span></p>
+			<pre class="source-code">
+factor_alpha_beta(alphalens_data)</pre>			<p>The result is a DataFrame with the annualized alpha and beta across each <span class="No-Break">forward return:</span></p>
+			<div>
+				<div id="_idContainer162" class="IMG---Figure">
+					<img src="image/B21323_08_14.jpg" alt="Figure 8.14: DataFrame with the results of a regression on the mean return of the factor universe and average portfolio return." width="384" height="75"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.14: DataFrame with the results of a regression on the mean return of the factor universe and average portfolio return.</p>
+			<p>As we learned in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for Stock Portfolios</em>, alpha provides a measure of the factor’s performance. A positive alpha indicates that the factor has outperformed the benchmark on a risk-adjusted basis, while a negative alpha suggests underperformance. Beta <a id="_idIndexMarker621"></a>gives insight into the factor’s risk relative to the <a id="_idIndexMarker622"></a>benchmark. A beta greater than 1 indicates that the factor is more volatile than the benchmark, while a beta less than 1 suggests it is less volatile. Over the forward returns of 5- and 10-days, our factor seems to generate <span class="No-Break">positive alpha.</span></p>
+			<h2 id="_idParaDest-236"><a id="_idTextAnchor244"></a>See also</h2>
+			<p>Applied <strong class="bold">Quantitative Research</strong> (<strong class="bold">AQR</strong>) is a global investment management firm that employs a systematic, research-driven approach to <a id="_idIndexMarker623"></a>capture investment opportunities across various asset classes. Founded in 1998 by Cliff Asness, David Kabiller, John Liew, and Robert Krail, AQR has become known for its focus on quantitative, data-driven strategies, combining academic research with practical market experience. AQR writes extensively about factor investing. Here’s a great paper about measuring factor <span class="No-Break">exposures: </span><a href="https://www.aqr.com/-/media/AQR/Documents/Insights/Trade-Publications/Measuring-Portfolio-Factor-Exposures-A-Practical-Guide.pdf%0D"><span class="No-Break">https://www.aqr.com/-/media/AQR/Documents/Insights/Trade-Publications/Measuring-Portfolio-Factor-Exposures-A-Practical-Guide.pdf</span></a></p>
+			<h1 id="_idParaDest-237"><a id="_idTextAnchor245"></a>Evaluating factor turnover</h1>
+			<p>In algorithmic trading, factor <a id="_idIndexMarker624"></a>portfolios form the bedrock of many strategies. As we learned in the last recipe, assets are systematically ranked using the Spearman rank correlation<a id="_idIndexMarker625"></a> from highest to lowest. Following this ranking, assets in the top quartile are bought and those from the bottom quartile are sold. In this context, turnover quantifies the frequency with which assets are bought or sold to rebalance the <span class="No-Break">designated quartiles.</span></p>
+			<p>If a factor exhibits high turnover, it might suggest that the factor’s signals are not persistent and could lead to higher trading costs if one were to trade based on this factor. Conversely, a factor with low turnover might indicate more stable signals. By analyzing turnover at the quantile level, we can gain insights into the stability of the factor’s rankings across different segments of the asset universe. This can be particularly useful when assessing the viability of a factor for portfolio construction, as it provides a lens into the potential transaction costs and the reliability of the <span class="No-Break">factor’s signals.</span></p>
+			<p>This recipe will demonstrate the available Alphalens Reloaded functionality to <span class="No-Break">examine turnover.</span></p>
+			<h2 id="_idParaDest-238"><a id="_idTextAnchor246"></a>How to do it…</h2>
+			<p>We’ll use Alphalens Reloaded to <a id="_idIndexMarker626"></a>compute the proportion of assets in a factor quantile that were <a id="_idIndexMarker627"></a>not in that quantile in the previous period. This is a good way to measure aggregate changes in quartiles across <span class="No-Break">the portfolio.</span></p>
+			<ol>
+				<li>Import additional libraries from Alphalens Reloaded to assess <span class="No-Break">the turnover:</span><pre class="source-code">
+from alphalens.performance import (
+    quantile_turnover,
+    factor_rank_autocorrelation
+)
+from alphalens.plotting import plot_factor_rank_auto_correlation</pre></li>				<li>Compute the portfolio turnover for the <span class="No-Break">first quantile:</span><pre class="source-code">
+turnover = quantile_turnover(alphalens_data, quantile=1)</pre><p class="list-inset">The result is the following Series containing the proportion of assets in the first quantile that were not in that quantile in the <span class="No-Break">previous period:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer163" class="IMG---Figure">
+					<img src="image/B21323_08_15.jpg" alt="Figure 8.15: Series containing the proportion of assets in the first quantile that were not in that quantile in the previous period" width="397" height="231"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.15: Series containing the proportion of assets in the first quantile that were not in that quantile in the previous period</p>
+			<ol>
+				<li value="3">Resample the daily <a id="_idIndexMarker628"></a>values to monthly and plot the mean turnover for the <span class="No-Break">first </span><span class="No-Break"><a id="_idIndexMarker629"></a></span><span class="No-Break">quantile:</span><pre class="source-code">
+turnover.resample("M").mean().to_period("M").plot.bar()</pre><p class="list-inset">The result is the following bar chart with the mean monthly turnover for the <span class="No-Break">first quantile:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer164" class="IMG---Figure">
+					<img src="image/B21323_08_16.jpg" alt="Figure 8.16: Bar chart of the mean monthly turnover for the first quantile" width="682" height="560"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.16: Bar chart of the mean monthly turnover for the first quantile</p>
+			<h2 id="_idParaDest-239"><a id="_idTextAnchor247"></a>How it works…</h2>
+			<p>The <strong class="source-inline">quantile_turnover()</strong> function calculates the <a id="_idIndexMarker630"></a>turnover for factor quantiles over a specified period. Turnover, in the context of factor portfolio analysis, refers to the rate at which assets within a portfolio are replaced by new assets. High turnover can indicate frequent trading, which might lead to higher transaction costs, while low turnover suggests a more buy-and-hold strategy. By analyzing turnover in the context of factor quantiles, one can assess how stable the factor rankings are <span class="No-Break">over time.</span></p>
+			<p>The function takes in the<a id="_idIndexMarker631"></a> <span class="No-Break">following parameters:</span></p>
+			<ul>
+				<li><strong class="source-inline">alphalens_data</strong>: A multi-index DataFrame that contains factor values, forward returns for each period, the factor quantile/bin that factor value belongs to, and (optionally) the group the <a id="_idIndexMarker632"></a>asset <span class="No-Break">belongs to.</span></li>
+				<li><strong class="source-inline">quantiles</strong>: An integer or sequence of integers. If an integer, it will select the top and bottom <strong class="source-inline">quantiles</strong> from the factor values. If a sequence, it will define the exact quantiles <span class="No-Break">to compute.</span></li>
+				<li><strong class="source-inline">period</strong>: The period over which to calculate the turnover. It defaults to ‘1D’, meaning <span class="No-Break">daily turnover.</span></li>
+			</ul>
+			<p>The function begins by filtering the factor data for the specified quantiles. It then groups the data by date and quantile, and for each group, it calculates the set difference between the current and previous day’s assets. This set difference represents the assets that have entered or left the quantile on that day. The function then computes the average turnover for each quantile over the <span class="No-Break">specified period.</span></p>
+			<h2 id="_idParaDest-240"><a id="_idTextAnchor248"></a>There’s more…</h2>
+			<p>Another common turnover analysis technique is using the autocorrelation of the factor’s daily Spearman rank correlations. Factor rank autocorrelation is a crucial metric in factor portfolio analysis for <span class="No-Break">several reasons:</span></p>
+			<ul>
+				<li><strong class="bold">Stability of Factor Ranks</strong>: The autocorrelation<a id="_idIndexMarker633"></a> of factor ranks provides insights into the stability of the factor’s rankings over time. A high autocorrelation indicates that the factor’s rankings are relatively stable from one day to the next. This stability can be beneficial for strategies that rely on the persistence of <span class="No-Break">factor rankings.</span></li>
+				<li><strong class="bold">Turnover Implications</strong>: Factors with high rank autocorrelation tend to have lower portfolio turnover. This is because if the ranks of assets based on a factor do not change significantly from one period to the next, the positions in a portfolio constructed based on those ranks would also remain relatively stable. Lower turnover can lead to reduced transaction costs, which can enhance the net returns of <span class="No-Break">a strategy.</span></li>
+				<li><strong class="bold">Factor Consistency</strong>: A consistent factor, one that maintains its rank across assets over time, is generally preferred in quantitative strategies. High rank autocorrelation can be an indicator <a id="_idIndexMarker634"></a>of such consistency. It suggests that the factor is not frequently changing its opinion about the relative attractiveness of <span class="No-Break">different assets.</span></li>
+				<li><strong class="bold">Risk Management</strong>: Understanding the autocorrelation of factor ranks can also aid in risk management. If a factor’s ranks are highly volatile (low autocorrelation), it might introduce additional <a id="_idIndexMarker635"></a>risks in a portfolio strategy. Being aware of this can help in designing appropriate <span class="No-Break">risk controls.</span></li>
+			</ul>
+			<p>We can measure this with the <strong class="source-inline">factor_rank_autocorrelation()</strong> function. The <strong class="source-inline">factor_rank_autocorrelation()</strong> function computes the autocorrelation of the provided factor’s daily ranks. Specifically, it calculates the Spearman rank correlation between the factor values of<a id="_idIndexMarker636"></a> a particular day and those of the subsequent day. The function takes in the <span class="No-Break">following parameters:</span></p>
+			<ul>
+				<li><strong class="source-inline">alphalens_data</strong>: A multi-index DataFrame that contains factor values, forward returns for each period, and the factor quantile/bin that factor values belong to. The indices are date <span class="No-Break">and asset.</span></li>
+				<li><strong class="source-inline">period</strong>: The period over which the autocorrelation is computed. It’s the lag between the factor values <span class="No-Break">being compared.</span><pre class="source-code">
+factor_ac = factor_rank_autocorrelation(alphalens_data)</pre><p class="list-inset">The result is a Series with the <span class="No-Break">daily autocorrelation.</span></p></li>			</ul>
+			<div>
+				<div id="_idContainer165" class="IMG---Figure">
+					<img src="image/B21323_08_17.jpg" alt="Figure 8.17: Series with the autocorrelation of the factor’s Spearman rank" width="399" height="227"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.17: Series with the autocorrelation of the factor’s Spearman rank</p>
+			<p class="callout-heading">Important</p>
+			<p class="callout">Note in our strategy rebalances on a weekly basis. This means that since there is no opportunity for rebalancing, there will be no turnover except on the weekly rebalance days. We see this reflected in the autocorrelation <span class="No-Break">of 1.</span></p>
+			<p>We can <a id="_idIndexMarker637"></a>use the <strong class="source-inline">plot_factor_rank_auto_correlation()</strong> function to visualize how the autocorrelations<a id="_idIndexMarker638"></a> change <span class="No-Break">through time.</span></p>
+			<pre class="source-code">
+plot_factor_rank_auto_correlation(factor_ac)</pre>			<p>The result is a time series plot of <span class="No-Break">the autocorrelation.</span></p>
+			<div>
+				<div id="_idContainer166" class="IMG---Figure">
+					<img src="image/B21323_08_18.jpg" alt="Figure 8.18: Plot visualizing the daily autocorrelation" width="1262" height="423"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.18: Plot visualizing the daily autocorrelation</p>
+			<h2 id="_idParaDest-241"><a id="_idTextAnchor249"></a>See also</h2>
+			<p>In case you want to deep dive into<a id="_idIndexMarker639"></a> the code that computes these metrics, you <a id="_idIndexMarker640"></a>can do so by visiting the <span class="No-Break">following links:</span></p>
+			<ul>
+				<li>Source code for the <strong class="source-inline">quantile_turnover</strong> <span class="No-Break">function: </span><a href="https://github.com/stefan-jansen/alphalens-reloaded/blob/d4490ba1290f1f135ed398d1b3601569e0e7996b/src/alphalens/performance.py#L575"><span class="No-Break">https://github.com/stefan-jansen/alphalens-reloaded/blob/d4490ba1290f1f135ed398d1b3601569e0e7996b/src/alphalens/performance.py#L575</span></a></li>
+				<li>Source code for the <strong class="source-inline">factor_rank_autocorrelation</strong> function: <a href="https://github.com/stefan-jansen/alphalens-reloaded/blob/d4490ba1290f1f135ed398d1b3601569e0e7996b/src/alphalens/performance.py#L620">https://github.com/stefan-jansen/alphalens-reloaded/blob/d4490ba1290f1f135ed398d1b3601569e0e7996b/src/alphalens/performance.py#L620</a> </li>
+			</ul>
+		</div>
+	</div>
+</div>
+</body>
+</html>

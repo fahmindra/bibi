@@ -1,0 +1,613 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer110">
+			<h1 id="_idParaDest-150" class="chapter-number"><a id="_idTextAnchor155"></a>5</h1>
+			<h1 id="_idParaDest-151"><a id="_idTextAnchor156"></a>Build Alpha Factors for Stock Portfolios</h1>
+			<p>Professional traders often construct factor portfolios to target and exploit market inefficiencies, such as anomalies in value, size, or momentum, to generate better risk-adjusted returns. By systematically identifying and weighing securities based on these specific characteristics or factors, investors can create a portfolio that captures the desired exposures while minimizing unintended risks. Factors act as the fundamental building blocks of investing, being the persistent forces that influence returns across various asset classes. A trading edge is a consistent, non-random inefficiency in the market that can be exploited for profit. Factors are the inefficiencies that drive asset prices and form the basis of this edge, allowing traders to capitalize on these <span class="No-Break">persistent anomalies.</span></p>
+			<p>Factor analysis is a broad topic but comes down to identifying the factors, determining the sensitivity of a portfolio to those factors, and taking action. That action can be hedging undesirable risk based on the factor exposure or increasing exposure to the factor. In this chapter, we explore the key elements of identifying factors, hedging out unwanted risks, and setting up forward returns to assess the predictive power of factors. We’ll use Python libraries for statistical modeling to build a principal component analysis and linear regression. Then, we’ll introduce the Zipline Reloaded Pipeline API, which will prepare us for <span class="No-Break">analyzing factors.</span></p>
+			<p>In this chapter, we present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Identifying latent return drivers using principal <span class="No-Break">component analysis</span></li>
+				<li>Finding and hedging portfolio beta using <span class="No-Break">linear regression</span></li>
+				<li>Analyzing portfolio sensitivities to the <span class="No-Break">Fama-French factors</span></li>
+				<li>Assessing market inefficiency based <span class="No-Break">on volatility</span></li>
+				<li>Preparing a factor ranking model using the Zipline Reloaded <span class="No-Break">Pipeline API</span></li>
+			</ul>
+			<h1 id="_idParaDest-152"><a id="_idTextAnchor157"></a>Identifying latent return drivers using principal component analysis</h1>
+			<p><strong class="bold">Principal component analysis</strong> (<strong class="bold">PCA</strong>) is a<a id="_idIndexMarker343"></a> dimensionality reduction technique that is widely used in data science. It transforms the original features into a new set of<a id="_idIndexMarker344"></a> features, called <strong class="bold">principal components</strong>, which reflect the maximum variance in the data. In other words, it transforms a large set of <a id="_idIndexMarker345"></a>variables into a smaller set of variables, while still <a id="_idIndexMarker346"></a>containing most of the information from the <span class="No-Break">larger set.</span></p>
+			<p>There are various sources of risk in an asset portfolio, including market risk, sector risk, and asset-specific risk. PCA helps identify and quantify these risks by breaking down the returns of the portfolio into components that explain the maximum variance. The first few principal components usually capture most of the variance and they can be analyzed to understand the major sources of risk in <span class="No-Break">the portfolio.</span></p>
+			<p>This recipe will use scikit-learn to run PCA on a portfolio of eight stocks made of up mining and <span class="No-Break">technology companies.</span></p>
+			<h2 id="_idParaDest-153"><a id="_idTextAnchor158"></a>Getting ready</h2>
+			<p>For this recipe, we introduce scikit-learn, which provides algorithms for classification, regression, clustering, dimensionality reduction, and more. It’s built on NumPy, SciPy, and Matplotlib, which makes it easy to integrate with other scientific Python libraries. We’ll use it to conduct <span class="No-Break">our analysis.</span></p>
+			<p>You can install scikit-learn <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install scikit-learn</pre>			<h2 id="_idParaDest-154"><a id="_idTextAnchor159"></a>How to do it…</h2>
+			<p>Scikit-learn makes it easy to run a PCA. Here’s how to <span class="No-Break">do it:</span></p>
+			<ol>
+				<li>Import the libraries we need for <span class="No-Break">the analysis:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+from openbb import obb
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download data for <a id="_idIndexMarker347"></a>gold mining stocks and healthcare stocks and compute their <span class="No-Break">daily returns:</span><pre class="source-code">
+symbols = ["NEM", "RGLD", "SSRM", "CDE", "LLY", "UNH",
+            "JNJ", "MRK"]
+data = obb.equity.price.historical(
+    symbols,
+    start_date="2020-01-01",
+    end_date="2022-12-31",
+    provider="yfinance",
+).pivot(columns="symbol", values="close")
+returns = data.pct_change().dropna()Run the PCA using three components and fit the model:
+pca = PCA(n_components=3)
+pca.fit(returns)</pre></li>				<li>Extract the explained variance<a id="_idIndexMarker348"></a> ratio for each component and extract the <span class="No-Break">principal components:</span><pre class="source-code">
+pct = pca.explained_variance_ratio_
+pca_components = pca.components_</pre></li>				<li>Plot the contribution of each principal component and the cumulative percent of <span class="No-Break">explained variance:</span><pre class="source-code">
+cum_pct = np.cumsum(pct)
+x = np.arange(1, len(pct) + 1, 1)
+plt.subplot(1, 2, 1)
+plt.bar(x, pct * 100, align="center")
+plt.title("Contribution (%)")
+plt.xticks(x)
+plt.xlim([0, 4])
+plt.ylim([0, 100])
+plt.subplot(1, 2, 2)
+plt.plot(x, cum_pct * 100, "ro-")
+plt.title("Cumulative contribution (%)")
+plt.xticks(x)
+plt.xlim([0, 4])
+plt.ylim([0, 100])</pre></li>			</ol>
+			<p>The last code block<a id="_idIndexMarker349"></a> results in the <span class="No-Break">following </span><span class="No-Break"><a id="_idIndexMarker350"></a></span><span class="No-Break">chart:</span></p>
+			<div>
+				<div id="_idContainer089" class="IMG---Figure">
+					<img src="image/B21323_05_01.jpg" alt="Figure 5.1: Contribution and cumulative contribution of explained variance for the first three principal components" width="667" height="514"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.1: Contribution and cumulative contribution of explained variance for the first three principal components</p>
+			<h2 id="_idParaDest-155"><a id="_idTextAnchor160"></a>How it works…</h2>
+			<p>There is ample documentation on how PCA works so we will not cover the math behind the process. But in summary, the <strong class="source-inline">PCA(n_components=3)</strong> code creates a PCA object that will compute the first three principal <a id="_idIndexMarker351"></a>components of the <strong class="source-inline">returns</strong> data. The <strong class="source-inline">n_components=3</strong> parameter specifies that we want to select the top three principal components. The call to <strong class="source-inline">pca.fit</strong> fits the PCA model to the <strong class="source-inline">returns</strong> data, which hides most of the <a id="_idIndexMarker352"></a>complexity of PCA. Under the hood, PCA standardizes the returns and computes a covariance matrix. Next, the eigen decomposition is performed on the covariance matrix, which computes the eigenvectors and eigenvalues that indicate the directions and magnitude of data variance. Finally, eigenvectors are ordered by their eigenvalues in descending order and the top three are chosen as <span class="No-Break">principal components.</span></p>
+			<h2 id="_idParaDest-156"><a id="_idTextAnchor161"></a>There’s more…</h2>
+			<p>From the principal components, we can transform the original <strong class="source-inline">returns</strong> data into a new set of features that represent the statistical risk factors that explain the most variance in the returns, as shown in the <span class="No-Break">following code:</span></p>
+			<pre class="source-code">
+X = np.asarray(returns)
+factor_returns = X.dot(pca_components.T)
+factor_returns = pd.DataFrame(
+    columns=["f1", "f2", "f3"],
+    index=returns.index,
+    data=factor_returns
+)</pre>			<p>The preceding code will return the following DataFrame containing a time series of the statistical <span class="No-Break">risk factors:</span></p>
+			<div>
+				<div id="_idContainer090" class="IMG---Figure">
+					<img src="image/B21323_05_02.jpg" alt="Figure 5.2: DataFrame containing a time series of the statistical risk factors" width="322" height="209"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.2: DataFrame containing a time series of the statistical risk factors</p>
+			<p>The statistical risk factors are similar to more conventional risk factors such as the Fama-French factors we’ll explore<a id="_idIndexMarker353"></a> in the <em class="italic">Analyzing portfolio sensitivities to the Fama-French factors</em> recipe in this <a id="_idIndexMarker354"></a>chapter. The <strong class="source-inline">returns</strong> data is projected onto the principal components obtained from the PCA. This is done by taking the dot product of <strong class="source-inline">X</strong> with the transpose of the <strong class="source-inline">pca_components</strong> matrix. The <strong class="source-inline">pca_components</strong> matrix contains the principal components of the <strong class="source-inline">returns</strong> data, which were previously computed using the <span class="No-Break"><strong class="source-inline">fit</strong></span><span class="No-Break"> method.</span></p>
+			<p>This step transforms the original <strong class="source-inline">returns</strong> data into a new set of features (the principal components or factors) that explain the most variance in the data. These factors should give us an idea of how much of the portfolio’s returns come from some unobservable <span class="No-Break">statistical feature.</span></p>
+			<p>With the principal components, we can create the exposure of each asset to the three <span class="No-Break">principal components:</span></p>
+			<pre class="source-code">
+factor_exposures = pd.DataFrame(
+    index=["f1", "f2", "f3"],
+    columns=returns.columns,
+    data=pca_components
+).T</pre>			<p>The resulting <strong class="source-inline">factor_exposures</strong> DataFrame is shown in the following screenshot. It shows how much each asset in the<a id="_idIndexMarker355"></a> portfolio is exposed to each of the three factors. The exposure of each asset to<a id="_idIndexMarker356"></a> each of the three factors (<strong class="source-inline">"f1", "f2", "f3"</strong>) represents how much the returns of that asset are influenced by changes in <span class="No-Break">those factors.</span></p>
+			<div>
+				<div id="_idContainer091" class="IMG---Figure">
+					<img src="image/B21323_05_03.jpg" alt="Figure 5.3: DataFrame containing the exposure of each asset to each factor" width="284" height="261"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.3: DataFrame containing the exposure of each asset to each factor</p>
+			<p>We can visualize each asset’s exposure to the first two principal components on an annotated <span class="No-Break">scatter plot:</span></p>
+			<pre class="source-code">
+labels = factor_exposures.index
+data = factor_exposures.values
+plt.scatter(data[:, 0], data[:, 1])
+plt.xlabel("factor exposure of PC1")
+plt.ylabel("factor exposure of PC2")
+for label, x, y in zip(labels, data[:, 0], data[:, 1]):
+    plt.annotate(
+        label,
+        xy=(x, y),
+        xytext=(-20, 20),
+        textcoords="offset points",
+        arrowprops=dict(
+            arrowstyle="-&gt;",
+            connectionstyle="arc3,rad=0"
+        ),
+    )</pre>			<p>The result is the following <a id="_idIndexMarker357"></a>scatter plot showing the exposure to <span class="No-Break">the factors:</span></p>
+			<div>
+				<div id="_idContainer092" class="IMG---Figure">
+					<img src="image/B21323_05_04.jpg" alt="Figure 5.4: Scatter plot showing the stock exposure to the first two principal components" width="698" height="541"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.4: Scatter plot showing the stock exposure to the first two principal components</p>
+			<p>The gold mining stocks have higher factor exposures compared to the healthcare stocks, indicating that they are <a id="_idIndexMarker358"></a>more sensitive to changes in the underlying factors. The healthcare stocks have lower and negative exposures to <strong class="source-inline">"f2"</strong>, indicating that they may provide some diversification benefits in a portfolio that is highly exposed to this factor. The factors may represent different sources of systematic risk in the market, such as market risk, interest rate risk, or<a id="_idIndexMarker359"></a> <span class="No-Break">industry-specific risks.</span></p>
+			<h2 id="_idParaDest-157"><a id="_idTextAnchor162"></a>See also</h2>
+			<p>PCA is an important dimensionality reduction technique commonly used in portfolio management. You can visit the following links<a id="_idIndexMarker360"></a> to learn more <span class="No-Break">about PCA:</span></p>
+			<ul>
+				<li>More on <span class="No-Break">PCA: </span><a href="https://en.wikipedia.org/wiki/Principal_component_analysis"><span class="No-Break">https://en.wikipedia.org/wiki/Principal_component_analysis</span></a></li>
+				<li>Documentation for <span class="No-Break">scikit-learn: </span><a href="https://scikit-learn.org/stable/"><span class="No-Break">https://scikit-learn.org/stable/</span></a></li>
+				<li>Documentation for the scikit-learn implementation of PCA used in this <span class="No-Break">recipe: </span><a href="https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html"><span class="No-Break">https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-158"><a id="_idTextAnchor163"></a>Finding and hedging portfolio beta using linear regression</h1>
+			<p>Algorithmic traders often seek exposure to specific risks that they believe will yield outsized returns while<a id="_idIndexMarker361"></a> hedging other risks they deem unfavorable or unnecessary. For instance, a trader might want exposure to <a id="_idIndexMarker362"></a>stocks with the lowest price-to-earnings ratios, believing they will outperform while hedging against the broader <a id="_idIndexMarker363"></a>market risk. This selective exposure helps traders maximize returns by capitalizing on perceived opportunities while minimizing the potential downside by hedging against <span class="No-Break">certain risks.</span></p>
+			<p>Factor models are a way of explaining the returns of an asset or portfolio through a combination of the returns of another asset, portfolio, or factor. The general form of a factor model using a linear combination is <span class="No-Break">as follows:</span></p>
+			<p><img src="image/19.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:mi&gt;Y&lt;/mml:mi&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mi&gt;α&lt;/mml:mi&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;β&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;X&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;β&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;X&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;β&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;n&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;X&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;n&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:math&gt;' style="vertical-align:-0.340em;height:1.051em;width:11.226em" width="468" height="44"/></p>
+			<p>The sensitivity of portfolio returns to a risk factor <img src="image/20.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;X&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.000em;height:0.648em;width:0.637em" width="28" height="27"/> is described by the beta. It’s the beta that must be hedged to concentrate exposure to the <span class="No-Break">risk factors.</span></p>
+			<p>In this recipe, we’ll construct a portfolio of stocks, compute the beta of the portfolio returns to <strong class="source-inline">SPY</strong> returns, and construct a hedging portfolio to neutralize the broader <span class="No-Break">market exposure.</span></p>
+			<h2 id="_idParaDest-159"><a id="_idTextAnchor164"></a>Getting ready</h2>
+			<p>For this recipe, we<a id="_idIndexMarker364"></a> introduce Statsmodels, which provides classes and functions for estimating many statistical models and for conducting<a id="_idIndexMarker365"></a> statistical tests and statistical data exploration. We’ll use it to conduct <span class="No-Break">our analysis.</span></p>
+			<p>You can install Statsmodels <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install statsmodels</pre>			<h2 id="_idParaDest-160"><a id="_idTextAnchor165"></a>How to do it…</h2>
+			<p>We’ll use Statsmodels to measure the sensitivity of a portfolio of stocks to a benchmark, then offset the portfolio with a short position to <span class="No-Break">hedge beta:</span></p>
+			<ol>
+				<li>Import the libraries for <span class="No-Break">the analysis:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+from openbb import obb
+import statsmodels.api as sm
+from statsmodels import regression
+import matplotlib.pyplot as plt
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download data for the same portfolio we used in the <a id="_idIndexMarker366"></a>previous recipe. Note the inclusion of the <strong class="source-inline">SPY</strong> <strong class="bold">exchange-traded fund</strong> (<strong class="bold">ETF</strong>), which we’ll use to represent the broad <span class="No-Break">market returns:</span><pre class="source-code">
+symbols = ["NEM", "RGLD", "SSRM", "CDE", "LLY", "UNH", "JNJ", "MRK", "SPY"]
+data = obb.equity.price.historical(
+    symbols,
+    start_date="2020-01-01",
+    end_date="2022-12-31",
+    provider="yfinance"
+).pivot(columns="symbol", values="close")</pre></li>				<li>Pop the column <a id="_idIndexMarker367"></a>with <strong class="source-inline">SPY</strong> data off the DataFrame<a id="_idIndexMarker368"></a> and compute <span class="No-Break">the returns:</span><pre class="source-code">
+benchmark_returns = (
+    data
+    .pop("SPY")
+    .pct_change()
+    .dropna()
+)</pre></li>				<li>Now, compute the returns for <span class="No-Break">the portfolio:</span><pre class="source-code">
+portfolio_returns = (
+    data
+    .pct_change()
+    .dropna()
+    .sum(axis=1)
+)</pre></li>				<li>Set the <strong class="source-inline">name</strong> property on the series for <span class="No-Break">plotting purposes:</span><pre class="source-code">
+portfolio_returns.name = "portfolio"</pre></li>				<li>Plot the portfolio returns and the benchmark returns to visualize <span class="No-Break">the difference:</span><pre class="source-code">
+portfolio_returns.plot()
+benchmark_returns.plot()
+plt.ylabel("Daily Return")
+plt.legend()</pre></li>				<li>The result is a plot <a id="_idIndexMarker369"></a>of the daily returns during the<a id="_idIndexMarker370"></a> <span class="No-Break">analysis period:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer095" class="IMG---Figure">
+					<img src="image/B21323_05_05.jpg" alt="Figure 5.5: Plot of portfolio and benchmark returns" width="708" height="490"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.5: Plot of portfolio and benchmark returns</p>
+			<ol>
+				<li value="8">Create a function that returns the alpha and beta coefficients from a <span class="No-Break">linear regression:</span><pre class="source-code">
+X = benchmark_returns.values
+Y = portfolio_returns.values
+def linreg(x, y):
+    x = sm.add_constant(x)
+    model = regression.linear_model.OLS(y, x).fit()
+    x = x[:, 1]
+    return model.params[0], model.params[1]</pre></li>				<li>Generate the alpha and<a id="_idIndexMarker371"></a> beta coefficients from the<a id="_idIndexMarker372"></a> regression between the portfolio and <span class="No-Break">benchmark returns:</span><pre class="source-code">
+alpha, beta = linreg(X, Y)
+print(f"Alpha: {alpha}")  # =&gt; 0.0028
+print(f"Beta: {beta}")  # =&gt; 5.5745</pre></li>				<li>Create a scatter plot that visualizes the linear relationship between the portfolio and <span class="No-Break">benchmark returns:</span><pre class="source-code">
+X2 = np.linspace(X.min(), X.max(), 100)
+Y_hat = X2 * beta + alpha
+plt.scatter(X, Y, alpha=0.3)
+plt.xlabel("SPY daily return")
+plt.ylabel("Portfolio daily return")
+plt.plot(X2, Y_hat, "r", alpha=0.9)</pre><p class="list-inset">The result is the following scatter plot showing the daily returns and their <span class="No-Break">linear relationship:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer096" class="IMG---Figure">
+					<img src="image/B21323_05_06.jpg" alt="Figure 5.6: Scatter plot showing the linear relationship between the portfolio and benchmark returns" width="728" height="510"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.6: Scatter plot showing the linear relationship between the portfolio and benchmark returns</p>
+			<ol>
+				<li value="11">Finally, construct a<a id="_idIndexMarker373"></a> time series of portfolio returns<a id="_idIndexMarker374"></a> including the <span class="No-Break">beta hedge:</span><pre class="source-code">
+hedged_portfolio_returns = -1 * beta * benchmark_returns + portfolio_returns</pre></li>				<li>Rerun the regression to confirm that the beta <span class="No-Break">is </span><span class="No-Break"><strong class="source-inline">0</strong></span><span class="No-Break">:</span><pre class="source-code">
+P = hedged_portfolio_returns.values
+_, beta = linreg(X, P)
+print(f"Beta: {beta}")  =&gt; 0.0000</pre></li>			</ol>
+			<h2 id="_idParaDest-161"><a id="_idTextAnchor166"></a>How it works…</h2>
+			<p>We demonstrate the beta hedge by first constructing a portfolio of eight stocks by adding up the daily returns of each stock for each day. We use the S&amp;P 500 tracking ETF as a proxy for the broader market. The ETF symbol is SPY. We download price data for SPY along with our portfolio for convenience since we can use the pandas <strong class="source-inline">pop</strong> method in the SPY column as a<a id="_idIndexMarker375"></a> separate series. We then compute the daily returns for both the portfolio and <span class="No-Break">the </span><span class="No-Break"><a id="_idIndexMarker376"></a></span><span class="No-Break">benchmark.</span></p>
+			<p>The next step is running a regression that is a few lines of code. <strong class="source-inline">X</strong> is the independent variable representing the benchmark returns, and <strong class="source-inline">Y</strong> is the dependent variable representing the portfolio returns. The <strong class="source-inline">linreg</strong> function takes these returns, adds a constant term to <strong class="source-inline">X</strong> for the intercept, and then fits a linear model using ordinary least squares regression. It then returns the parameters of the fitted model, which are the intercept (alpha) and the <span class="No-Break">slope (beta).</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">Adding a constant term for the intercept is crucial for accurately modeling the relationship between the dependent and independent variables in a linear regression. If we do not include a constant term for the intercept, we are essentially forcing the regression line to pass through the origin (<strong class="source-inline">0, 0</strong>), which may not be an accurate representation of the relationship between <span class="No-Break">the variables.</span></p>
+			<p>After we have our alpha and beta terms, we can build a hedged portfolio. As we learned in the introduction to this recipe, traders hedge exposure to risk that they don’t want. If we can determine that our portfolio returns are linked to a risk factor through a linear relationship, then we can initiate a short position in that risk factor – in our case, the broader market represented by SPY. The amount we want to trade is represented by our beta. This is effective because if our returns are made up of <img src="image/21.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;α&lt;/mml:mi&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;β&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;S&lt;/mml:mi&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;mml:mi&gt;Y&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:math&gt;' style="vertical-align:-0.012em;height:0.498em;width:1.352em" width="56" height="21"/><span class="_-----MathTools-_Math_Base"><img src="image/22.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;α&lt;/mml:mi&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;β&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;S&lt;/mml:mi&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;mml:mi&gt;Y&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:math&gt;' style="vertical-align:-0.342em;height:1.053em;width:1.401em" width="60" height="44"/></span>, then going short <img src="image/22.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;β&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;S&lt;/mml:mi&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;mml:mi&gt;Y&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:math&gt;' style="vertical-align:-0.342em;height:1.053em;width:1.401em" width="60" height="44"/> will result in our new returns being <img src="image/24.png" alt='&lt;math xmlns="http://www.w3.org/1998/Math/MathML"&gt;&lt;mrow&gt;&lt;mrow&gt;&lt;mi&gt;α&lt;/mi&gt;&lt;mo&gt;+&lt;/mo&gt;&lt;msub&gt;&lt;mi&gt;β&lt;/mi&gt;&lt;mrow&gt;&lt;mi&gt;S&lt;/mi&gt;&lt;mi&gt;P&lt;/mi&gt;&lt;mi&gt;Y&lt;/mi&gt;&lt;/mrow&gt;&lt;/msub&gt;&lt;mo&gt;−&lt;/mo&gt;&lt;msub&gt;&lt;mi&gt;β&lt;/mi&gt;&lt;mrow&gt;&lt;mi&gt;S&lt;/mi&gt;&lt;mi&gt;P&lt;/mi&gt;&lt;mi&gt;Y&lt;/mi&gt;&lt;/mrow&gt;&lt;/msub&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mi&gt;α&lt;/mi&gt;&lt;/mrow&gt;&lt;/mrow&gt;&lt;/math&gt;' style="vertical-align:-0.342em;height:1.053em;width:6.601em" width="275" height="44"/>. That is, no exposure to the returns of SPY. We validate that the beta of the hedged portfolio is <strong class="source-inline">0</strong> by rerunning <span class="No-Break">the regression.</span></p>
+			<h2 id="_idParaDest-162"><a id="_idTextAnchor167"></a>There’s more…</h2>
+			<p>The information ratio is a measure used to evaluate the risk-adjusted performance of a trading strategy. It is calculated by dividing the portfolio’s active return (the difference between the portfolio return and the benchmark return) by the active risk (the standard deviation of the active return). The information ratio is a useful way to compare two portfolios against their benchmark. Let’s build a function that <span class="No-Break">computes it:</span></p>
+			<pre class="source-code">
+def information_ratio(
+    portfolio_returns,
+    benchmark_returns
+):
+    active_return = portfolio_returns - benchmark_returns
+    tracking_error = active_return.std()
+    return active_return.mean() / tracking_error</pre>			<p>Let’s use the information <a id="_idIndexMarker377"></a>ratio to compare the differences <a id="_idIndexMarker378"></a>between our hedged and <span class="No-Break">unhedged portfolios:</span></p>
+			<pre class="source-code">
+hedged_ir = information_ratio(
+    hedged_portfolio_returns,
+    benchmark_returns
+)
+unhedged_ir = information_ratio(
+    portfolio_returns,
+    benchmark_returns
+)
+print(f"Hedged information ratio: {hedged_ir}")
+print(f"Unhedged information ratio: {unhedged_ir}")</pre>			<p>Running the preceding code block shows us the unhedged portfolio has a lower risk-adjusted return. That’s to be expected since the returns attributable to the benchmark have <span class="No-Break">been hedged.</span></p>
+			<h2 id="_idParaDest-163"><a id="_idTextAnchor168"></a>See also</h2>
+			<p>Hedging is an important part of proper risk management and successful trading. Using a simple linear relationship between the portfolio returns and the factor returns is a great way to neutralize unwanted risk. To learn more about the topic that we covered in this recipe, visit the <span class="No-Break">following links:</span></p>
+			<ul>
+				<li>Statsmodels documentation on ordinary least <span class="No-Break">squares: </span><a href="https://www.statsmodels.org/stable/examples/notebooks/generated/ols.html"><span class="No-Break">https://www.statsmodels.org/stable/examples/notebooks/generated/ols.html</span></a></li>
+				<li>More about how beta is used in portfolio <a id="_idIndexMarker379"></a>management and trading: <a href="https://www.investopedia.com/terms/b/beta.asp">https://www.investopedia.com/terms/b/beta.asp</a> </li>
+				<li>More about how to use<a id="_idIndexMarker380"></a> the information ratio: <a href="https://pyquantnews.com/how-to-measure-skill-portfolio-manager/">https://pyquantnews.com/how-to-measure-skill-portfolio-manager/</a> </li>
+			</ul>
+			<h1 id="_idParaDest-164"><a id="_idTextAnchor169"></a>Analyzing portfolio sensitivities to the Fama-French factors</h1>
+			<p>The Fama-French factors are a set of <a id="_idIndexMarker381"></a>factors identified by economists Eugene F. Fama and Kenneth R. French to explain the variation in <a id="_idIndexMarker382"></a>stock returns. These factors serve as the foundation of the Fama-French three-factor model. In <a href="B21323_01.xhtml#_idTextAnchor013"><span class="No-Break"><em class="italic">Chapter 1</em></span></a>, <em class="italic">Acquire Free Financial Market Data with Cutting-edge Python Libraries</em>, we learned how to use <strong class="source-inline">pandas_datareader</strong> to download Fama-French <span class="No-Break">factor data.</span></p>
+			<p>In this recipe, we’ll compute the exposure of our portfolio to the size and market <span class="No-Break">value factors.</span></p>
+			<h2 id="_idParaDest-165"><a id="_idTextAnchor170"></a>Getting ready</h2>
+			<p>You should already have <strong class="source-inline">pandas_datareader</strong> installed from <a href="B21323_01.xhtml#_idTextAnchor013"><span class="No-Break"><em class="italic">Chapter 1</em></span></a>, <em class="italic">Acquire Free Financial Market Data with Cutting-edge Python Libraries</em>. If not, you can install it <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install pandas_datareader</pre>			<p>We’ll also assume you have the <strong class="source-inline">data</strong> DataFrame loaded with historic prices created in the <span class="No-Break">last recipe.</span></p>
+			<h2 id="_idParaDest-166"><a id="_idTextAnchor171"></a>How to do it…</h2>
+			<p>We’ll reuse what we learned in the prior recipes about using beta to compute <span class="No-Break">factor sensitivities.</span></p>
+			<ol>
+				<li>Import the<a id="_idIndexMarker383"></a> libraries we need for <span class="No-Break">the analysis:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+import pandas_datareader as pdr
+from openbb import obb
+import statsmodels.api as sm
+from statsmodels import regression
+from statsmodels.regression.rolling import RollingOLS
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Now, resample the daily return data to monthly using <strong class="source-inline">asfreq</strong> and replace the row labels to monthly<a id="_idIndexMarker384"></a> format using <strong class="source-inline">to_period</strong>. This is the format of the Fama-French factor data. A consistent format lets us align the data in the same <span class="No-Break">DataFrame later:</span><pre class="source-code">
+monthly_returns = (
+    data
+    .asfreq("M")
+    .dropna()
+    .pct_change(fill_method=None)
+    .to_period("M")
+)</pre></li>				<li>The result is a DataFrame with monthly returns suitable for alignment with the Fama-French monthly <span class="No-Break">factor data:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer101" class="IMG---Figure">
+					<img src="image/B21323_05_07.jpg" alt="Figure 5.7: DataFrame with monthly portfolio returns" width="766" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.7: DataFrame with monthly portfolio returns</p>
+			<ol>
+				<li value="4">Next, we compute the active<a id="_idIndexMarker385"></a> returns and use them as the dependent variable. This will help us <a id="_idIndexMarker386"></a>understand the sensitivity of the Fama-French factors to our <span class="No-Break">active returns:</span><pre class="source-code">
+bench = monthly_returns.pop("SPY")
+R = monthly_returns.mean(axis=1)
+active = (R - bench).dropna()</pre></li>				<li>Now, let’s download the Fama-French data <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">pandas_datareader</strong></span><span class="No-Break">:</span><pre class="source-code">
+factors = pdr.get_data_famafrench(
+    'F-F_Research_Data_Factors',
+    start="2015-01-01",
+    end="2022-12-31"
+)[0][1:] / 100
+SMB = factors.loc[active.index, "SMB"]
+HML = factors.loc[active.index, "HML"]</pre></li>				<li>Now that we have our returns and factor data, build a pandas DataFrame that aligns the data along<a id="_idIndexMarker387"></a> the common <span class="No-Break">date index:</span><pre class="source-code">
+df = pd.DataFrame(
+    {
+        "R": active,
+        "SMB": SMB,
+        "HML": HML,
+    },
+    index=active.index
+).dropna()</pre></li>				<li>Run the regression and get the beta coefficients for each factor. These coefficients represent the exposure<a id="_idIndexMarker388"></a> of our active returns to the <span class="No-Break">Fama-French factors:</span><pre class="source-code">
+b1, b2 = regression.linear_model.OLS(
+    df.R,
+    df[["SMB", "HML"]]
+).fit().params</pre></li>				<li>To see how these sensitivities evolve through time, use the Statsmodels <span class="No-Break"><strong class="source-inline">RollingOLS</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+exog = sm.add_constant(df[["SMB", "HML"]])
+rols = RollingOLS(active, exog, window=12)
+rres = rols.fit()
+fig = rres.plot_recursive_coefficient(
+    variables=["SMB", "HML"],
+    figsize=(5.5, 6.6)
+)</pre><p class="list-inset">This results in the following two charts that plot the 12-month rolling regression over time along<a id="_idIndexMarker389"></a> with the 95% <a id="_idIndexMarker390"></a><span class="No-Break">confidence intervals:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer102" class="IMG---Figure">
+					<img src="image/B21323_05_08.jpg" alt="Figure 5.8: Betas for two of the Fama-French factors using a 12-month rolling window" width="764" height="918"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.8: Betas for two of the Fama-French factors using a 12-month rolling window</p>
+			<h2 id="_idParaDest-167"><a id="_idTextAnchor172"></a>How it works…</h2>
+			<p>We follow the same procedure in downloading financial market data using OpenBB and computing portfolio returns as in the <em class="italic">Finding and hedging portfolio beta using linear regression</em> recipe in this chapter. The Fama-French factor data is in monthly resolution, so we use <strong class="source-inline">asfreq</strong> and <strong class="source-inline">to_period</strong> to<a id="_idIndexMarker391"></a> resample our data price data to monthly, then compute <span class="No-Break">monthly returns.</span></p>
+			<p>From there, we compute<a id="_idIndexMarker392"></a> active returns, which are the portion of portfolio returns that cannot be attributed to the market’s overall movement and are instead a result of active portfolio management decisions. As we learned, investment factors are systematic risk factors that explain the differences in returns between different securities. A portfolio’s active return can be influenced by its exposure to <span class="No-Break">these factors.</span></p>
+			<p>To measure the exposure, we compute the beta coefficients of the factors using the <strong class="source-inline">OLS</strong> method from the Statsmodels library to fit a linear regression model. The dependent variable is <strong class="source-inline">df.R</strong>, which represents the active returns of <a id="_idIndexMarker393"></a>our portfolio, while the independent variables are <strong class="source-inline">df["SMB"]</strong> and <strong class="source-inline">df["HML"]</strong>, representing the <strong class="bold">Small Minus Big</strong> (<strong class="bold">SMB</strong>) and <strong class="bold">High Minus Low</strong> (<strong class="bold">HML</strong>) factors of the <a id="_idIndexMarker394"></a>Fama-French three-factor model, respectively. The <strong class="source-inline">fit</strong> method is used to estimate the parameters of the model, which, in this case, are the betas for the <strong class="source-inline">SMB</strong> and <strong class="source-inline">HML</strong> factors stored in <strong class="source-inline">b1</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">b2</strong></span><span class="No-Break">.</span></p>
+			<p>To get an idea of how the exposures evolve through time, we build a rolling regression using the <strong class="source-inline">RollingOLS</strong> class. The exogenous variable is created by adding a constant column (for the intercept) to the <strong class="source-inline">SMB</strong> and <strong class="source-inline">HML</strong> factors. The <strong class="source-inline">RollingOLS</strong> class is then initialized with a window size of <strong class="source-inline">12</strong>, and the <strong class="source-inline">fit</strong> method is called to compute the rolling OLS estimates. Finally, the <strong class="source-inline">plot_recursive_coefficient</strong> method is used to create a plot of the rolling estimates of the regression coefficients for <strong class="source-inline">SMB</strong> and <strong class="source-inline">HML</strong> over the <span class="No-Break">12-period window.</span></p>
+			<h2 id="_idParaDest-168"><a id="_idTextAnchor173"></a>There’s more…</h2>
+			<p><strong class="bold">Marginal Contribution to Active Risk</strong> (<strong class="bold">MCAR</strong>) quantifies the additional active risk each factor brings to your portfolio. To compute the MCAR <a id="_idIndexMarker395"></a>of the factors, we multiply the factor sensitivity by the covariance between the factors and then divide by the square of the standard deviation of the active returns. This calculation shows the amount of risk incurred by being exposed to each factor, considering the exposures to other factors already in your portfolio. The risk <a id="_idIndexMarker396"></a>contribution that is not <a id="_idIndexMarker397"></a>explained is the exposure to factors other than the ones <span class="No-Break">being analyzed.</span></p>
+			<pre class="source-code">
+F1 = df.SMB
+F2 = df.HML
+cov = np.cov(F1, F2)
+ar_squared = (active.std()) ** 2
+mcar1 = (b1 * (b2 * cov[0, 1] + b1 * cov[0, 0])) / ar_squared
+mcar2 = (b2 * (b1 * cov[0, 1] + b2 * cov[1, 1])) / ar_squared
+print(f"SMB risk contribution: {mcar1}")
+print(f"HML risk contribution: {mcar2}")
+print(f"Unexplained risk contribution: {
+    1 - (mcar1 + mcar2)}")</pre>			<p>Running the preceding code shows only about 0.7% of the risk is explained by these two factors. Let’s plot the MCAR for these factors <span class="No-Break">over time:</span></p>
+			<ol>
+				<li>Compute the 12-month rolling covariances between <span class="No-Break">the factors:</span><pre class="source-code">
+covariances = (
+    df[["SMB", "HML"]]
+    .rolling(window=12)
+    .cov()
+).dropna()</pre></li>				<li>Compute the 12-month rolling active <span class="No-Break">return squared:</span><pre class="source-code">
+active_risk_squared = (
+    active.rolling(window=12).std()**2
+).dropna()</pre></li>				<li>Combine the <a id="_idIndexMarker398"></a>rolling <span class="No-Break">factor betas:</span><pre class="source-code">
+betas = pd.concat(
+    [rres.params.SMB, rres.params.HML],
+    axis=1
+).dropna()</pre></li>				<li>Create an empty DataFrame<a id="_idIndexMarker399"></a> to store the rolling <span class="No-Break">MCAR data:</span><pre class="source-code">
+MCAR = pd.DataFrame(
+    index=betas.index,
+    columns=betas.columns
+)</pre></li>				<li>Loop through each factor and each date computing the <span class="No-Break">MCAR value:</span><pre class="source-code">
+for factor in betas.columns:
+    for t in betas.index:
+        s = np.sum(
+            betas.loc[t] * covariances.loc[t][factor])
+        b = betas.loc[t][factor]
+        AR = active_risk_squared.loc[t]
+        MCAR[factor][t] = b * s / AR</pre></li>				<li>Finally, plot the MCAR for each factor <span class="No-Break">as follows:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer103" class="IMG---Figure">
+					<img src="image/B21323_05_09.jpg" alt="Figure 5.9: Rolling marginal contribution to risk for the two Fama-French factors" width="675" height="510"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.9: Rolling marginal contribution to risk for the two Fama-French factors</p>
+			<h2 id="_idParaDest-169"><a id="_idTextAnchor174"></a>See also</h2>
+			<p>By systematically selecting securities with certain<a id="_idIndexMarker400"></a> factor characteristics, investors aim to achieve better risk-adjusted<a id="_idIndexMarker401"></a> returns compared to the broader market or a specific benchmark. Factor investing is a broad and deep topic. To learn more about factor investing, visit the <span class="No-Break">following links:</span></p>
+			<ul>
+				<li>BlackRock’s introduction to factor <span class="No-Break">investing: </span><a href="https://www.blackrock.com/us/individual/investment-ideas/what-is-factor-investing"><span class="No-Break">https://www.blackrock.com/us/individual/investment-ideas/what-is-factor-investing</span></a></li>
+				<li><em class="italic">Advances in Active Portfolio Management</em> by Richard Grinold and Ronald Kahn is an advanced guide that delves deep into the quantitative aspects of active portfolio management, including topics such as portfolio construction, risk management, and <span class="No-Break">implementation: </span><a href="https://amzn.to/44zJeMk"><span class="No-Break">https://amzn.to/44zJeMk</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-170"><a id="_idTextAnchor175"></a>Assessing market inefficiency based on volatility</h1>
+			<p>Using volatility as a factor reflects the market inefficiency related to the pricing of volatile stocks. Historically, stocks with lower volatility have tended to outperform those with higher volatility on a risk-adjusted basis. This phenomenon contradicts the traditional finance theory that <a id="_idIndexMarker402"></a>higher risk should be compensated with higher return and thus represents a <span class="No-Break">market inefficiency.</span></p>
+			<p>One of the first steps in analyzing a factor’s performance is calculating forward returns. Forward returns are the returns of a security in a future period. Once the forward returns are calculated, we can use the Spearman rank correlation to understand the relationship between the factor and the forward returns. The Spearman rank correlation assesses how well the relationship between two variables can be described using a monotonic function. A high Spearman rank correlation indicates that the factor ranks securities in a way that is closely aligned with the ranking of securities by their forward returns, suggesting that the factor has predictive power. Conversely, a low Spearman rank correlation suggests that the factor is not a good predictor of <span class="No-Break">forward returns.</span></p>
+			<p>The Parkinson estimator uses the high and low prices over a period to get a more accurate measure of volatility. The basic idea is that the high and low prices encapsulate more information about the price movement than just the closing prices. In this recipe, we’ll build a factor using Parkinson volatility, compute the forward returns, and determine the Spearman rank correlation between the factor and <span class="No-Break">forward returns.</span></p>
+			<h2 id="_idParaDest-171"><a id="_idTextAnchor176"></a>How to do it…</h2>
+			<p>We’ll calculate Parkinson volatility and forward returns to measure the predictive power of Parkinson volatility as a <span class="No-Break">tradeable factor:</span></p>
+			<ol>
+				<li>Import the libraries we’ll use for <span class="No-Break">the analysis:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from openbb import obb
+from scipy.stats import spearmanr
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Use OpenBB to <span class="No-Break">download data:</span><pre class="source-code">
+symbols = ["NEM", "RGLD", "SSRM", "CDE", "LLY", "UNH",
+            "JNJ", "MRK"]
+data = obb.equity.price.historical(
+    symbols,
+    start_date="2015-01-01",
+    end_date="2022-12-31",
+    provider="yfinance"
+)
+prices = data[["high", "low", "close", "volume",
+                "symbol"]]</pre></li>				<li>As a preprocessing step, let’s make sure all our tickers have at least two years of data. We’ll create a mask <a id="_idIndexMarker403"></a>and grab the stocks that meet <span class="No-Break">our criteria:</span><pre class="source-code">
+nobs = prices.groupby("symbol").size()
+mask = nobs[nobs &gt; 2 * 12 * 21].index
+prices = prices[prices.symbol.isin(mask)]</pre></li>				<li>Next, set the symbol column as an index, reorder, and <span class="No-Break">drop duplicates:</span><pre class="source-code">
+prices = (
+    prices
+    .set_index("symbol", append=True)
+    .reorder_levels(["symbol", "date"])
+    .sort_index(level=0)
+).drop_duplicates()</pre><p class="list-inset">The result is the following MultiIndex DataFrame with <strong class="source-inline">symbol</strong> as the first index and <strong class="source-inline">date</strong> as <span class="No-Break">the second:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer104" class="IMG---Figure">
+					<img src="image/B21323_05_10.jpg" alt="Figure 5.10: MultiIndex DataFrame with symbol and date as indexes" width="390" height="222"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.10: MultiIndex DataFrame with symbol and date as indexes</p>
+			<ol>
+				<li value="5">Next, we’ll create a function <a id="_idIndexMarker404"></a>that returns the normalized Parkinson <span class="No-Break">volatility estimate:</span><pre class="source-code">
+def parkinson(data, window=14, trading_days=252):
+    rs = (1.0 / (4.0 * np.log(2.0))) * ((
+        data.high / data.low).apply(np.log))**2.0
+    def f(v):
+        return (trading_days * v.mean())**0.5
+    result = rs.rolling(
+        window=window,
+        center=False
+    ).apply(func=f)
+    return result.sub(result.mean()).div(result.std())</pre></li>				<li>We’ll apply that function to each group of stocks and add the Parkinson estimator as a <span class="No-Break">new column:</span><pre class="source-code">
+prices["vol"] = (
+    prices
+    .groupby("symbol", group_keys=False)
+    .apply(parkinson)
+)
+prices.dropna(inplace=True)</pre><p class="list-inset">The result is the same <a id="_idIndexMarker405"></a>MultiIndex DataFrame with each stock’s normalized Parkinson volatility added as a <span class="No-Break">new column:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer105" class="IMG---Figure">
+					<img src="image/B21323_05_11.jpg" alt="Figure 5.11: Updated MultiIndex DataFrame with per-stock normalized Parkinson volatility" width="468" height="220"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.11: Updated MultiIndex DataFrame with per-stock normalized Parkinson volatility</p>
+			<ol>
+				<li value="7">Now that we have the normalized Parkinson volatility, we can compute historic and forward returns. First, compute the historic returns over <strong class="source-inline">1</strong>, <strong class="source-inline">5</strong>, <strong class="source-inline">10</strong>, <strong class="source-inline">21</strong>, <strong class="source-inline">42</strong>, and <strong class="source-inline">63</strong> periods representing one day through <span class="No-Break">three months:</span><pre class="source-code">
+lags = [1, 5, 10, 21, 42, 63]
+for lag in lags:
+    prices[f"return_{lag}d"] = (
+        prices
+        .groupby(level="symbol")
+        .close
+        .pct_change(lag)
+    )</pre></li>				<li>Compute the forward returns for the <span class="No-Break">same periods:</span><pre class="source-code">
+for t in [1, 5, 10, 21, 42, 63]:
+    prices[f"target_{t}d"] = (
+        prices
+        .groupby(level="symbol")[f"return_{t}d"]
+        .shift(-t)
+    )</pre><p class="list-inset">The result is new columns in <a id="_idIndexMarker406"></a>the prices DataFrame representing the historic and forward returns, as shown in the <span class="No-Break">following screenshot:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer106" class="IMG---Figure">
+					<img src="image/B21323_05_13.jpg" alt="Figure 5.12: DataFrame with historic and forward returns for each stock in our portfolio" width="1378" height="383"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.12: DataFrame with historic and forward returns for each stock in our portfolio</p>
+			<ol>
+				<li value="9">Print the first 10 rows for the first symbol to inspect the historic returns for <span class="No-Break">each period:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer107" class="IMG---Figure">
+					<img src="image/B21323_05_131.jpg" alt="Figure 5.13: Slice of the prices DataFrame showing historic returns for stock NEM" width="1378" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.13: Slice of the prices DataFrame showing historic returns for stock NEM</p>
+			<ol>
+				<li value="10">Finally, use the Seaborn plotting<a id="_idIndexMarker407"></a> library to visualize how the one-day forward return is related to the normalized Parkinson <span class="No-Break">volatility factor:</span><pre class="source-code">
+target = "target_1d"
+metric = "vol"
+j = sns.jointplot(x=metric, y=target, data=prices)
+plt.tight_layout()
+df = prices[[metric, target]].dropna()
+r, p = spearmanr(df[metric], df[target])</pre><p class="list-inset">The result is the following joint plot, which shows the relationship along with distributions of <span class="No-Break">the values:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer108" class="IMG---Figure">
+					<img src="image/B21323_05_14.jpg" alt="Figure 5.14: Joint plot of normalized Parkinson volatility versus one-day forward return" width="834" height="834"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.14: Joint plot of normalized Parkinson volatility versus one-day forward return</p>
+			<h2 id="_idParaDest-172"><a id="_idTextAnchor177"></a>How it works…</h2>
+			<p>In this recipe, we begin to touch on the data preprocessing required when preparing data for <span class="No-Break">factor analysis.</span></p>
+			<p>We modify the DataFrame <a id="_idIndexMarker408"></a>with the historical data by setting <strong class="source-inline">symbol</strong> as a part of a MultiIndex, reordering the levels of the index to have <strong class="source-inline">symbol</strong> first, and then removing any duplicate rows. This allows us to apply the normalized Parkinson volatility to each group in the next step. To do it, we group by <strong class="source-inline">symbol</strong> and use the <strong class="source-inline">apply</strong> method to apply our custom Parkinson volatility function to each chunk <span class="No-Break">of data.</span></p>
+			<p>Finally, we compute the historic and forward returns. In the first loop, the code computes historical returns over several periods specified in the <strong class="source-inline">lags</strong> list. It does this by grouping the DataFrame by <strong class="source-inline">symbol</strong> and then computing the percentage change over each of the specified lags. These historical returns are then added to the DataFrame as new columns with the names <strong class="source-inline">return_1d</strong>, <strong class="source-inline">return_5d</strong>, and <span class="No-Break">so on.</span></p>
+			<p>In the second loop, the code computes future returns for several periods specified in the list. It does this by taking the already computed historical returns (<strong class="source-inline">return_1d</strong>, <strong class="source-inline">return_5d</strong>, and so on) and shifting them up by the specified number of periods. This essentially assigns to each row the return that will occur <strong class="source-inline">t</strong> days in the future. These future returns are then added<a id="_idIndexMarker409"></a> to the DataFrame as new columns with the names <strong class="source-inline">target_1d</strong>, <strong class="source-inline">target_5d</strong>, and <span class="No-Break">so on.</span></p>
+			<h2 id="_idParaDest-173"><a id="_idTextAnchor178"></a>There’s more…</h2>
+			<p>The <strong class="source-inline">spearmanr</strong> function computes the Spearman rank-order correlation coefficient between two data arrays. We can get the rank correlation and <em class="italic">p</em>-value using the <strong class="source-inline">spearmanr</strong> <span class="No-Break">SciPy method:</span></p>
+			<pre class="source-code">
+stat, pvalue = spearmanr(df[metric], df[target])</pre>			<p>The <strong class="source-inline">stat</strong> coefficient measures the strength and direction of the relationship between the two variables, with a value between <strong class="source-inline">-1</strong> and <strong class="source-inline">1</strong>. A value of <strong class="source-inline">0</strong> indicates no correlation, <strong class="source-inline">1</strong> indicates a perfect positive correlation, and <strong class="source-inline">-1</strong> indicates a perfect <span class="No-Break">negative correlation.</span></p>
+			<p>In this context, <strong class="source-inline">stat</strong> is the correlation between Parkinson volatility and the forward returns which is <strong class="source-inline">0.0378</strong>, which is a weak <span class="No-Break">positive correlation.</span></p>
+			<p>The <strong class="source-inline">pvalue</strong> tests the null hypothesis that the data is uncorrelated. A small <strong class="source-inline">pvalue</strong> (typically ≤ <strong class="source-inline">0.05</strong>) indicates that you can reject the null hypothesis. In this case, the <strong class="source-inline">pvalue</strong> is <strong class="source-inline">0.0158</strong>, so we reject the null hypothesis, which suggests there is a statistically significant correlation between the Parkinson volatility and the returns of <span class="No-Break">this portfolio.</span></p>
+			<h2 id="_idParaDest-174"><a id="_idTextAnchor179"></a>See also</h2>
+			<p>For more resources on the tools and techniques used in this recipe, visit the <span class="No-Break">following links:</span></p>
+			<ul>
+				<li>Walk-through of Parkinson <span class="No-Break">volatility: </span><a href="https://www.ivolatility.com/help/3.html"><span class="No-Break">https://www.ivolatility.com/help/3.html</span></a></li>
+				<li>Average true range: <a href="https://en.wikipedia.org/wiki/Average_true_range">https://en.wikipedia.org/wiki/Average_true_range</a> </li>
+				<li>Spearman rank <span class="No-Break">correlation: </span><a href="https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient"><span class="No-Break">https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient</span></a></li>
+				<li>SciPy’s<a id="_idIndexMarker410"></a> implementation of the Spearman rank correlation coefficient <span class="No-Break">documentation: </span><a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.spearmanr.html"><span class="No-Break">https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.spearmanr.html</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-175"><a id="_idTextAnchor180"></a>Preparing a factor ranking model using Zipline Pipelines</h1>
+			<p>Zipline Reloaded is an open source Python library that provides a comprehensive backtesting framework for algorithmic trading. The library provides tools to manage the algorithm’s capital, set trading commissions, and <span class="No-Break">simulate orders.</span></p>
+			<p>One of the most powerful <a id="_idIndexMarker411"></a>features of Zipline Reloaded is the Pipeline API. Pipelines let us define factors from columns of data from bundles. Pipelines efficiently process large amounts of data in a single pass while also filtering<a id="_idIndexMarker412"></a> down to a smaller set of assets of interest. Pipelines allow us to rank a universe of stocks based on the computed factor and output those data in a format suitable for the Alphalens library, which analyzes factor performance and risk. We’ll look at Alphalens in <a href="B21323_08.xhtml#_idTextAnchor225"><span class="No-Break"><em class="italic">Chapter 8</em></span></a>, <em class="italic">Evaluate Factor Risk and Performance with </em><span class="No-Break"><em class="italic">Alphalens Reloaded</em></span><span class="No-Break">.</span></p>
+			<p>In this recipe, we’ll build a data bundle using free stock market data, define a momentum factor, and rank a universe of stocks based on the performance in <span class="No-Break">that factor.</span></p>
+			<h2 id="_idParaDest-176"><a id="_idTextAnchor181"></a>Getting ready</h2>
+			<p>Zipline Reloaded has a built in process to download and bundle free historical market data from Nasdaq Data Link. You can use the Nasdaq Data Link client to acquire data without an account or an API key, but you’re limited in the number of API calls you can make. Without a key, you can make 20 API calls in 10 minutes or up to 50 API calls per day. Zipline Reloaded requires an API key to be set before <span class="No-Break">using it.</span></p>
+			<p>Since an account is free, it makes sense to sign up. This is something you can do via the Nasdaq Data Link website (https://data.nasdaq.com/). Your API key is in your profile (<span class="No-Break">https:// data.nasdaq.com/account/profile).</span></p>
+			<p>After you get your API key set up, install Zipline Reloaded. The steps differ depending on your <span class="No-Break">operating system.</span></p>
+			<h3>For Windows, Unix/Linux, and Mac Intel users</h3>
+			<p>If you’re running on <a id="_idIndexMarker413"></a>an Intel x86 chip, you can <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">conda</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+conda install -c conda-forge zipline-reloaded pyfolio-reloaded alphalens-reloaded -y</pre>			<h3>For Apple Silicon users</h3>
+			<p>If you have a Mac with <a id="_idIndexMarker414"></a>an M-series chip, you need to install some <a id="_idIndexMarker415"></a>dependencies first. The easiest way is to use <span class="No-Break">Homebrew (</span><a href="https://brew.sh"><span class="No-Break">https://brew.sh</span></a><span class="No-Break">).</span></p>
+			<p>Install the dependencies <span class="No-Break">with Homebrew:</span></p>
+			<pre class="console">
+brew install freetype pkg-config gcc openssl hdf5 ta-lib</pre>			<p>Install the Python dependencies <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">conda</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+conda install -c conda-forge pytables h5py -y</pre>			<p>Install the Zipline <span class="No-Break">Reloaded ecosystem:</span></p>
+			<pre class="console">
+pip install zipline-reloaded pyfolio-reloaded alphalens-reloaded</pre>			<p>In this example, we’ll use the free data bundle provided by Nasdaq Data Link. This dataset has market price data on 3,000 stocks <span class="No-Break">through 2018.</span></p>
+			<p>The free dataset is great for getting up and running but it is limited. Once you start hitting the limitations of the free data, you can either pay for a premium dataset or ingest your own data. Make sure <a id="_idIndexMarker416"></a>you have your Nasdaq Data Link API <span class="No-Break">key handy.</span></p>
+			<h2 id="_idParaDest-177"><a id="_idTextAnchor182"></a>How to do it…</h2>
+			<p>To build the analysis, we’ll import the required Zipline <span class="No-Break">Reloaded modules.</span></p>
+			<ol>
+				<li>Import the libraries we need for <span class="No-Break">the analysis:</span><pre class="source-code">
+import os
+import numpy as np
+import pandas as pd
+from zipline.data.bundles.core import load
+from zipline.pipeline import Pipeline
+from zipline.pipeline.data import USEquityPricing
+from zipline.pipeline.engine import SimplePipelineEngine
+from zipline.pipeline.factors import AverageDollarVolume, CustomFactor, Returns
+from zipline.pipeline.loaders import USEquityPricingLoader</pre></li>				<li>Set your API key as<a id="_idIndexMarker417"></a> an environment variable and<a id="_idIndexMarker418"></a> load the free Nasdaq data into <span class="No-Break">a bundle:</span><pre class="source-code">
+os.environ["QUANDL_API_KEY"] = "YOUR_API_KEY"
+bundle_data = load("quandl", os.environ, None)</pre></li>				<li>Build a US equity <span class="No-Break">pricing loader:</span><pre class="source-code">
+pipeline_loader = USEquityPricingLoader(
+    bundle_data.equity_daily_bar_reader,
+    bundle_data.adjustment_reader,
+    fx_reader=None
+)</pre></li>				<li>Use the pricing loader to create a <span class="No-Break">Pipeline engine:</span><pre class="source-code">
+engine = SimplePipelineEngine(
+    get_loader=lambda col: pipeline_loader,
+    asset_finder=bundle_data.asset_finder
+)</pre></li>				<li>Implement a custom momentum factor that returns a measure of <span class="No-Break">price momentum:</span><pre class="source-code">
+class MomentumFactor(CustomFactor):
+    inputs = [USEquityPricing.close, Returns(window_length=126)]
+    window_length = 252
+    def compute(self, today, assets, out, prices, returns):
+        out[:] = (
+            (prices[-21] -prices[-252]) / prices[-252]
+            - (prices[-1] - prices[-21]) / prices[-21]
+        ) / np.nanstd(returns, axis=0)</pre></li>				<li>Create a function <a id="_idIndexMarker419"></a>that instantiates the custom<a id="_idIndexMarker420"></a> momentum factor, builds a filter for average dollar volume over the last 30 days, and returns <span class="No-Break">a Pipeline:</span><pre class="source-code">
+def make_pipeline():
+    momentum = MomentumFactor()
+    dollar_volume = AverageDollarVolume(
+        window_length=30)
+    return Pipeline(
+        columns={
+            "factor": momentum,
+            "longs": momentum.top(50),
+            "shorts": momentum.bottom(50),
+            "rank": momentum.rank()
+        },
+        screen=dollar_volume.top(100)
+    )</pre></li>				<li>Run <span class="No-Break">the Pipeline:</span><pre class="source-code">
+results = engine.run_pipeline(
+    make_pipeline(),
+    pd.to_datetime("2012-01-04"),
+    pd.to_datetime("2012-03-01")
+)</pre></li>				<li>Clean up the resulting <a id="_idIndexMarker421"></a>DataFrame by removing records with no factor<a id="_idIndexMarker422"></a> data, adding names to the MultiIndex and sorting the values first by date and then by <span class="No-Break">factor value:</span><pre class="source-code">
+results.dropna(subset="factor", inplace=True)
+results.index.names = ["date", "symbol"]
+results.sort_values(by=["date", "factor"], inplace=True)</pre><p class="list-inset">The result is a MultiIndex DataFrame including the raw factor value, Boolean values indicating a short or long position, and how the stock’s factor value is ranked among <span class="No-Break">the universe:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer109" class="IMG---Figure">
+					<img src="image/B21323_05_15.jpg" alt="Figure 5.15: MultiIndex DataFrame with factor information and trading indicators" width="478" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.15: MultiIndex DataFrame with factor information and trading indicators</p>
+			<h2 id="_idParaDest-178"><a id="_idTextAnchor183"></a>How it works…</h2>
+			<p>The first step is to initialize a Pipeline loader for US equities. <strong class="source-inline">USEquityPricingLoader</strong> is responsible for loading pricing and adjustment data for US equities from the specified data sources. The <strong class="source-inline">SimplePipelineEngine</strong> class is used to run a pipeline. The <strong class="source-inline">get_loader</strong> parameter is a function that returns a loader to be used to load<a id="_idIndexMarker423"></a> the data needed for the pipeline. In this case, it’s a lambda function that always returns the previously defined <strong class="source-inline">pipeline_loader</strong>. The <strong class="source-inline">asset_finder</strong> parameter is used to do asset lookups. Here, it is<a id="_idIndexMarker424"></a> set to the <strong class="source-inline">asset_finder</strong> of <strong class="source-inline">bundle_data</strong>, which is an object that knows how to look up asset metadata for <span class="No-Break">the bundle.</span></p>
+			<p>Our code defines a custom factor, <strong class="source-inline">MomentumFactor</strong>. This factor computes momentum as the percentage change in price over the first 126 days of the 252-day window minus the percentage change in price over the last 21 days, divided by the standard deviation of the returns over the 252-day window. <strong class="source-inline">inputs</strong> is the data that the factor needs: the close prices of the US equities and the returns over a 126-day window. <strong class="source-inline">window_length</strong> is the number of days of data that the <strong class="source-inline">compute</strong> method will receive. The <strong class="source-inline">compute</strong> method is where the actual computation of the factor is done. The <strong class="source-inline">out</strong> array is where the computed factor <a id="_idIndexMarker425"></a>values are stored. The <strong class="source-inline">[:]</strong> after <strong class="source-inline">out</strong> is used to modify the <strong class="source-inline">out</strong> array <span class="No-Break">in place.</span></p>
+			<p>Next, we implement a function called <strong class="source-inline">make_pipeline</strong> that brings the factor, the universe screener, and Pipeline together. The <strong class="source-inline">MomentumFactor</strong> class is instantiated to compute momentum, and the <strong class="source-inline">AverageDollarVolume</strong> function is used with a 30-day window to <a id="_idIndexMarker426"></a>calculate average dollar volume. The pipeline includes columns for the momentum factor, Boolean masks for selecting the top and bottom 50 securities based on momentum, and the momentum rank across all securities. Additionally, the pipeline employs a screen to focus on the top 100 securities by <span class="No-Break">dollar volume.</span></p>
+			<h2 id="_idParaDest-179"><a id="_idTextAnchor184"></a>There’s more…</h2>
+			<p>Zipline Reloaded comes with many built-in factor classes that can be used within trading algorithms. Some of the more commonly used algorithms are <span class="No-Break">as follows:</span></p>
+			<ul>
+				<li><strong class="source-inline">ExponentialWeightedMovingAverage</strong>: Computes the exponential weighted moving average over a specified <span class="No-Break">window length</span></li>
+				<li><strong class="source-inline">BollingerBands</strong>: Computes the Bollinger Bands over a specified <span class="No-Break">window length</span></li>
+				<li><strong class="source-inline">VWAP</strong>: Computes the volume-weighted average price over a specified <span class="No-Break">window length</span></li>
+				<li><strong class="source-inline">AnnualizedVolatility</strong>: Computes the annualized volatility of an asset over a specified <span class="No-Break">window length</span></li>
+				<li><strong class="source-inline">MaxDrawdown</strong>: Computes the maximum drawdown of an asset over a specified <span class="No-Break">window length</span></li>
+			</ul>
+			<h2 id="_idParaDest-180"><a id="_idTextAnchor185"></a>See also</h2>
+			<p>To learn more about Zipline Reloaded, see the documentation <span class="No-Break">here: </span><a href="https://zipline.ml4trading.io"><span class="No-Break">https://zipline.ml4trading.io</span></a><span class="No-Break">.</span></p>
+		</div>
+	</div>
+</div>
+</body>
+</html>

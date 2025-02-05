@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer137">
+			<h1 id="_idParaDest-201" class="chapter-number"><a id="_idTextAnchor207"></a>7</h1>
+			<h1 id="_idParaDest-202"><a id="_idTextAnchor208"></a>Event-Based Backtesting Factor Portfolios with Zipline Reloaded</h1>
+			<p><a id="_idTextAnchor209"></a>Zipline Reloaded is an event-driven backtesting framework that processes market events sequentially, allowing for more realistic modeling of order execution and slippage. Unlike vector-based frameworks, it accounts for the temporal sequence of market events, making it suitable for complex strategies that involve conditional orders or asset interactions. While generally slower than vector-based approaches, event-based backtesting frameworks tend to better simulate market dynamics making them helpful for path-dependent strategies requiring intricate order logic, state management, and <span class="No-Break">risk management.</span></p>
+			<p>Zipline Reloaded is well suited for backtesting large universes and complex portfolio construction techniques. The Pipeline API is designed for high-efficiency computation of factors among thousands of securities. We’ll use Zipline Reloaded to backtest portfolio factor strategies, the results of which can be analyzed with other tools in the Zipline <span class="No-Break">Reloaded ecosystem..</span></p>
+			<p>In this chapter, we present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Backtesting a momentum factor strategy with <span class="No-Break">Zipline Reloaded</span></li>
+				<li>Exploring a mean reversion strategy with <span class="No-Break">Zipline Reloaded</span></li>
+			</ul>
+			<h1 id="_idParaDest-203"><a id="_idTextAnchor210"></a>Technical Requirements</h1>
+			<p>We installed Zipline Reloaded in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a><em class="italic">, Build Alpha Factors for Stock Portfolios</em>. In case you missed it, follow along with the instructions here. The steps to install Zipline Reloaded differ depending on your <span class="No-Break">operating system.</span></p>
+			<h2 id="_idParaDest-204"><a id="_idTextAnchor211"></a>For Windows, Unix/Linux, and Mac Intel users</h2>
+			<p>If <a id="_idIndexMarker509"></a>you’re <a id="_idIndexMarker510"></a>running <a id="_idIndexMarker511"></a>on an Intel x86 chip, you can <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">conda</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+conda install -c conda-forge zipline-reloaded pyfolio-reloaded alphalens-reloaded -y</pre>			<h2 id="_idParaDest-205"><a id="_idTextAnchor212"></a>For Mac M1/M2 users</h2>
+			<p>If you <a id="_idIndexMarker512"></a>have a Mac with an M1 or M2 chip, you need to install some dependencies first. The easiest way is to use <span class="No-Break">Homebrew (</span><a href="https://brew.sh"><span class="No-Break">https://brew.sh</span></a><span class="No-Break">).</span></p>
+			<p>Install the dependencies <span class="No-Break">with Homebrew:</span></p>
+			<pre class="console">
+brew install freetype pkg-config gcc openssl hdf5 ta-lib</pre>			<p>Install the Python dependencies <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">conda</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+conda install -c conda-forge pytables h5py -y</pre>			<p>Install the Zipline <span class="No-Break">Reloaded ecosystem:</span></p>
+			<pre class="console">
+pip install zipline-reloaded pyfolio-reloaded alphalens-reloaded</pre>			<p>In this example, we’ll use the free data bundle provided by Nasdaq Data Link. This dataset has market price data on 3,000 stocks <span class="No-Break">through 2018.</span></p>
+			<h1 id="_idParaDest-206"><a id="_idTextAnchor213"></a>Backtesting a momentum factor strategy with Zipline Reloaded</h1>
+			<p>Before <a id="_idIndexMarker513"></a>we begin, it’s <a id="_idIndexMarker514"></a>important to understand the difference between vector-based backtesting frameworks and event-based backtesting frameworks. In <a href="B21323_06.xhtml#_idTextAnchor186"><span class="No-Break"><em class="italic">Chapter 6</em></span></a>, <em class="italic">Vector-Based Backtesting with VectorBT</em>, we touched on the differences between vector-based and event-based backtesting. Here is a more <span class="No-Break">detailed assessment:</span></p>
+			<div>
+				<div id="_idContainer127" class="IMG---Figure">
+					<img src="image/B21323_07_01.jpg" alt="Figure 8.1: Comparison of vector-based and event-based backtesting frameworks" width="1048" height="560"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.1: Comparison of vector-based and event-based backtesting frameworks</p>
+			<p>In <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for Stock Portfolios</em>, we defined a custom factor that <a id="_idIndexMarker515"></a>computes a momentum <a id="_idIndexMarker516"></a>score for US equities over a 252-day window. The factor’s value is determined by comparing the 252-day relative price change against the 22-day relative price change. This difference is then standardized by dividing it by the standard deviation of the 126-day returns, effectively scaling the momentum score by the asset’s recent volatility. The result provides a normalized momentum score for each asset, capturing both long-term and short-term price movements in relation to its <span class="No-Break">recent volatility.</span></p>
+			<p>In this recipe, we’ll incorporate the factor into the Zipline Reloaded backtesting framework and inspect the performance of <span class="No-Break">the strategy.</span></p>
+			<h2 id="_idParaDest-207"><a id="_idTextAnchor214"></a>Getting ready</h2>
+			<p>We assume you ingested the free <strong class="source-inline">quandl</strong> data bundle and it’s still available on your local machine. We also assume you still have your Nasdaq API key in the environment variables. If not, run the following code after <span class="No-Break">the imports:</span></p>
+			<pre class="source-code">
+from zipline.data.bundles.core import load
+os.environ["QUANDL_API_KEY"] = "YOUR_API_KEY"
+bundle_data = load("quandl", os.environ, None)</pre>			<p>The free data is limited to about 3,000 US equities and the data collection stops in 2018. If you’d like data coverage for nearly 20,000 US equities updated daily, you can consider the premium data service offered <span class="No-Break">by Nasdaq.</span></p>
+			<p>The instructions to set up this premium data service are outlined in detail in the article <em class="italic">How to ingest premium market data with Zipline Reloaded</em>, which you can find at this <span class="No-Break">URL: </span><a href="https://www.pyquantnews.com/free-python-resources/how-to-ingest-premium-market-data-with-zipline-reloaded"><span class="No-Break">https://www.pyquantnews.com/free-python-resources/how-to-ingest-premium-market-data-with-zipline-reloaded</span></a><span class="No-Break">.</span></p>
+			<p>If you use this premium data, replace <strong class="source-inline">quandl</strong> with <strong class="source-inline">quotemedia</strong> in the <strong class="source-inline">run_algorithm</strong> function <span class="No-Break">that follows.</span></p>
+			<h2 id="_idParaDest-208"><a id="_idTextAnchor215"></a>How to do it…</h2>
+			<p>In this <a id="_idIndexMarker517"></a>recipe, we introduce <a id="_idIndexMarker518"></a>several novel features of the Zipline Reloaded backtesting framework that require their own imports — namely, the date and time rules, the Pipeline API, custom factors, and commission and <span class="No-Break">slippage models:</span></p>
+			<ol>
+				<li>Start by importing the libraries we’ll need for <span class="No-Break">the backtest:</span><pre class="source-code">
+import pandas as pd
+import numpy as np
+from zipline import run_algorithm
+from zipline.pipeline import Pipeline
+from zipline.pipeline.data import USEquityPricing
+from zipline.pipeline.factors import AverageDollarVolume, CustomFactor, Returns
+from zipline.api import (
+    attach_pipeline,
+    calendars,
+    pipeline_output,
+    date_rules,
+    time_rules,
+    set_commission,
+    set_slippage,
+    record,
+    order_target_percent,
+    get_open_orders,
+    get_datetime,
+    schedule_function
+)
+import pandas_datareader as web</pre></li>				<li>Next, define <a id="_idIndexMarker519"></a>the number of long and short stocks we want in <span class="No-Break">our portfolio:</span><pre class="source-code">
+N_LONGS = N_SHORTS = 50</pre></li>				<li>Use the <a id="_idIndexMarker520"></a>same custom momentum factor we defined in the <span class="No-Break">previous chapter:</span><pre class="source-code">
+class MomentumFactor(CustomFactor):
+    inputs = [USEquityPricing.close,
+        Returns(window_length=126)]
+    window_length = 252
+    def compute(self, today, assets, out, prices, returns):
+        out[:] = (
+            (prices[-21] -prices[-252]) / prices[-252]
+            - (prices[-1] - prices[-21]) / prices[-21]
+        ) / np.nanstd(returns, axis=0)</pre></li>				<li>Use the same pipeline we defined in the <span class="No-Break">previous chapter:</span><pre class="source-code">
+def make_pipeline():
+    momentum = MomentumFactor()
+    dollar_volume = AverageDollarVolume(
+        window_length=30)
+        return Pipeline(
+            columns={
+                "factor": momentum,
+                "longs": momentum.top(N_LONGS),
+                "shorts": momentum.bottom(N_SHORTS),
+                "ranking": momentum.rank(),
+            },
+            screen=dollar_volume.top(100),
+        )</pre></li>				<li>Zipline <a id="_idIndexMarker521"></a>Reloaded is an event-driven backtesting framework that allows us to “hook” into different events, including an event that fires before trading starts. We use this <a id="_idIndexMarker522"></a>hook to “install” our <span class="No-Break">factor pipeline:</span><pre class="source-code">
+def before_trading_start(context, data):
+    context.factor_data = pipeline_output(
+        "factor_pipeline")</pre></li>				<li>Next, we define the <strong class="source-inline">initialize</strong> function, which is run when the <span class="No-Break">backtest starts:</span><pre class="source-code">
+def initialize(context):
+    attach_pipeline(make_pipeline(),
+        "factor_pipeline")
+    schedule_function(
+        rebalance,
+        date_rules.week_start(),
+        time_rules.market_open(),
+        calendar=calendars.US_EQUITIES,
+    )</pre></li>				<li>Now, define <a id="_idIndexMarker523"></a>a function that contains the logic to rebalance our portfolio. Here we buy <a id="_idIndexMarker524"></a>the top <strong class="source-inline">N_LONGS</strong> stocks with the highest ranking factor and short the bottom <strong class="source-inline">N_SHORTS</strong> stocks with the lowest <span class="No-Break">ranking factor:</span><pre class="source-code">
+def rebalance(context, data):
+    factor_data = context.factor_data
+    record(factor_data=factor_data.ranking)
+    assets = factor_data.index
+    record(prices=data.current(assets, "price"))
+    longs = assets[factor_data.longs]
+    shorts = assets[factor_data.shorts]
+    divest = set(
+        context.portfolio.positions.keys()) - set(
+            longs.union(shorts))
+    exec_trades(
+        data,
+        assets=divest,
+        target_percent=0
+    )
+    exec_trades(
+        data,
+        assets=longs,
+        target_percent=1 / N_LONGS
+    )
+    exec_trades(
+        data,
+        assets=shorts,
+        target_percent=-1 / N_SHORTS
+    )</pre></li>				<li>We <a id="_idIndexMarker525"></a>abstract <a id="_idIndexMarker526"></a>away the order execution in an <strong class="source-inline">exec_trades</strong> function, which loops through the provided assets and executes <span class="No-Break">the orders:</span><pre class="source-code">
+def exec_trades(data, assets, target_percent):
+    for asset in assets:
+        if data.can_trade(
+            asset) and not get_open_orders(asset):
+                order_target_percent(asset,
+                    target_percent)</pre></li>				<li>Finally, we run the backtest using the <span class="No-Break"><strong class="source-inline">run_algorithm</strong></span><span class="No-Break"> function:</span><pre class="source-code">
+start = pd.Timestamp("2016")
+end = pd.Timestamp("2018")
+perf = run_algorithm(
+    start=start,
+    end=end,
+    initialize=initialize,
+    before_trading_start=before_trading_start,
+    capital_base=100_000,
+    bundle="quandl",
+)</pre><p class="list-inset">The <a id="_idIndexMarker527"></a>output is <a id="_idIndexMarker528"></a>a DataFrame that contains trading, risk, and performance statistics for each day in <span class="No-Break">the backtest:</span></p><pre class="source-code">perf.info()</pre></li>			</ol>
+			<p>It’s this DataFrame that we use to analyze the characteristics of <span class="No-Break">the backtest:</span></p>
+			<div>
+				<div id="_idContainer128" class="IMG---Figure">
+					<img src="image/B21323_07_02.jpg" alt="Figure 8.2: Output DataFrame from our Zipline Reloaded backtest" width="711" height="790"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.2: Output DataFrame from our Zipline Reloaded backtest</p>
+			<h2 id="_idParaDest-209"><a id="_idTextAnchor216"></a>How it works…</h2>
+			<p>We <a id="_idIndexMarker529"></a>dove into the inner workings of the Pipeline API and custom factors in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for Stock Portfolios</em>, so here, we’ll focus on the remaining code to run <a id="_idIndexMarker530"></a>the backtest. The <strong class="source-inline">before_trading_start</strong> function is <a id="_idIndexMarker531"></a>invoked prior to the beginning of each trading day. It takes <span class="No-Break">two parameters:</span></p>
+			<ul>
+				<li><strong class="source-inline">context</strong>: A persistent <a id="_idIndexMarker532"></a>namespace that allows the storage of variables between function calls. It retains its values across multiple days and can be used to store and manage data that the algorithm needs <span class="No-Break">over time.</span></li>
+				<li><strong class="source-inline">data</strong>: An <a id="_idIndexMarker533"></a>object that provides access to current and historical pricing and volume data, among <span class="No-Break">other things.</span></li>
+			</ul>
+			<p>Before every <a id="_idIndexMarker534"></a>trading day, we fetch the output of a defined pipeline named <strong class="source-inline">factor_pipeline</strong>. The <strong class="source-inline">pipeline_output</strong> function retrieves the computed results of the named pipeline for the current day. These results are then stored in the <strong class="source-inline">context</strong> namespace under the <strong class="source-inline">factor_data</strong> key. This allows the algorithm to access and use the pipeline’s output in subsequent functions or during the <span class="No-Break">trading day.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">The <strong class="source-inline">context</strong> object in the Zipline Reloaded backtesting framework serves as a persistent namespace, allowing algorithms to store and manage variables across multiple function calls and trading sessions. It retains its values throughout the algorithm’s execution, acting as a central repository for data, counters, flags, and other essential information that the algorithm requires for its operations and <span class="No-Break">decision-making processes.</span></p>
+			<p>The <strong class="source-inline">initialize</strong> function is <a id="_idIndexMarker535"></a>used to set up initial configurations and operations that the algorithm will use throughout its execution. Here, the function first attaches a data pipeline, created by the <strong class="source-inline">make_pipeline</strong> method, and names it <strong class="source-inline">factor_pipeline</strong>. Subsequently, the <strong class="source-inline">schedule_function</strong> method is used to schedule the <strong class="source-inline">rebalance</strong> function to run at the start of each week at the market’s opening time, using the US equities trading calendar. This ensures that the algorithm will regularly adjust its portfolio based on the logic defined in the <strong class="source-inline">rebalance</strong> function following the exchange’s <span class="No-Break">open days.</span></p>
+			<p>The <strong class="source-inline">rebalance</strong> function adjusts the portfolio based on specific criteria. Initially, the function <a id="_idIndexMarker536"></a>retrieves the factor data stored in the <strong class="source-inline">context</strong> object and adds the rank to the output DataFrame using the <strong class="source-inline">record</strong> function. It then fetches the current prices of the assets under consideration and adds them to the output DataFrame as well. The assets are then categorized into three groups: <strong class="source-inline">longs</strong> (assets the algorithm intends to buy), <strong class="source-inline">shorts</strong> (assets it plans to sell short), and <strong class="source-inline">divest</strong> (current portfolio holdings in neither the <strong class="source-inline">longs</strong> nor <strong class="source-inline">shorts</strong> list, indicating they should be <span class="No-Break">sold off).</span></p>
+			<p>We implement <a id="_idIndexMarker537"></a>a function called <strong class="source-inline">exec_trades</strong> to abstract away the order execution. For each asset in the list, the function first checks whether the asset is tradable and that there are no open orders for it using the <strong class="source-inline">can_trade</strong> and <strong class="source-inline">get_open_orders</strong> methods. If both conditions are met, the function places an order for the asset to adjust its position to the desired target percentage using the <span class="No-Break"><strong class="source-inline">order_target_percent</strong></span><span class="No-Break"> method.</span></p>
+			<p>Finally, we call <strong class="source-inline">run_algorithm</strong> to start the backtest, taking in the start and end dates, the <strong class="source-inline">initialize</strong> and <strong class="source-inline">before_trading_start</strong> functions to set up and prepare for each trading day, a starting capital of $100,000, and specifying the data bundle as <strong class="source-inline">quandl</strong>. The results of the backtest are stored in the <strong class="source-inline">perf</strong> variable for <span class="No-Break">further analysis.</span></p>
+			<h2 id="_idParaDest-210"><a id="_idTextAnchor217"></a>There’s more…</h2>
+			<p>The output <a id="_idIndexMarker538"></a>of a Zipline <a id="_idIndexMarker539"></a>Reloaded backtest provides a comprehensive overview of an algorithm’s performance. It includes a time series of key metrics, such as portfolio value, returns, and specific asset positions. Additionally, it captures risk metrics, transaction logs, and other diagnostic data that helps in evaluating the strategy’s robustness and <span class="No-Break">potential pitfalls.</span></p>
+			<p>The output can be used with the risk and performance libraries pyfolio and alphalens, which we dive into in the next two chapters. For now, we’ll inspect a few of the <span class="No-Break">key outputs:</span></p>
+			<pre class="source-code">
+perf.portfolio_value.plot(title="Cumulative returns")</pre>			<p>The <a id="_idIndexMarker540"></a>result is a plot <a id="_idIndexMarker541"></a>showing the cumulative equity of <span class="No-Break">your algorithm.</span></p>
+			<div>
+				<div id="_idContainer129" class="IMG---Figure">
+					<img src="image/B21323_07_03.jpg" alt="Figure 8.3: Cumulative equity of the algorithm" width="578" height="419"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.3: Cumulative equity of the algorithm</p>
+			<p>Create a histogram of <span class="No-Break">daily returns:</span></p>
+			<pre class="source-code">
+perf.returns.hist(bins=50)</pre>			<p>The result is a histogram showing the frequency of daily returns across <span class="No-Break">50 bins:</span></p>
+			<div>
+				<div id="_idContainer130" class="IMG---Figure">
+					<img src="image/B21323_07_04.jpg" alt="Figure 8.4: Histogram of daily portfolio returns" width="552" height="413"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.4: Histogram of daily portfolio returns</p>
+			<p>Plot <a id="_idIndexMarker542"></a>the rolling Sharpe <a id="_idIndexMarker543"></a>ratio for <span class="No-Break">the algorithm:</span></p>
+			<pre class="source-code">
+perf.sharpe.plot()</pre>			<p>The result is a plot visualizing the rolling Sharpe ratio of <span class="No-Break">the algorithm:</span></p>
+			<div>
+				<div id="_idContainer131" class="IMG---Figure">
+					<img src="image/B21323_07_05.jpg" alt="Figure 8.5: Plot of the rolling Sharpe ratio of the algorithm" width="554" height="397"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.5: Plot of the rolling Sharpe ratio of the algorithm</p>
+			<p class="callout-heading">Hint</p>
+			<p class="callout">The output is a pandas DataFrame, which means all the data manipulation methods we’ve learned thus <span class="No-Break">far apply.</span></p>
+			<h2 id="_idParaDest-211"><a id="_idTextAnchor218"></a>See also</h2>
+			<p>Zipline <a id="_idIndexMarker544"></a>Reloaded offers robust documentation for using its extensive features. You can find <span class="No-Break">them here:</span></p>
+			<ul>
+				<li>Zipline Reloaded <span class="No-Break">documentation: </span><a href="https://zipline.ml4trading.io"><span class="No-Break">https://zipline.ml4trading.io</span></a></li>
+				<li>An article that describes ingesting the premium US equities data: <a href="https://www.pyquantnews.com/free-python-resources/how-to-ingest-premium-market-data-with-zipline-reloaded">https://www.pyquantnews.com/free-python-resources/how-to-ingest-premium-market-data-with-zipline-reloaded</a> </li>
+			</ul>
+			<h1 id="_idParaDest-212"><a id="_idTextAnchor219"></a>Exploring a mean reversion strategy with Zipline Reloaded</h1>
+			<p>Mean reversion strategies are based on the financial principle that asset prices and returns <a id="_idIndexMarker545"></a>eventually revert to their long-term mean or average level after periods of divergence or deviation. These <a id="_idIndexMarker546"></a>strategies operate on the assumption that prices will bounce back to a historical mean or some form of equilibrium after moving away from it, either due to overreaction or other short-term factors. Mean reversion suggests that assets are subject to inherent and stable equilibriums. When prices deviate significantly from these equilibriums, due to factors such as emotional trading, news, or events, they are likely to revert back over time. Traders and algorithms identify assets that have deviated significantly from their historical average price or some other benchmark. This deviation can be measured using various metrics, such as z-scores, Bollinger Bands, or percentage deviations. In this recipe, we use <span class="No-Break">the z-score.</span></p>
+			<p>In this recipe, we’ll use the Zipline Reloaded factor framework to build a portfolio. The strategy buys the top oversold stocks and sells the top <span class="No-Break">overbought stocks.</span></p>
+			<h2 id="_idParaDest-213"><a id="_idTextAnchor220"></a>Getting ready</h2>
+			<p>Most of this recipe will be the same as the recipe demonstrating the momentum factor, with <a id="_idIndexMarker547"></a>some <span class="No-Break">notable differences:</span></p>
+			<ul>
+				<li>We’ve <a id="_idIndexMarker548"></a>updated the factor to measure mean reversion and rank our universe based on the top and bottom <span class="No-Break">mean-reverting assets</span></li>
+				<li>We include commission and slippage rules to enhance the realism of <span class="No-Break">the backtest</span></li>
+				<li>We add simple logging to provide feedback during the execution of the algorithm and to demonstrate the available <span class="No-Break">portfolio attributes</span></li>
+				<li>We download benchmark price data and include returns for comparison against <span class="No-Break">our algorithm</span></li>
+				<li>We include a custom function that is executed when the backtest <span class="No-Break">is complete</span></li>
+				<li>We generate an image of the pipeline that shows how the logic filters the stocks in <span class="No-Break">the universe</span></li>
+			</ul>
+			<p>We assume you have the libraries imported and will skip <span class="No-Break">that step.</span></p>
+			<h2 id="_idParaDest-214"><a id="_idTextAnchor221"></a>How to do it…</h2>
+			<p>We will expand on the previous recipe by adding complexity to <span class="No-Break">our analysis:</span></p>
+			<ol>
+				<li>Set the number of longs and shorts and the <span class="No-Break">lookback periods:</span><pre class="source-code">
+N_LONGS = N_SHORTS = 50
+MONTH = 21
+YEAR = 12 * MONTH</pre></li>				<li>Create the mean <span class="No-Break">reversion factor:</span><pre class="source-code">
+class MeanReversion(CustomFactor):
+    inputs = [Returns(window_length=MONTH)]
+    window_length = YEAR
+    def compute(self, today, assets, out,
+        monthly_returns):
+            df = pd.DataFrame(monthly_returns)
+            out[:] = df.iloc[-1].sub(
+                df.mean()).div(df.std())</pre></li>				<li>Implement <a id="_idIndexMarker549"></a>the function <a id="_idIndexMarker550"></a>that returns the pipeline using <span class="No-Break">the factor:</span><pre class="source-code">
+def make_pipeline():
+    mean_reversion = MeanReversion()
+    dollar_volume = AverageDollarVolume(
+        window_length=30)
+    return Pipeline(
+        columns={
+            "longs": mean_reversion.bottom(N_LONGS),
+            "shorts": mean_reversion.top(N_SHORTS),
+            "ranking": mean_reversion.rank(
+                ascending=False),
+        },
+        screen=dollar_volume.top(100),
+    )</pre></li>				<li>Implement the function that hooks into the event that fires before <span class="No-Break">trading starts:</span><pre class="source-code">
+def before_trading_start(context, data):
+    context.factor_data = pipeline_output(
+        "factor_pipeline")</pre></li>				<li>Implement <a id="_idIndexMarker551"></a>the function <a id="_idIndexMarker552"></a>that is invoked when the backtest begins. Note the addition of commission and <span class="No-Break">slippage models:</span><pre class="source-code">
+def initialize(context):
+    attach_pipeline(make_pipeline(),
+        "factor_pipeline")
+    schedule_function(
+        rebalance,
+        date_rules.week_start(),
+        time_rules.market_open(),
+        calendar=calendars.US_EQUITIES,
+    )
+    set_commission(
+        us_equities=commission.PerShare(
+            cost=0.00075, min_trade_cost=0.01
+        )
+    )
+    set_slippage(
+        us_equities=slippage.VolumeShareSlippage(
+            volume_limit=0.0025, price_impact=0.01
+        )
+    )</pre></li>				<li>Add a <strong class="source-inline">print</strong> statement to the same <strong class="source-inline">rebalance</strong> function we created in the last recipe. This <strong class="source-inline">print</strong> statement provides feedback as the algorithm <span class="No-Break">is running:</span><pre class="source-code">
+def rebalance(context, data):
+    factor_data = context.factor_data
+    record(factor_data=factor_data.ranking)</pre></li>				<li>In the <a id="_idIndexMarker553"></a>next section <a id="_idIndexMarker554"></a>of the <strong class="source-inline">rebalance</strong> function, extract the symbols from the <strong class="source-inline">factor_data</strong> DataFrame and record the <span class="No-Break">asset prices:</span><pre class="source-code">
+    assets = factor_data.index
+    record(prices=data.current(assets, "price"))</pre></li>				<li>Now we identify the assets to go long, to go short, and to divest from <span class="No-Break">the portfolio:</span><pre class="source-code">
+    longs = assets[factor_data.longs]
+    shorts = assets[factor_data.shorts]
+    divest = set(
+        context.portfolio.positions.keys()) - set(
+            longs.union(shorts))</pre></li>				<li>Finally, we print output to the user and call the <strong class="source-inline">exec_trades</strong> function to execute our <span class="No-Break">desired orders:</span><pre class="source-code">
+    print(
+        f"{get_datetime().date()} | Longs {len(longs)} | Shorts | {len(shorts)} | {context.portfolio.portfolio_value}"
+    )
+    exec_trades(
+        data,
+        assets=divest,
+        target_percent=0
+    )
+    exec_trades(
+        data,
+        assets=longs,
+        target_percent=1 / N_LONGS
+    )
+    exec_trades(
+        data,
+        assets=shorts,
+        target_percent=-1 / N_SHORTS
+    )</pre></li>				<li>Implement <a id="_idIndexMarker555"></a>the <a id="_idIndexMarker556"></a>same <strong class="source-inline">exec_trades</strong> function as in the <span class="No-Break">previous recipe:</span><pre class="source-code">
+def exec_trades(data, assets, target_percent):
+    for asset in assets:
+        if data.can_trade(
+            asset) and not get_open_orders(asset):
+            order_target_percent(
+                asset, target_percent)</pre></li>				<li>The <strong class="source-inline">analyze</strong> function is run after the backtest is complete. We have access to the <strong class="source-inline">context</strong> object and the output of the backtest in the <strong class="source-inline">perf</strong> DataFrame. This is useful to run reports or event trigger alerts if certain thresholds are passed. In this example, we simply plot the <span class="No-Break">portfolio value:</span><pre class="source-code">
+def analyze(context, perf):
+    perf.portfolio_value.plot()</pre></li>				<li>Use <strong class="source-inline">pandas_datareader</strong> to compute <a id="_idIndexMarker557"></a>the daily returns of a benchmark. In this case, we use the S&amp;P <span class="No-Break">500 index:</span><pre class="source-code">
+start = pd.Timestamp(“2016”)
+end = pd.Timestamp(“2018”)
+sp500 = web.DataReader('SP500', 'fred', start,
+    end).SP500
+benchmark_returns = sp500.pct_change()</pre></li>				<li>Finally, run <a id="_idIndexMarker558"></a>the backtest and cache <span class="No-Break">the output:</span><pre class="source-code">
+perf = run_algorithm(
+    start=start,
+    end=end,
+    initialize=initialize,
+    analyze=analyze,
+    benchmark_returns=benchmark_returns,
+    before_trading_start=before_trading_start,
+    capital_base=100_000,
+    bundle="quandl"
+)
+perf.to_pickle("mean_reversion.pickle")</pre><p class="list-inset">While the backtest is running, you’ll see output that resembles <span class="No-Break">the following:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer132" class="IMG---Figure">
+					<img src="image/B21323_07_06.jpg" alt="Figure 8.6: Logs from the algorithm run" width="464" height="531"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.6: Logs from the algorithm run</p>
+			<ol>
+				<li value="14">When <a id="_idIndexMarker559"></a>the backtest <a id="_idIndexMarker560"></a>completes, the <strong class="source-inline">analyze</strong> function is invoked and the performance <span class="No-Break">is plotted:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer133" class="IMG---Figure">
+					<img src="image/B21323_07_07.jpg" alt="Figure 8.7: Plot automatically generated from the analyze function" width="578" height="397"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.7: Plot automatically generated from the analyze function</p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">The keen eye may spot what looks like a bug: why are we taking long or short positions in only a few stocks when we’ve set the number of longs and shorts to 50? The answer lies in the sequence in which the <strong class="source-inline">Pipeline</strong> class processes its filters. It’s important to note that we’ve included a screen argument tied to the <strong class="source-inline">dollar_volume</strong> factor. This effectively filters the stocks in the pipeline to only those with a dollar volume exceeding $100,000, and this screening occurs after the long and short selections are made. If you were to remove this screening criterion, the log would display 50 longs and 50 shorts as expected.Top <span class="No-Break">of Form</span></p>
+			<p class="callout">Bottom <span class="No-Break">of Form</span></p>
+			<h2 id="_idParaDest-215"><a id="_idTextAnchor222"></a>How it works…</h2>
+			<p>Our custom <a id="_idIndexMarker561"></a>factor uses <a id="_idIndexMarker562"></a>monthly returns as its input, specified by the <strong class="source-inline">Returns</strong> class with a window length set to a constant, <strong class="source-inline">MONTH</strong>, representing a month. The overall window length for the factor is set to a constant, <strong class="source-inline">YEAR</strong>, representing a year. Within the <strong class="source-inline">compute</strong> method, the monthly returns are converted into a DataFrame. The factor’s value for each asset is then computed by taking the last month’s return, subtracting the mean of all monthly returns, and then dividing by the standard deviation of those returns. This results in a z-score-like metric, indicating how many standard deviations the latest month’s return is from the mean, which can be used to gauge mean reversion tendencies for <span class="No-Break">each asset.</span></p>
+			<p>The <strong class="source-inline">make_pipeline</strong> function is similar to the one we constructed in the last recipe except it <a id="_idIndexMarker563"></a>uses the mean reversion factor. Within the function, an instance of the <strong class="source-inline">MeanReversion</strong> factor is created, which calculates a mean reversion score for each asset. Additionally, the <strong class="source-inline">AverageDollarVolume</strong> class is used <a id="_idIndexMarker564"></a>to compute the <a id="_idIndexMarker565"></a>average dollar volume over a 30-day window for liquidity screening. The core of the function is the <strong class="source-inline">Pipeline</strong> object, which is set up to produce <span class="No-Break">three columns:</span></p>
+			<ul>
+				<li><strong class="source-inline">longs</strong>: Identifies the assets with the lowest mean reversion scores (i.e., the most <span class="No-Break">undervalued assets)</span></li>
+				<li><strong class="source-inline">shorts</strong>: Pinpoints the assets with the highest scores (i.e., the most <span class="No-Break">overvalued assets)</span></li>
+				<li><strong class="source-inline">ranking</strong>: Provides a rank for each asset based on its mean reversion score in <span class="No-Break">descending order</span></li>
+			</ul>
+			<p>To ensure the pipeline focuses on liquid assets, a screen is applied that only considers the top 100 assets based on their average <span class="No-Break">dollar volume.</span></p>
+			<p>In the <strong class="source-inline">initialize</strong> function, we attach the pipeline and schedule the rebalancing in the same way as the last recipe. However, in this implementation, we include commission and <a id="_idIndexMarker566"></a>slippage models. The <strong class="source-inline">set_commission</strong> function configures the commission model for US equities to be based on a per-share cost. Specifically, the algorithm will be charged $0.00075 for each share traded, with a minimum trade cost set at $0.01, ensuring that even small trades incur a nominal fee. The <strong class="source-inline">set_commission</strong> function allows for a large range of commission models to match your actual broker’s commission schedule. Following this, the <strong class="source-inline">set_slippage</strong> function establishes <a id="_idIndexMarker567"></a>the slippage model for US equities using the <strong class="source-inline">VolumeShareSlippage</strong> method. This model simulates the impact of an order on the stock price based on the order’s size relative to the stock’s average volume. The parameters dictate that an order can consume up to 0.25% of the stock’s daily volume and that each order will impact the stock price <span class="No-Break">by 1%.</span></p>
+			<p>Finally, to <a id="_idIndexMarker568"></a>compare our <a id="_idIndexMarker569"></a>algorithm’s return to the benchmark, we compute daily returns for the S&amp;P <span class="No-Break">500 index.</span></p>
+			<h2 id="_idParaDest-216"><a id="_idTextAnchor223"></a>There’s more…</h2>
+			<p>Our pipeline is simple: we generate a mean reversion factor, screen the top and bottom stocks for a dollar volume greater than $100,000, and return the results. Zipline Reloaded supports compound factor models where several factors are combined. In those cases, it helps to visualize what’s going on. Luckily, we can generate an illustration of how the pipeline <span class="No-Break">is constructed:</span></p>
+			<pre class="source-code">
+p = make_pipeline()
+p.show_graph()</pre>			<p>The result is a pictorial depiction of <span class="No-Break">the pipeline:</span></p>
+			<div>
+				<div id="_idContainer134" class="IMG---Figure">
+					<img src="image/B21323_07_08.jpg" alt="Figure 8.8: Graphical representation of the pipeline" width="644" height="778"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.8: Graphical representation of the pipeline</p>
+			<p>By <a id="_idIndexMarker570"></a>including benchmark <a id="_idIndexMarker571"></a>returns, Zipline Reloaded computes the rolling alpha and beta of our portfolio against the benchmark. We learned how to hedge the beta and amplify the alpha in the last chapter. Using the output of the backtest, we have these metrics at <span class="No-Break">our disposal.</span></p>
+			<p>Plot the rolling beta against <span class="No-Break">the benchmark:</span></p>
+			<div>
+				<div id="_idContainer135" class="IMG---Figure">
+					<img src="image/B21323_07_09.jpg" alt="Figure 8.9: Rolling beta of our algorithm’s returns against the benchmark" width="568" height="397"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.9: Rolling beta of our algorithm’s returns against the benchmark</p>
+			<p>Plot <a id="_idIndexMarker572"></a>the rolling alpha against <a id="_idIndexMarker573"></a><span class="No-Break">the benchmark:</span></p>
+			<div>
+				<div id="_idContainer136" class="IMG---Figure">
+					<img src="image/B21323_07_10.jpg" alt="Figure 8.10: Rolling alpha of our algorithm’s returns against the benchmark" width="568" height="397"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.10: Rolling alpha of our algorithm’s returns against the benchmark</p>
+			<h2 id="_idParaDest-217"><a id="_idTextAnchor224"></a>See also</h2>
+			<p>We went deeper into some more advanced features of Zipline Reloaded. These features aim to <a id="_idIndexMarker574"></a>create a more realistic simulation of the market dynamics algorithmic traders face every day. To dive deeper, check out the documentation <span class="No-Break">listed here:</span></p>
+			<ul>
+				<li>API documentation for the Pipeline API, which describes its available input parameters: <a href="https://zipline.ml4trading.io/api-reference.html#pipeline-api">https://zipline.ml4trading.io/api-reference.html#pipeline-api</a> </li>
+				<li>Different built-in slippage models available within Zipline <span class="No-Break">Reloaded: </span><a href="https://zipline.ml4trading.io/api-reference.html#slippage-models"><span class="No-Break">https://zipline.ml4trading.io/api-reference.html#slippage-models</span></a></li>
+				<li>Different built-in commission models available within Zipline <span class="No-Break">Reloaded: </span><a href="https://zipline.ml4trading.io/api-reference.html#commission-models"><span class="No-Break">https://zipline.ml4trading.io/api-reference.html#commission-models</span></a></li>
+			</ul>
+		</div>
+	</div>
+</div>
+</body>
+</html>

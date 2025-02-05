@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer088">
+			<h1 id="_idParaDest-125" class="chapter-number"><a id="_idTextAnchor129"></a>4</h1>
+			<h1 id="_idParaDest-126"><a id="_idTextAnchor130"></a>Store Financial Market Data on Your Computer</h1>
+			<p><a id="_idTextAnchor131"></a>If there’s one thing algorithmic traders cannot get enough of, it’s data. The data that fuels our strategies is more than just numbers—it’s the lifeblood of our decision-making processes. And having data available locally—or at least within your control—is a big part of that. Speed of access and reliability are important reasons why you might want to store data locally. Local data is insulated from internet outages, ensuring that data-driven processes remain uninterrupted. Further, if you need to update a bad price, you can persist the update <span class="No-Break">through time.</span></p>
+			<p>In terms of price considerations, local storage offers cost-efficiency benefits over recurring cloud expenses. Storing a few terabytes of data in a cloud-based database can cost several hundred dollars per month. The flexibility of data manipulation, ease of integration with research workflows, and speeding up of backtests are <span class="No-Break">other advantages.</span></p>
+			<p>In this chapter, we’ll explore several ways to store financial market data. We’ll start with storing in a CSV file, which can easily be written and read by pandas. Then we’ll explore ways to store data in a<a id="_idIndexMarker275"></a> simple, on-disk SQL database format called <strong class="bold">SQLite</strong>. We’ll increase the complexity and install a <strong class="bold">PostgreSQL</strong> database server on your computer to store data. Finally, we’ll use the highly efficient, ultra-fast <strong class="bold">HDF5</strong> format to <span class="No-Break">store data.</span></p>
+			<p>For recipes using <strong class="bold">SQLite</strong> and <strong class="bold">PostgreSQL</strong>, we’ll develop a script that can be run automatically using a task manager to acquire market data after the <span class="No-Break">market closes.</span></p>
+			<p>In this chapter, we present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Storing data on disk in <span class="No-Break">CSV format</span></li>
+				<li>Storing data on disk <span class="No-Break">with SQLite</span></li>
+				<li>Storing data in a networked <span class="No-Break">Postgres database</span></li>
+				<li>Storing data in ultra-fast <span class="No-Break">HDF5 format</span></li>
+			</ul>
+			<h1 id="_idParaDest-127"><a id="_idTextAnchor132"></a>Storing data on disk in CSV format</h1>
+			<p>The <strong class="bold">Comma-Separated Values</strong> (<strong class="bold">CSV</strong>) format is one of the most universally recognized and utilized methods for storing data. Its simplicity makes it a favored choice for traders and analysts looking to store <a id="_idIndexMarker276"></a>tabular data without the overhead of more complex systems. Algorithmic traders often gravitate toward CSV when dealing with data that requires straightforward import<a id="_idIndexMarker277"></a> and export operations, especially given the ease with <a id="_idIndexMarker278"></a>which Python and its libraries, such as pandas, handle CSV files. Further, data in CSV format can be used with other analytics tools such as Tableau, PowerBI, or proprietary systems. Manually inspecting CSV files is also possible using a text editor or Excel. CSV does not have the same speed or sophistication as other storage methods, but its ease of use makes it important in all <span class="No-Break">trading environments.</span></p>
+			<h2 id="_idParaDest-128"><a id="_idTextAnchor133"></a>How to do it…</h2>
+			<p>Since pandas supports writing data to CSV, there are no special <span class="No-Break">libraries required:</span></p>
+			<ol>
+				<li>Import <span class="No-Break">the libraries:</span><pre class="source-code">
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Implement a function to download data, manipulate the results, and return a <span class="No-Break">pandas DataFrame:</span><pre class="source-code">
+def get_stock_data(symbol, start_date=None, end_date=None):
+    data = obb.equity.price.historical(
+        symbol,
+        start_date=start_date,
+        end_date=end_date,
+        provider="yfinance",
+    )
+    data.reset_index(inplace=True)
+    data['symbol'] = symbol
+    return data</pre></li>				<li>Implement a function to <a id="_idIndexMarker279"></a>save a range of data as a <a id="_idIndexMarker280"></a><span class="No-Break">CSV file:</span><pre class="source-code">
+def save_data_range(symbol, start_date=None, end_date=None):
+    data = get_stock_data(symbol, start_date, end_date)
+    data.to_csv(
+        f"{symbol}.gz",
+        compression="gzip",
+        index=False
+    )</pre></li>				<li>Implement a function that<a id="_idIndexMarker281"></a> reads a CSV file and returns <span class="No-Break">a DataFrame:</span><pre class="source-code">
+def get_data(symbol):
+    return pd.read_csv(
+        f»{symbol}.gz»,
+        compression=»gzip»,
+        index_col="date",
+        usecols=[
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "symbol"
+        ]
+    )</pre></li>				<li>Save the data as a <span class="No-Break">CSV file:</span><pre class="source-code">
+save_data_range("PLTR")</pre></li>			</ol>
+			<h2 id="_idParaDest-129"><a id="_idTextAnchor134"></a>How it works…</h2>
+			<p>The script <a id="_idIndexMarker282"></a>uses the <strong class="source-inline">pandas</strong> library and the OpenBB Platform to download and manipulate stock market data. The <strong class="source-inline">get_stock_data</strong> function fetches stock data using a given symbol and date range, then preprocesses this data by resetting its index and standardizing column names. It also appends a stock symbol column <span class="No-Break">for reference.</span></p>
+			<p><strong class="source-inline">save_data_range</strong> uses the pandas <strong class="source-inline">to_csv</strong> method to store the data to disk using GZIP compression in the CSV format. The naming<a id="_idIndexMarker283"></a> convention for saved files is the stock symbol followed by the <strong class="source-inline">.gz</strong> <span class="No-Break">file extension.</span></p>
+			<p>The <strong class="source-inline">get_data</strong> function retrieves <a id="_idIndexMarker284"></a>and decompresses the stored CSV files, reconstructing them into a DataFrame. During this process, only selected columns such as <strong class="source-inline">date</strong>, <strong class="source-inline">opening price</strong>, <strong class="source-inline">high</strong>, <strong class="source-inline">low</strong>, <strong class="source-inline">closing price</strong>, <strong class="source-inline">volume</strong>, and <strong class="source-inline">stock symbol</strong> <span class="No-Break">are loaded.</span></p>
+			<p>The end of the script uses these functions to save stock data for the symbol PLTR. After running this code, you’ll have a file on your computer called <strong class="source-inline">PLTR.gz</strong>, which is a compressed <span class="No-Break">CSV file.</span></p>
+			<h2 id="_idParaDest-130"><a id="_idTextAnchor135"></a>There’s more…</h2>
+			<p>The pandas <strong class="source-inline">to_csv</strong> method has many options for<a id="_idIndexMarker285"></a> efficiently saving data to disk in CSV format. Here are some of the <span class="No-Break">most useful:</span></p>
+			<ul>
+				<li><strong class="source-inline">Sep</strong>: Specifies the delimiter to use between fields, defaulting to a comma (<strong class="source-inline">,</strong>). For a tab-separated file, <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">sep='\t'</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">header</strong>: A Boolean value determining whether to write out column names. Set to <strong class="source-inline">False</strong> to exclude column headers from <span class="No-Break">the CSV.</span></li>
+				<li><strong class="source-inline">na_rep</strong>: Sets the string representation for missing (<strong class="source-inline">nan</strong>) values. The default is empty strings, but can be changed to placeholders such <span class="No-Break">as </span><span class="No-Break"><strong class="source-inline">NULL</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">date_format</strong>: Dictates the format for datetime objects. For example, <strong class="source-inline">date_format='%Y-%m-%d %H:%M:%S'</strong> formats datetime objects as <span class="No-Break"><strong class="source-inline">2023-08-10 15:20:30</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">float_format</strong>: Controls the format for floating point numbers. For instance, <strong class="source-inline">float_format='%.2f'</strong> rounds all float columns to two <span class="No-Break">decimal places.</span></li>
+			</ul>
+			<p>Similarly, the <strong class="source-inline">read_csv</strong> method used in the <strong class="source-inline">get_data</strong> method has additional arguments for added flexibility in fetching data <span class="No-Break">from disk:</span></p>
+			<ul>
+				<li><strong class="source-inline">delimiter</strong> or <strong class="source-inline">sep</strong>: Specifies the character that separates fields, defaulting to a comma (<strong class="source-inline">,</strong>). For tab-separated files, <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">delimiter='\t'</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">nrows</strong>: Determines the number of rows of the file to read, which can be useful for reading in just a subset of a <span class="No-Break">large</span><span class="No-Break"><a id="_idIndexMarker286"></a></span><span class="No-Break"> file.</span></li>
+				<li><strong class="source-inline">parse_dates</strong>: A list of <a id="_idIndexMarker287"></a>column names to parse as dates. If <strong class="source-inline">['date']</strong> is passed, the <strong class="source-inline">date</strong> column will be parsed into a <span class="No-Break"><strong class="source-inline">datetime64</strong></span><span class="No-Break"> type.</span></li>
+				<li><strong class="source-inline">dtype</strong>: Provides a dictionary of column names and data types to use for each column. For example, <strong class="source-inline">dtype={'volume': 'int32'}</strong> would ensure the <strong class="source-inline">volume</strong> column is<a id="_idIndexMarker288"></a> read as a <span class="No-Break">32-bit integer.</span></li>
+				<li><strong class="source-inline">skiprows</strong>: Specifies a number or a list of row numbers to skip while reading the file, useful for omitting <span class="No-Break">specific rows.</span></li>
+			</ul>
+			<h2 id="_idParaDest-131"><a id="_idTextAnchor136"></a>See also…</h2>
+			<p>Writing data to CSV is a very common operation when dealing with market data. It’s important to become comfortable with the different ways you can read and write data from and <span class="No-Break">to CSVs:</span></p>
+			<ul>
+				<li>Documentation for the pandas <strong class="source-inline">to_csv</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html</span></a></li>
+				<li>Documentation for the pandas <strong class="source-inline">from_csv</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-132"><a id="_idTextAnchor137"></a>Storing data on disk with SQLite</h1>
+			<p>SQLite offers a bridge between<a id="_idIndexMarker289"></a> the simplicity of flat files and the robustness of relational databases. As a serverless, self-contained database, SQLite provides algorithmic<a id="_idIndexMarker290"></a> traders with a lightweight yet powerful tool to store and query data with SQL but without the complexity of setting up a<a id="_idIndexMarker291"></a> full-scale database system. Its integration with Python is seamless, and its compact nature makes it an excellent choice for applications where portability and minimal configuration are priorities. For traders who require more structure than CSVs, or prefer to use SQL, but without the overhead of larger <a id="_idIndexMarker292"></a>database systems, SQLite is the <span class="No-Break">optimal choice.</span></p>
+			<h2 id="_idParaDest-133"><a id="_idTextAnchor138"></a>Getting ready…</h2>
+			<p>We’ll build a script that can be<a id="_idIndexMarker293"></a> set to run automatically using a CRON job (Mac, Linux, Unix) or Task Scheduler (Windows). For this recipe, we will create a Python script called <strong class="source-inline">market_data_sqlite.py</strong> and run it from the command line. We’ll also<a id="_idIndexMarker294"></a> introduce the <strong class="source-inline">exchange_calendars</strong> Python package, which is a library for defining and querying calendars for trading days and times for over 50 exchanges. You can install it <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+pip install exchange_calendars</pre>			<h2 id="_idParaDest-134"><a id="_idTextAnchor139"></a>How to do it…</h2>
+			<p>All the following code should be written in the <strong class="source-inline">market_data_sqlite.py</strong> <span class="No-Break">script file:</span></p>
+			<ol>
+				<li>Begin by importing all necessary libraries to fetch and <span class="No-Break">save data:</span><pre class="source-code">
+from sys import argv
+import sqlite3
+import pandas as pd
+import exchange_calendars as xcals
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Reuse the <strong class="source-inline">get_stock_data</strong> function from the <span class="No-Break">previous recipe:</span><pre class="source-code">
+def get_stock_data(symbol, start_date=None, end_date=None):
+    data = obb.equity.price.historical(
+        symbol,
+        start_date=start_date,
+        end_date=end_date,
+        provider="yfinance",
+    )
+    data.reset_index(inplace=True)
+    data['symbol'] = symbol
+    return data</pre></li>				<li>Modify the <strong class="source-inline">save_data_range</strong> function<a id="_idIndexMarker295"></a> to use the <a id="_idIndexMarker296"></a>pandas <span class="No-Break"><strong class="source-inline">to_sql</strong></span><span class="No-Break"> method:</span><pre class="source-code">
+def save_data_range(symbol, conn, start_date,
+   end_date):
+    data = get_stock_data(symbol, start_date,
+   end_date)
+    data.to_sql(
+        "stock_data",
+        conn,
+        if_exists="replace",
+        index=False
+    )</pre></li>				<li>Create a function that grabs data from the last trading day based on the <span class="No-Break">exchange’s calendar:</span><pre class="source-code">
+def save_last_trading_session(symbol, conn, today):
+    data = get_stock_data(symbol, today, today)
+    data.to_sql(
+        "stock_data",
+        conn,
+        if_exists="append",
+        index=False
+    )</pre></li>				<li>Create the script’s main execution <a id="_idIndexMarker297"></a>code, which allows the user to pass in a stock symbol, start, and end <a id="_idIndexMarker298"></a>date to kick off the data acquisition and <span class="No-Break">storage process:</span><pre class="source-code">
+if __name__ == "__main__":
+    conn = sqlite3.connect("market_data.sqlite")
+    if argv[1] == "bulk":
+        symbol = argv[2]
+        start_date = argv[3]
+        start_date = argv[4]
+        save_data_range(symbol, conn, start_date=None,
+            end_date=None)
+        print(f"{symbol} saved between {
+           start_date} and {start_date}")
+    elif argv[1] == "last":
+        symbol = argv[2]
+        calendar = argv[3]
+        cal = xcals.get_calendar(calendar)
+        today = pd.Timestamp.today().date()
+        if cal.is_session(today):
+            save_last_trading_session(symbol, conn, today)
+            print(f"{symbol} saved")
+        else:
+            print(f"{today} is not a trading day. Doing nothing.")
+    else:
+        print("Enter bulk or last")</pre></li>				<li>To save a range of data, run<a id="_idIndexMarker299"></a> the following command from <span class="No-Break">your</span><span class="No-Break"><a id="_idIndexMarker300"></a></span><span class="No-Break"> terminal:</span><pre class="source-code">
+python market_data_sqlite.py bulk SYMBOL START_DATE END_DATE</pre></li>			</ol>
+			<p>Where <strong class="source-inline">SYMBOL</strong> is the ticker symbol, <strong class="source-inline">START_DATE</strong> is the first date you want to download data for, and <strong class="source-inline">END_DATE</strong> is the last date you want to download data for. Here’s <span class="No-Break">an example:</span></p>
+			<pre class="source-code">
+python market_data_sqlite.py bulk SPY 2022-01-01 2022-10-20</pre>			<p>This downloads and saves data for the SPY symbol between 2022-01-01 <span class="No-Break">and 2022-10-20.</span></p>
+			<p class="callout-heading">Important</p>
+			<p class="callout">The <strong class="source-inline">if_exists</strong> argument is set to <strong class="source-inline">replace</strong> in the <strong class="source-inline">to_sql</strong> method in the <strong class="source-inline">save_data_range</strong> function. That means every time you call the function, the table will be dropped and replaced if it exists. Depending on your use case, you may want to set the value to <strong class="source-inline">append</strong> if you are adding new data for different stocks at <span class="No-Break">different times.</span></p>
+			<p>Here’s how you’d download<a id="_idIndexMarker301"></a> data for the last <span class="No-Break">trading day:</span></p>
+			<pre class="source-code">
+python market_data_sqlite.py last SYMBOL XNYS</pre>			<p>Here, <strong class="source-inline">SYMBOL</strong> is the<a id="_idIndexMarker302"></a> <span class="No-Break">ticker symbol.</span></p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">To get a list of supported calendars from the <strong class="source-inline">exchange_calendars</strong> package, you can <span class="No-Break">run </span><span class="No-Break"><strong class="source-inline">xcals.get_calendar_names(include_aliases=False)</strong></span><span class="No-Break">.</span></p>
+			<h2 id="_idParaDest-135"><a id="_idTextAnchor140"></a>How it works…</h2>
+			<p>We use the same function for fetching a range of stock price data as the last recipe. In this recipe, we modify the <strong class="source-inline">save_data_range</strong> function by including an argument to accept a connection, and instead of saving to CSV, we use the pandas <strong class="source-inline">to_sql</strong> method to save the data in the DataFrame to an SQLite table. The table exists inside a file called <strong class="source-inline">market_data.sqlite</strong>, which we defined in the <strong class="source-inline">connect</strong> method. By calling this method, the Python <strong class="source-inline">sqlite3</strong> package will create the file if it does not exist, or connect to it if <span class="No-Break">it does.</span></p>
+			<p>The <strong class="source-inline">save_last_trading_session</strong> method takes a connection and the date for which data is downloaded. We call the <strong class="source-inline">get_stock_data</strong> function we created with the current date as the start and end date. This returns one row of data for the current date. After the data is downloaded, it is appended to the <span class="No-Break">SQLite table.</span></p>
+			<p>The code under the <strong class="source-inline">if</strong> statement runs when called from the command line. <strong class="source-inline">argv</strong> is a list provided by the <strong class="source-inline">sys</strong> module that captures command-line arguments passed to a script. The first item in the list (<strong class="source-inline">argv[0]</strong>) represents the script’s name itself, and subsequent items contain the arguments in the order they were provided. We use <strong class="source-inline">argv</strong> to determine whether we should download a range of data or data for the last trading session. Depending on whether the user enters <strong class="source-inline">bulk</strong> or <strong class="source-inline">last</strong>, we capture the symbol, start, and end date and call the appropriate function. If the user enters <strong class="source-inline">last</strong>, we use the pandas <strong class="source-inline">Timestamp</strong> class to<a id="_idIndexMarker303"></a> determine the current date, then use <strong class="source-inline">exchange_calendars</strong> to test whether the <a id="_idIndexMarker304"></a>current date is a trading day for the given exchange. If it is, we append the last day’s data. If it’s not, we print a message and <span class="No-Break">do nothing.</span></p>
+			<h2 id="_idParaDest-136"><a id="_idTextAnchor141"></a>There’s more…</h2>
+			<p>Automating data retrieval ensures consistent and timely inputs for your trading workflows. Here’s how to automate the script you just created to run at 1:00 p.m. <span class="No-Break">EST daily.</span></p>
+			<h3>Windows</h3>
+			<p>Windows users can create a<a id="_idIndexMarker305"></a> batch file to run the <span class="No-Break">Python script:</span></p>
+			<ol>
+				<li>Create a <span class="No-Break">batch file:</span><ul><li>Create a new <strong class="source-inline">.bat</strong> file (for <span class="No-Break">example, </span><span class="No-Break"><strong class="source-inline">run_script.bat</strong></span><span class="No-Break">).</span></li><li>Inside, add <span class="No-Break">the following:</span><pre class="source-code">
+@echo off
+CALL conda activate quant-stack
+python path_to_your_script\market_data_sqlite.py %1 %2</pre></li></ul></li>				<li>Open Windows <span class="No-Break">Task Scheduler:</span><ul><li>Press <em class="italic">Windows</em> + <em class="italic">R</em>, type <strong class="source-inline">taskschd.msc</strong>, and <span class="No-Break">hit </span><span class="No-Break"><em class="italic">Enter</em></span><span class="No-Break">.</span></li></ul></li>
+				<li>Create a <span class="No-Break">new task:</span><ul><li>In the <strong class="bold">Actions</strong> pane, click on <strong class="bold">Create </strong><span class="No-Break"><strong class="bold">Basic Task</strong></span><span class="No-Break">.</span></li></ul></li>
+				<li>Provide the name and description of <span class="No-Break">the task:</span><ul><li><strong class="bold">Name</strong>: <strong class="source-inline">Run Market </strong><span class="No-Break"><strong class="source-inline">Data Script</strong></span></li><li><strong class="bold">Description</strong>: <strong class="source-inline">Runs the Python script every weekday at </strong><span class="No-Break"><strong class="source-inline">11:00 pm</strong></span><span class="No-Break">.</span></li></ul></li>
+				<li>Set <span class="No-Break">the trigger:</span><ul><li><span class="No-Break">Choose </span><span class="No-Break"><strong class="bold">Daily</strong></span><span class="No-Break">.</span></li><li><strong class="bold">Start</strong>: Set today’s date and <span class="No-Break"><strong class="source-inline">11:00 pm</strong></span><span class="No-Break">.</span></li><li><strong class="bold">Recur every</strong>: <span class="No-Break"><strong class="source-inline">1 day</strong></span><span class="No-Break">.</span></li><li>Check <strong class="bold">Weekdays</strong> in the <a id="_idIndexMarker306"></a><span class="No-Break">advanced settings.</span></li></ul></li>
+				<li>Set <span class="No-Break">the action:</span><ul><li>Choose <strong class="bold">Start </strong><span class="No-Break"><strong class="bold">a program</strong></span><span class="No-Break">.</span></li><li><strong class="bold">Program/script</strong>: Browse and select the <strong class="source-inline">.bat</strong> file <span class="No-Break">you created.</span></li><li><strong class="bold">Add arguments</strong>: <strong class="source-inline">last </strong><span class="No-Break"><strong class="source-inline">SPY XNYS</strong></span></li></ul></li>
+				<li>Finish <span class="No-Break">the setup:</span><ul><li>Click <span class="No-Break">on </span><span class="No-Break"><strong class="bold">Finish</strong></span><span class="No-Break">.</span></li></ul></li>
+			</ol>
+			<h3>Mac/Unix/Linux</h3>
+			<p>Mac and Unix users can create<a id="_idIndexMarker307"></a> an executable shell file to<a id="_idIndexMarker308"></a> run the <span class="No-Break">Python </span><span class="No-Break"><a id="_idIndexMarker309"></a></span><span class="No-Break">script:</span></p>
+			<ol>
+				<li>Create a <span class="No-Break">shell script:</span><ul><li>Create a new file <span class="No-Break">called </span><span class="No-Break"><strong class="source-inline">run_script.sh</strong></span><span class="No-Break">.</span></li><li>Inside, add <span class="No-Break">the following:</span><pre class="source-code">
+#!/bin/bash
+source /path_to_anaconda/anaconda3/bin/activate quant-stack
+python /path_to_your_script/market_data_sqlite.py $1 $2</pre></li><li>Give <span class="No-Break">execute permissions:</span><pre class="source-code">chmod +x run_script.sh</pre></li></ul></li>				<li>Open the <span class="No-Break">cron table:</span><ul><li><span class="No-Break">Open terminal.</span></li><li>Enter <span class="No-Break"><strong class="source-inline">crontab -e</strong></span><span class="No-Break">.</span></li></ul></li>
+				<li>Add a <span class="No-Break">cron job:</span><ul><li>To run the script at 11:00 p.m. EST on <a id="_idIndexMarker310"></a>weekdays, append the <span class="No-Break">following line:</span><pre class="source-code">
+0 23 * * 1-5 /path_to_shell_script/run_script.sh last SPY XNYS</pre></li></ul></li>			</ol>
+			<p class="callout-heading">Note</p>
+			<p class="callout">The time may need adjustment for Daylight Saving or based on your server’s <span class="No-Break">time zone.</span></p>
+			<ol>
+				<li value="4">Save <span class="No-Break">and exit:</span><ul><li>Press <em class="italic">Ctrl</em> + <em class="italic">O</em> to save (if you’re <span class="No-Break">using nano).</span></li><li>Press <em class="italic">Ctrl</em> + <em class="italic">X</em> <span class="No-Break">to exit.</span></li></ul></li>
+				<li>Verify the <span class="No-Break">cron job:</span><ul><li>Enter <strong class="source-inline">crontab -l</strong> in the terminal to <a id="_idIndexMarker311"></a>ensure your job is listed.Top of FormBottom <span class="No-Break">of Form</span></li></ul></li>
+			</ol>
+			<p>In both cases, we assume your <a id="_idIndexMarker312"></a>virtual environment is <span class="No-Break">named </span><span class="No-Break"><strong class="source-inline">quant-stack</strong></span><span class="No-Break">.</span></p>
+			<h2 id="_idParaDest-137"><a id="_idTextAnchor142"></a>See also…</h2>
+			<p>SQLite is an extremely fast SQL-compatible<a id="_idIndexMarker313"></a> file format. You can use all the SQL you already know <span class="No-Break">with SQLite.</span></p>
+			<ul>
+				<li>SQLite home <span class="No-Break">page: </span><a href="https://www.sqlite.org/index.html"><span class="No-Break">https://www.sqlite.org/index.html</span></a></li>
+				<li>Documentation for the pandas <strong class="source-inline">to_sql</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_sql.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_sql.html</span></a></li>
+				<li>Documentation for the <strong class="source-inline">exchange_calendars</strong> <span class="No-Break">package: </span><a href="https://github.com/gerrymanoim/exchange_calendars"><span class="No-Break">https://github.com/gerrymanoim/exchange_calendars</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-138"><a id="_idTextAnchor143"></a>Storing data in a PostgreSQL database server</h1>
+			<p>PostgreSQL, commonly known as <strong class="bold">Postgres</strong>, is an advanced open source relational database system. Its ability to<a id="_idIndexMarker314"></a> handle vast datasets, coupled with intricate querying capabilities, makes it a good option<a id="_idIndexMarker315"></a> for algorithmic traders who need improved<a id="_idIndexMarker316"></a> performance over on-disk options. Postgres is also a popular database choice for cloud providers such as AWS, in case you need cloud storage for <span class="No-Break">your data.</span></p>
+			<p>The scalability and robustness of Postgres are especially relevant when dealing with higher-frequency trading data or when multiple systems and strategies require concurrent access to shared data resources. While the setup may be more involved compared to other storage solutions, the benefits of centralized, networked access with stringent data integrity checks are desirable for sophisticated <span class="No-Break">trading operations.</span></p>
+			<h2 id="_idParaDest-139"><a id="_idTextAnchor144"></a>Getting ready…</h2>
+			<p>To follow this recipe, you’ll either need access to an existing remote Postgres database server or one installed on your computer. Follow these steps to get Postgres running on your local computer. Depending on your operating system, you can install Postgres and its dependencies at the command line using one of the <span class="No-Break">following options.</span></p>
+			<p><span class="No-Break"><strong class="bold">For Windows</strong></span><span class="No-Break">:</span></p>
+			<ol>
+				<li>Download the Postgres installation file from the Postgres <span class="No-Break">downloads page.</span></li>
+				<li>Double-click the installation file and follow <span class="No-Break">the instructions.</span></li>
+				<li>Open pgAdmin from the <strong class="bold">Start</strong> menu under the <span class="No-Break">PostgreSQL folder.</span><p class="list-inset"><span class="No-Break"><strong class="bold">For Debian/Ubuntu</strong></span><span class="No-Break">:</span></p><p class="list-inset">Run the following command from your <span class="No-Break">command line:</span></p><pre class="source-code">
+<strong class="bold">sudo apt-get install libpq-dev python3-dev</strong></pre><p class="list-inset"><strong class="bold">For </strong><span class="No-Break"><strong class="bold">Red Hat/CentOS/Fedora</strong></span></p><p class="list-inset">Run the following command from your <span class="No-Break">command line:</span></p><pre class="source-code"><strong class="bold">sudo yum install postgresql-devel python3-devel</strong></pre><p class="list-inset"><strong class="bold">For macOS (</strong><span class="No-Break"><strong class="bold">using Homebrew)</strong></span></p><p class="list-inset">Run the following command from your <span class="No-Break">terminal window:</span></p><pre class="source-code"><strong class="bold">brew install postgresql</strong></pre></li>			</ol>
+			<p>Once Postgres is installed, follow the<a id="_idIndexMarker317"></a> instructions for your operating system (usually printed on the screen) to start<a id="_idIndexMarker318"></a> the Postgres database server. After the Postgres database server is installed, use <strong class="source-inline">pip</strong> to install SQLAlchemy and the <span class="No-Break"><strong class="source-inline">psycopg2</strong></span><span class="No-Break"> driver:</span></p>
+			<pre class="console">
+pip install sqlalchemy psycopg2</pre>			<p>We’ll build a script that can be set to run automatically using a CRON job or Task Scheduler. For this recipe, you’ll create a Python script called <strong class="source-inline">market_data_postgres.py</strong> and run it from the <span class="No-Break">command line.</span></p>
+			<h2 id="_idParaDest-140"><a id="_idTextAnchor145"></a>How to do it…</h2>
+			<p>All the following code should<a id="_idIndexMarker319"></a> be written in the <strong class="source-inline">market_data_postgres.py</strong> <span class="No-Break">script file:</span></p>
+			<ol>
+				<li>Import the <span class="No-Break">required libraries:</span><pre class="source-code">
+import pandas as pd
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import ProgrammingError
+import exchange_calendars as xcals
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Implement a function that<a id="_idIndexMarker320"></a> creates a database to store market data if one does <span class="No-Break">not exist:</span><pre class="source-code">
+def create_database_and_get_engine(db_name, base_engine):
+    conn = base_engine.connect()
+    conn = conn.execution_options(
+        isolation_level="AUTOCOMMIT")
+    try:
+        conn.execute(text(f"CREATE DATABASE{
+            db_name};"))
+    except ProgrammingError:
+        pass
+    finally:
+        conn.close()
+    conn_str = base_engine.url.set(database=db_name)
+    return create_engine(conn_str)</pre></li>				<li>Reuse the same <strong class="source-inline">get_stock_data()</strong> function as in the previous <span class="No-Break">two recipes.</span></li>
+				<li>Slightly modify the <strong class="source-inline">save_data_range</strong> function to change the variable name <strong class="source-inline">conn</strong> to <strong class="source-inline">engine</strong> to match what is<a id="_idIndexMarker321"></a> <span class="No-Break">being passed:</span><pre class="source-code">
+def save_data_range(symbol, engine, start_date=None, end_date=None):
+    data = get_stock_data(symbol, start_date,end_date)
+    data.to_sql(
+        "stock_data",
+        engine,
+        if_exists="append",
+        index=False
+    )</pre></li>				<li>Change the function<a id="_idIndexMarker322"></a> so it only saves the last trading <span class="No-Break">session’s data:</span><pre class="source-code">
+def save_last_trading_session(symbol, engine, today):
+    data = get_stock_data(symbol, today, today)
+    data.to_sql(
+        "stock_data",
+        engine,
+        if_exists="append",
+        index=False
+    )</pre></li>				<li>Create the script’s main execution code, which creates the database connection and calls our Python code <a id="_idIndexMarker323"></a>to download and save<a id="_idIndexMarker324"></a> <span class="No-Break">the data:</span><pre class="source-code">
+if __name__ == "__main__":
+    username = ""
+    password = ""
+    host = "127.0.0.1"
+    port = "5432"
+    database = "market_data"
+    DATABASE_URL = f"postgresql://{username}:{password}@
+    {host}:{port}/postgres"
+    base_engine = create_engine(DATABASE_URL)
+    engine = create_database_and_get_engine(
+        "stock_data", base_engine)
+    if argv[1] == "bulk":
+        symbol = argv[2]
+        start_date = argv[3]
+        start_date = argv[4]
+        save_data_range(symbol, engine,
+            start_date=None, end_date=None)
+        print(f"{symbol} saved between {start_date} and {
+        end_date}")
+    elif argv[1] == "last":
+        symbol = argv[2]
+        calendar = argv[3]
+        cal = xcals.get_calendar(calendar)
+        today = pd.Timestamp.today().date()
+        if cal.is_session(today):
+            save_last_trading_session(symbol, engine, today)
+            print(f"{symbol} saved")
+        else:
+            print(f"{today} is not a trading day. Doing
+            nothing.")</pre></li>				<li>To save a range of data, run<a id="_idIndexMarker325"></a> the following command from <span class="No-Break">your terminal:</span><pre class="source-code">
+python market_data_sqlite.py bulk SYMBOL START_DATE END_DATE</pre></li>			</ol>
+			<p>Here, <strong class="source-inline">SYMBOL</strong> is the ticker symbol, <strong class="source-inline">START_DATE</strong> is the first date you want to download data for and <strong class="source-inline">END_DATE</strong> is the<a id="_idIndexMarker326"></a> last date you want to download data for. Here’s <span class="No-Break">an example:</span></p>
+			<pre class="source-code">
+python market_data_sqlite.py bulk SPY 2022-01-01 2022-10-20</pre>			<p>This command downloads and<a id="_idIndexMarker327"></a> saves data for ticker symbol SPY between <strong class="source-inline">2022-01-01</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">2022-10-20</strong></span><span class="No-Break">.</span></p>
+			<p class="callout-heading">Important</p>
+			<p class="callout">By default, Postgres does not set a username and password. Depending on your operating system and installed tools (for example, <strong class="source-inline">pgAdmin</strong>), the process for creating a username and password differs. It is critical that you set both of these to ensure the integrity of the data. It’s also best practice to create an <strong class="source-inline">.env</strong> file that stores your credentials used within Python code, read them using the <strong class="source-inline">dotenv</strong> package, and set them from <span class="No-Break">environment variables.</span></p>
+			<h2 id="_idParaDest-141"><a id="_idTextAnchor146"></a>How it works…</h2>
+			<p>We started by importing the necessary Python libraries. In this recipe, we introduced SQLAlchemy, which provides tools to connect to and interact with databases (more on <span class="No-Break">this follows).</span></p>
+			<p>Next, we implement a function to create a new database. If the database already exists, it simply connects to it. The <strong class="source-inline">AUTOCOMMIT</strong> isolation level is set to bypass PostgreSQL’s restriction against creating databases within transaction blocks. After the database is created, the function returns <span class="No-Break">the engine.</span></p>
+			<p>Next is a series of functions to fetch financial market data and use the pandas <strong class="source-inline">to_sql</strong> method to store the data in the <a id="_idIndexMarker328"></a>Postgres database. We create two functions so we can both bulk save data for new tickers and save the last trading day’s data. These functions are similar to what we built in the previous recipes except for a change in <span class="No-Break">variable names.</span></p>
+			<p>In the main code execution block, we set up the connection parameters and create an “engine” which is the way we will connect to the Postgres database through pandas. The rest of the code operates the same as the <span class="No-Break">previous recipe.</span></p>
+			<h2 id="_idParaDest-142"><a id="_idTextAnchor147"></a>There’s more…</h2>
+			<p>SQLAlchemy is a powerful toolkit for interacting with databases in Python, enabling seamless communication between Python applications and relational databases. Its <strong class="bold">Object Relational Mapping</strong> (<strong class="bold">ORM</strong>) layer lets developers<a id="_idIndexMarker329"></a> interact with databases using native Python classes, abstracting away the intricacies of raw SQL. Additionally, it is database-agnostic which means <a id="_idIndexMarker330"></a>applications can be built once and then deployed across various database backends with minimal changes, ensuring flexibility and scalability. This is very useful when building a development database on your local computer and transitioning to a database on a remote <span class="No-Break">server later.</span></p>
+			<h2 id="_idParaDest-143"><a id="_idTextAnchor148"></a>See also…</h2>
+			<p>For those that wish to further explore the advanced features of SQLAlchemy, there are a series of quick start guides describing how to model databases using Python classes on the SQLAlchemy <span class="No-Break">website: </span><a href="https://docs.sqlalchemy.org/en/20/orm/quickstart.html"><span class="No-Break">https://docs.sqlalchemy.org/en/20/orm/quickstart.html</span></a></p>
+			<ul>
+				<li>SQLAlchemy documentation <span class="No-Break">page: </span><a href="https://docs.sqlalchemy.org/en/20/index.html"><span class="No-Break">https://docs.sqlalchemy.org/en/20/index.html</span></a></li>
+				<li>PostgreSQL home <span class="No-Break">page: </span><a href="https://www.postgresql.org"><span class="No-Break">https://www.postgresql.org</span></a></li>
+			</ul>
+			<p>A great way to manage a Postgres database server is the free <span class="No-Break">pgAdmin software.</span></p>
+			<div>
+				<div id="_idContainer087" class="IMG---Figure">
+					<img src="image/B21323_04_1.jpg" alt="Figure 4.1: pgAdmin 4 user interface" width="1461" height="1148"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 4.1: pgAdmin 4 user interface</p>
+			<p>pgAdmin provides a graphical user interface to manage server resources and write queries. To learn more and download<a id="_idIndexMarker331"></a> pgAdmin, visit the following <span class="No-Break">URL: </span><a href="https://www.pgadmin.org/"><span class="No-Break">https://www.pgadmin.org/</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-144"><a id="_idTextAnchor149"></a>Storing data in ultra-fast HDF5 format</h1>
+			<p><strong class="bold">Hierarchical Data Format</strong> (<strong class="bold">HDF</strong>) is made up of a <a id="_idIndexMarker332"></a>collection of file formats, namely HDF4 and HDF5, engineered for the hierarchical storage and management of <a id="_idIndexMarker333"></a>voluminous data. Initially developed at the<a id="_idIndexMarker334"></a> U.S. National Center for Supercomputing Applications, HDF5 is an open source format that accommodates large and complex heterogeneous datasets. It uses a directory-like structure, enabling versatile data organization within the file, similar to file management on a computer. HDF5 has two primary object types: datasets, which are typed multidimensional arrays, and groups, which are container structures capable of holding both datasets and other groups. In Python, HDF5 is supported through two libraries: <strong class="source-inline">h5py</strong>, offering both high- and low-level access to HDF5 constructs, and <strong class="source-inline">PyTables</strong>, providing a high-level interface with advanced indexing and query capabilities. We’ll use pandas to write to and read data in this recipe, which uses <strong class="source-inline">PyTables</strong> under the hood. <strong class="source-inline">PyTables</strong> is a Python library <a id="_idIndexMarker335"></a>for managing large datasets and hierarchical databases using the HDF5 file format. It provides tools for efficiently <a id="_idIndexMarker336"></a>storing, accessing, and processing data, making it well-suited for high-performance, <span class="No-Break">data-intensive applications.</span></p>
+			<p>Storing data using HDF5 is advantageous when storing related data in a hierarchy. This could be different fundamental data for stocks, expirations for futures, or chains <span class="No-Break">for options.</span></p>
+			<h2 id="_idParaDest-145"><a id="_idTextAnchor150"></a>Getting ready…</h2>
+			<p>To follow this recipe, you’ll need <strong class="source-inline">PyTables</strong> installed on your computer, which pandas uses to access data in HDF5 <span class="No-Break">file format.</span></p>
+			<p>You can install <strong class="source-inline">PyTables</strong> using <strong class="source-inline">conda</strong> <span class="No-Break">like this:</span></p>
+			<pre class="source-code">
+conda install -c conda-forge pytables</pre>			<h2 id="_idParaDest-146"><a id="_idTextAnchor151"></a>How to do it…</h2>
+			<p>For this recipe, we’ll move back to our <span class="No-Break">Jupyter notebook:</span></p>
+			<ol>
+				<li>Import the necessary<a id="_idIndexMarker337"></a> libraries and set up <span class="No-Break">the variables:</span><pre class="source-code">
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"
+STOCK_DATA_STORE = "stocks.h5"
+FUTURES_DATA_STORE = "futures.h5"
+ticker = "SPY"
+root = "CL"</pre></li>				<li>Load data for <strong class="source-inline">SPY</strong> price and options chains using the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+spy_equity = obb.equity.price.historical(
+    ticker,
+    start_date="2021-01-01",
+    provider="yfinance"
+)
+spy_chains = obb.derivatives.options.chains(
+    ticker,
+    provider="cboe"
+)
+spy_expirations = (
+    spy_chains
+    .expiration
+    .astype(str)
+    .unique()
+    .tolist()
+)
+spy_historic = (
+    obb
+    .equity
+    .price
+    .historical(
+        ticker + spy_expirations[-10].replace("-", "")[2:] + "C"
+        + "00400000",
+        start_date="2021-01-01",
+        provider="yfinance"
+    )
+)</pre></li>				<li>Store the data in<a id="_idIndexMarker338"></a> the <span class="No-Break">HDF5 file:</span><pre class="source-code">
+with pd.HDFStore(STOCKS_DATA_STORE) as store:
+    store.put("equities/spy/stock_prices", spy_equity)
+    store.put("equities/spy/options_prices",
+        spy_historic)
+    store.put("equities/spy/chains", spy_chains)</pre></li>				<li>Read the data from the HDF5<a id="_idIndexMarker339"></a> file into <span class="No-Break">pandas DataFrames:</span><pre class="source-code">
+with pd.HDFStore(STOCKS_DATA_STORE) as store:
+    spy_prices = store["equities/spy/stock_prices"]
+    spy_options = store["equities/spy/options_prices"]
+    spy_chains = store["equities/spy/chains"]</pre></li>				<li>Now iterate through e-mini futures expirations, storing the historical data for each one in a different <span class="No-Break">file path:</span><pre class="source-code">
+with pd.HDFStore(FUTURES_DATA_STORE) as store:
+    for i in range(24, 31):
+        expiry = f"20{i}-12"
+        df = obb.derivatives.futures.historical(
+            symbol=[root],
+            expiry=expiry,
+            start_date="2021-01-01",
+        )
+        df.rename(
+            columns={
+                "close": expiry
+            },
+            inplace=True
+        )
+        prices = df[expiry]
+        store.put(f'futures/{root}/{expiry}', prices)</pre></li>				<li>Read the data the<a id="_idIndexMarker340"></a> same as with <span class="No-Break">the ETF:</span><pre class="source-code">
+with pd.HDFStore(FUTURES_DATA_STORE) as store:
+    es_prices = store[f"futures/{root}/2023-12"]</pre></li>			</ol>
+			<h2 id="_idParaDest-147"><a id="_idTextAnchor152"></a>How it works…</h2>
+			<p>We first download historic price data and options chains for the SPY ETF using the OpenBB Platform. We extract the expirations then use <strong class="source-inline">obb.equity.price.historical</strong> to construct an options ticker symbol to request historic data. With this data stored in pandas DataFrames, we open the <strong class="source-inline">assets.h5</strong> file using the pandas <strong class="source-inline">HDFStore</strong> method. The Python <strong class="source-inline">with</strong> statement creates a context that allows you to run a group of statements under the control of a context manager. Here, we open the <strong class="source-inline">assets.h5</strong> file as a pandas <strong class="source-inline">HDFStore</strong> object. <strong class="source-inline">HDFStore</strong> has a method called <strong class="source-inline">put</strong>, which allows us to easily store the data in the DataFrame in the <span class="No-Break">HDF5 file.</span></p>
+			<p>The futures example shows how you can iterate through a list of data sources, saving each one as a separate path within the HDF5 file. We start by opening the HDF5 file and iterating through a list of <a id="_idIndexMarker341"></a>expiration dates. For each expiration date, we use the OpenBB Platform to download price data, rename the columns, and put the data into the <span class="No-Break">HDF5 file.</span></p>
+			<h2 id="_idParaDest-148"><a id="_idTextAnchor153"></a>There’s more…</h2>
+			<p>HDF5 is considered one of the fastest <a id="_idIndexMarker342"></a>on-disk, columnar data storage formats for strictly numerical data. This format also generally shares the smallest memory footprint with compressed CSV format. Another file format is Parquet, which is a binary, columnar storage format that provides efficient data compression and encoding. It’s also available through pandas using the PyArrow library under <span class="No-Break">the hood.</span></p>
+			<h2 id="_idParaDest-149"><a id="_idTextAnchor154"></a>See also…</h2>
+			<p>To learn more about HDF, visit the <span class="No-Break">documentation here:</span></p>
+			<ul>
+				<li>Documentation for pandas <span class="No-Break"><strong class="source-inline">HDFStore: </strong></span><a href="https://pandas.pydata.org/docs/reference/api/pandas.HDFStore.put.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.HDFStore.put.html</span></a></li>
+				<li>Documentation for <span class="No-Break">PyTables: </span><a href="https://www.pytables.org"><span class="No-Break">https://www.pytables.org</span></a></li>
+				<li>Documentation for the Python bindings of <span class="No-Break">PyArrow: </span><a href="https://arrow.apache.org/docs/python/index.html"><span class="No-Break">https://arrow.apache.org/docs/python/index.html</span></a><span class="No-Break">.</span></li>
+			</ul>
+		</div>
+	</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer086">
+			<h1 id="_idParaDest-96" class="chapter-number"><a id="_idTextAnchor099"></a>3</h1>
+			<h1 id="_idParaDest-97"><a id="_idTextAnchor100"></a>Visualize Financial Market Data with Matplotlib, Seaborn, and Plotly Dash</h1>
+			<p><a id="_idTextAnchor101"></a>The first step when working with data is to visualize and explore it. This is especially true when dealing with financial market data we rely on for trading. This chapter sets the stage by introducing five powerful data visualization techniques: pandas, Matplotlib, Seaborn, Plotly, and <span class="No-Break">Plotly Dash.</span></p>
+			<p>Each tool has pros and cons and should be selected depending on the use case. pandas has built-in plotting functionality using both Matplotlib and Plotly to render the charts. Matplotlib offers advanced functionality for building 3-dimensional surfaces and animated charts. Seaborn offers an array of statistical data visualizations. Plotly works with JavaScript for interactive charting. Plotly Dash is a framework for building interactive web apps <span class="No-Break">with Python.</span></p>
+			<p>By the end of the chapter, you’ll have a wide range of tools and chart types to visually inspect the financial market data required to research and build algorithmic <span class="No-Break">trading applications.</span></p>
+			<p>In this chapter, we present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Quickly visualizing data <span class="No-Break">using pandas</span></li>
+				<li>Animating the evolution of the yield curve <span class="No-Break">with Matplotlib</span></li>
+				<li>Plotting options implied volatility surfaces <span class="No-Break">with Matplotlib</span></li>
+				<li>Visualizing statistical relationships <span class="No-Break">with Seaborn</span></li>
+				<li>Creating an interactive PCA analytics dashboard with <span class="No-Break">Plotly Dash</span></li>
+			</ul>
+			<h1 id="_idParaDest-98"><a id="_idTextAnchor102"></a>Quickly visualizing data using pandas</h1>
+			<p>pandas is an all-purpose data<a id="_idIndexMarker201"></a> manipulation library. Not only can you use it for data<a id="_idIndexMarker202"></a> acquisition and manipulation as we saw in <a href="B21323_01.xhtml#_idTextAnchor013"><span class="No-Break"><em class="italic">Chapter 1</em></span></a><em class="italic">, Acquire Free Financial Market Data with Cutting-edge Python Libraries</em> and <a href="B21323_02.xhtml#_idTextAnchor040"><span class="No-Break"><em class="italic">Chapter 2</em></span></a><em class="italic">, Analyze and Transform Financial Market Data with pandas</em>, but you can use it for plotting too. pandas offers various “backends” that are used while plotting through a common method. In this recipe, you’ll learn how to use the default backend, Matplotlib, to quickly plot financial market data using a line plot, bar chart, histogram, <span class="No-Break">and</span><span class="No-Break"><a id="_idIndexMarker203"></a></span><span class="No-Break"> others.</span></p>
+			<h2 id="_idParaDest-99"><a id="_idTextAnchor103"></a>How to do it…</h2>
+			<p>You can use the<a id="_idIndexMarker204"></a> Matplotlib plots through pandas by <span class="No-Break">importing them.</span></p>
+			<ol>
+				<li>Import <span class="No-Break">the libraries:</span><pre class="source-code">
+import matplotlib as plt
+import pandas as pd
+from openbb import obb
+from pandas.plotting import bootstrap_plot, scatter_matrix
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download stock <span class="No-Break">price data:</span><pre class="source-code">
+df = obb.equity.price.historical("AAPL", provider="yfinance")</pre></li>				<li>Create a line chart that plots the <span class="No-Break">closing price:</span><pre class="source-code">
+df.close.plot()</pre><p class="list-inset">The result is the <span class="No-Break">following chart:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer073" class="IMG---Figure">
+					<img src="image/B21323_03_1.jpg" alt="Figure 3.1: Line chart plotting AAPL’s unadjusted closing price between 2020 and 2023." width="667" height="492"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.1: Line chart plotting AAPL’s unadjusted closing price between 2020 and 2023.</p>
+			<ol>
+				<li value="4">Plot the daily<a id="_idIndexMarker205"></a> returns as a bar chart using additional options to style<a id="_idIndexMarker206"></a> <span class="No-Break">the chart:</span><pre class="source-code">
+returns = df.close.pct_change()
+returns.name = "return"
+returns.plot.bar(
+    title="AAPL returns",
+    grid=False,
+    legend=True,
+    xticks=[]
+)</pre><p class="list-inset">The result is the <span class="No-Break">following chart:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer074" class="IMG---Figure">
+					<img src="image/B21323_03_2.jpg" alt="Figure 3.2: Bar chart plotting AAPL’s daily returns without the x-axis labels, grid, or legend." width="695" height="508"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.2: Bar chart plotting AAPL’s daily returns without the x-axis labels, grid, or legend.</p>
+			<ol>
+				<li value="5">Create a<a id="_idIndexMarker207"></a> histogram of<a id="_idIndexMarker208"></a> returns with <span class="No-Break">50 bins:</span><pre class="source-code">
+returns.plot.hist(bins=50)</pre><p class="list-inset">The result is the <span class="No-Break">following chart:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer075" class="IMG---Figure">
+					<img src="image/B21323_03_3.jpg" alt="Figure 3.3: Histogram of AAPL daily returns with 50 bins." width="680" height="487"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.3: Histogram of AAPL daily returns with 50 bins.</p>
+			<ol>
+				<li value="6">Create a<a id="_idIndexMarker209"></a> <span class="No-Break">box-and-whisker </span><span class="No-Break"><a id="_idIndexMarker210"></a></span><span class="No-Break">plot:</span><pre class="source-code">
+returns.plot.box()</pre><p class="list-inset">The result is the <span class="No-Break">following chart:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer076" class="IMG---Figure">
+					<img src="image/B21323_03_4.jpg" alt="Figure 3.4: Box-and-whisker plot showing the median, quartiles, and outliers of AAPL daily returns." width="695" height="487"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.4: Box-and-whisker plot showing the median, quartiles, and outliers of AAPL daily returns.</p>
+			<p class="callout-heading">Important</p>
+			<p class="callout">A box plot serves as a graphical representation for displaying numerical data distributions via their quartiles. The<a id="_idIndexMarker211"></a> box itself spans from the first quartile (Q1) to the third quartile (Q3), with a line indicating the median (Q2). Whiskers extend from the box boundaries to illustrate the data’s range, and their default position is determined by 1.5 times the interquartile range (IQR), where IQR equals Q3 minus Q1. Data points beyond the whiskers are <span class="No-Break">considered outliers.</span></p>
+			<h2 id="_idParaDest-100"><a id="_idTextAnchor104"></a>How it works…</h2>
+			<p>The pandas <strong class="source-inline">plot</strong> method <a id="_idIndexMarker212"></a>lets you create various types of plots using DataFrames and Series. Under the hood, pandas use the defined backend (Matplotlib by default) to generate these visualizations. To use this method, you first create a DataFrame or Series, then call the <strong class="source-inline">plot</strong> method on the object, optionally specifying the type of plot and other parameters that control the plot’s appearance such as color, size, title, and <span class="No-Break">axes labels.</span></p>
+			<p class="callout-heading">Important</p>
+			<p class="callout">Using the <strong class="source-inline">plot</strong> method, we can generate bar plots, density plots, scatter plots, and many others. We can define the type of plot using the <strong class="source-inline">kind</strong> parameter. Not all backends support all plot types. For example, the plot type <strong class="source-inline">hexbin</strong> does not work with the Plotly backend. See the pandas documentation <span class="No-Break">for details.</span></p>
+			<h2 id="_idParaDest-101"><a id="_idTextAnchor105"></a>There’s more…</h2>
+			<p>A common step in <a id="_idIndexMarker213"></a>quantitative portfolio construction and risk management is analyzing the relationship between two or more assets. Scatter plots are a type of visual representation that can be used to explore the relationship between two stocks. Each dot on the scatter plot represents a pair of values for the two stocks at a specific point in time. The x-coordinate of the dot represents the value of one stock, and the y-coordinate represents the value of the <span class="No-Break">other stock.</span></p>
+			<p>If the dots form a pattern that slants upwards from left to right, it suggests a positive correlation between the stocks, meaning as one stock’s price increases, the other’s tends to as well. If the plot forms a pattern slanting downwards, it suggests a negative correlation, meaning as one stock’s price increases, the other’s tends to decrease. If the dots appear randomly scattered with no discernible pattern, it indicates no or a <span class="No-Break">weak correlation.</span></p>
+			<p>Compare AAPL with the Nasdaq tracking <span class="No-Break">ETF, QQQ.</span></p>
+			<pre class="source-code">
+qqq = obb.equity.price.historical("QQQ", provider="yfinance")
+qqq_returns = qqq.close.pct_change()
+asset_bench = pd.concat([returns, qqq_returns], axis=1)
+asset_bench.columns = ["AAPL", "QQQ"]
+asset_bench.plot.scatter(x="QQQ", y="AAPL", s=0.25)</pre>			<p>The result is a scatter plot that shows the seemingly positive relationship between AAPL returns and <span class="No-Break">QQQ returns.</span></p>
+			<div>
+				<div id="_idContainer077" class="IMG---Figure">
+					<img src="image/B21323_03_5.jpg" alt="Figure 3.5: Scatter plot of AAPL daily returns and QQQ daily returns showing a positive linear relationship." width="734" height="510"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.5: Scatter plot of AAPL daily returns and QQQ daily returns showing a positive linear relationship.</p>
+			<p>The pandas <strong class="source-inline">scatter_matrix</strong> function visualizes pairwise relationships. It generates a matrix of scatter plots, each plotting a pair of columns against each other. This allows for a quick visual inspection <a id="_idIndexMarker214"></a>of potential correlations or patterns within your data. Additionally, the main<a id="_idIndexMarker215"></a> diagonal (from top left to bottom right) shows the histogram of each column, which helps to visualize <span class="No-Break">data distribution.</span></p>
+			<pre class="source-code">
+scatter_matrix(asset_bench)</pre>			<p>The result is the <span class="No-Break">scatter matrix.</span></p>
+			<div>
+				<div id="_idContainer078" class="IMG---Figure">
+					<img src="image/B21323_03_6.jpg" alt="Figure 3.6: A scatter matrix plot summarizing AAPL and QQQ returns in one chart." width="844" height="552"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.6: A scatter matrix plot summarizing AAPL and QQQ returns in one chart.</p>
+			<p>Bootstrap plots serve to graphically evaluate the variability associated with a particular statistic, including the mean, median, and midrange. A designated subset size is randomly sampled from the data set, and<a id="_idIndexMarker216"></a> the target statistic is calculated for this<a id="_idIndexMarker217"></a> subset. This procedure is iteratively performed a predetermined number of times. The plots and histograms collectively form the <span class="No-Break">bootstrap plot.</span></p>
+			<pre class="source-code">
+bootstrap_plot(returns)</pre>			<p>By default, <strong class="source-inline">bootstrap_plot</strong> selects 50 data points to consider during each sampling. The result is <span class="No-Break">a </span><span class="No-Break"><strong class="source-inline">bootstrap_plot</strong></span><span class="No-Break">.</span></p>
+			<div>
+				<div id="_idContainer079" class="IMG---Figure">
+					<img src="image/B21323_03_7.jpg" alt="Figure 3.7: A bootstrap plot that depicts random subsets of data." width="764" height="554"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.7: A bootstrap plot that depicts random subsets of data.</p>
+			<h2 id="_idParaDest-102"><a id="_idTextAnchor106"></a>See also</h2>
+			<p>pandas has detailed<a id="_idIndexMarker218"></a> documentation on its plots. You can read <span class="No-Break">more</span><span class="No-Break"><a id="_idIndexMarker219"></a></span><span class="No-Break"> here:</span></p>
+			<ul>
+				<li>pandas plot <span class="No-Break">documentation: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.plot.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.plot.html</span></a><span class="No-Break">.</span></li>
+				<li>pandas <strong class="source-inline">scatter_matrix</strong> <span class="No-Break">documentation: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.plotting.scatter_matrix.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.plotting.scatter_matrix.html</span></a><span class="No-Break">.</span></li>
+				<li>pandas <strong class="source-inline">bootstrap_plot</strong> <span class="No-Break">documentation: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.plotting.bootstrap_plot.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.plotting.bootstrap_plot.html</span></a><span class="No-Break">.</span></li>
+			</ul>
+			<p>To see more practical examples of using pandas plotting, you can check out past issues of the PyQuant Newsletter <span class="No-Break">here: </span><a href="https://www.pyquantnews.com/past-pyquant-newsletter-issues"><span class="No-Break">https://www.pyquantnews.com/past-pyquant-newsletter-issues</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-103"><a id="_idTextAnchor107"></a>Animating the evolution of the yield curve with Matplotlib</h1>
+			<p>Even though pandas use Matplotlib as its backend, there are times you need to go deeper. One such case is when you <a id="_idIndexMarker220"></a>want to visualize the change in data through time—like when analyzing the evolution of the yield curve. The yield curve, which charts the yields of bonds of the same quality across different maturities, typically slopes upward. This means that longer-term bonds have higher yields than shorter-term<a id="_idIndexMarker221"></a> bonds, which makes sense given the additional risks associated with holding a bond for a longer time (e.g., inflation, higher interest rate volatility). However, there are times when the yield curve inverts, meaning that shorter-term bonds yield more than longer-term ones. Many traders and economists view an inverted yield curve as a precursor to <span class="No-Break">a recession.</span></p>
+			<p>An inverted yield curve has historically preceded U.S. recessions, suggesting traders’ anticipation of lower future interest rates and a coming economic slowdown. The inversion can constrict bank profitability, leading to reduced lending and a potential economic deceleration. Additionally, the expectation of a recession can become a self-fulfilling prophecy as businesses and consumers curtail spending. Investors may also shift towards safer assets, limiting funding for <span class="No-Break">riskier ventures.</span></p>
+			<h2 id="_idParaDest-104"><a id="_idTextAnchor108"></a>How to do it…</h2>
+			<p>Creating an animated plot requires a specialized function called <strong class="source-inline">animation</strong> which is imported <span class="No-Break">from Matplotlib.</span></p>
+			<ol>
+				<li>Import <span class="No-Break">the libraries:</span><pre class="source-code">
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import animation
+from mpl_toolkits.mplot3d import Axes3D
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Create a list of maturities and download <span class="No-Break">the data:</span><pre class="source-code">
+maturities = ["3m", "6m", "1y", "2y", "3y", "5y", "7y", "10y",
+    "30y"]
+data = obb.fixedincome.government.treasury_rates(
+    start_date="1985-01-01",
+    provider="federal_reserve",
+).dropna(how="all").drop(columns=["month_1", "year_20"])
+data.columns = maturities</pre></li>				<li>Use boolean indexing to<a id="_idIndexMarker222"></a> mark where the yield curve <span class="No-Break">is inverted:</span><pre class="source-code">
+data["inverted"] = data["30y"] &lt; data["3m"]</pre></li>				<li>Initialize <span class="No-Break">the figure:</span><pre class="source-code">
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+line, = ax.plot([], [])</pre></li>				<li>Set the range <a id="_idIndexMarker223"></a><span class="No-Break">of ticks</span><pre class="source-code">
+ax.set_xlim(0, 8)
+ax.set_ylim(0, 20)</pre></li>				<li>Set the <span class="No-Break">tick locations:</span><pre class="source-code">
+ax.set_xticks(range(9))
+ax.set_yticks([2, 4, 6, 8, 10, 12, 14, 16, 18])</pre></li>				<li>Set the <span class="No-Break">axis labels:</span><pre class="source-code">
+ax.set_xticklabels(maturities)
+ax.set_yticklabels([2, 4, 6, 8, 10, 12, 14, 16, 18])</pre></li>				<li>Force the y-axis labels to <span class="No-Break">the left:</span><pre class="source-code">
+ax.yaxis.set_label_position("left")
+ax.yaxis.tick_left()</pre></li>				<li>Add the <span class="No-Break">axis labels:</span><pre class="source-code">
+plt.ylabel("Yield (%)")
+plt.xlabel("Time to maturity")
+plt.title("U.S. Treasury Bond Yield Curve")</pre></li>				<li>Create the function that is run when the animation <span class="No-Break">is initialized:</span><pre class="source-code">
+def init_func():
+    line.set_data([], [])
+    return line,</pre></li>				<li>Create the function that<a id="_idIndexMarker224"></a> runs at each iteration through <span class="No-Break">the data:</span><pre class="source-code">
+def animate(i):
+    x = range(0, len(maturities))
+    y = data[maturities].iloc[i]
+    dt_ = data.index[i].strftime("%Y-%m-%d")
+    if data.inverted.iloc[i]:
+        line.set_color("r")
+    else:
+        line.set_color("y")
+    line.set_data(x, y)
+    plt.title(f"U.S. Treasury Bond Yield Curve ({dt_})")
+    return line,</pre></li>				<li>Generate the <a id="_idIndexMarker225"></a>animation that brings it <span class="No-Break">all together:</span><pre class="source-code">
+ani = animation.FuncAnimation(
+    fig,
+    animate,
+    init_func=init_func,
+    frames=len(data.index),
+    interval=250,
+    blit=True
+)</pre></li>				<li>Persist the plot to give the script time to update and display <span class="No-Break">the chart:</span><pre class="source-code">
+plt.show()</pre><p class="list-inset">The result is an animated, interactive<a id="_idIndexMarker226"></a> chart that displays the shape of the yield curve <span class="No-Break">through time.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer080" class="IMG---Figure">
+					<img src="image/B21323_03_8.jpg" alt="Figure 3.8: One frame from the animated plot of the US yield curve. This frame depicts the shape of the yield curve on 27 February 1985." width="770" height="560"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.8: One frame from the animated plot of the US yield curve. This frame depicts the shape of the yield curve on 27 February 1985.</p>
+			<h2 id="_idParaDest-105"><a id="_idTextAnchor109"></a>How it works…</h2>
+			<p>A plot is prepared<a id="_idIndexMarker227"></a> with maturity times on the horizontal axis and yield values on the vertical axis. A line plot is then set up to display the <span class="No-Break">yield data.</span></p>
+			<p>The initialization function (<strong class="source-inline">init_func</strong>) establishes the starting frame of the animation. The main animation function (<strong class="source-inline">animate</strong>) is where the data gets updated. It redraws the line with the yields for each bond maturity at different time points. If the data indicates an inverted yield curve on a specific date, the line color changes to red, otherwise, it <span class="No-Break">remains yellow.</span></p>
+			<p>The actual animation is put together using the <strong class="source-inline">FuncAnimation</strong> class. The class calls the animate function at regular intervals of 250 milliseconds. Using blitting helps make the animation more efficient by only redrawing the parts of the plot which change. The show command at the end displays <span class="No-Break">the animation.</span></p>
+			<h2 id="_idParaDest-106"><a id="_idTextAnchor110"></a>There’s more…</h2>
+			<p><strong class="source-inline">FuncAnimation</strong> is a versatile class. Apart from the arguments used above, it also accepts <span class="No-Break">the following:</span></p>
+			<ol>
+				<li><strong class="source-inline">repeat</strong>: A boolean value indicating if the animation should repeat once all frames have <span class="No-Break">been displayed.</span></li>
+				<li><strong class="source-inline">repeat_delay</strong>: The delay, in milliseconds, between consecutive repetitions of <span class="No-Break">the animation.</span></li>
+				<li><strong class="source-inline">fargs</strong>: Any additional arguments to pass to the <strong class="source-inline">func</strong> (i.e., the <span class="No-Break">animation function).</span></li>
+				<li><strong class="source-inline">save_count</strong>: The number of <a id="_idIndexMarker228"></a>values from frames to cache, to improve performance when<a id="_idIndexMarker229"></a> saving the animation. If <strong class="source-inline">None</strong>, then the entirety of <strong class="source-inline">frames</strong> <span class="No-Break">is cached.</span></li>
+				<li><strong class="source-inline">cache_frame_data</strong>: If <strong class="source-inline">True</strong>, the return values of the <strong class="source-inline">animate</strong> function are cached, which can be useful for speeding up the saving of long animations. If you set it to <strong class="source-inline">False</strong>, the frames will be recreated via the animation function during the <span class="No-Break">save process.</span></li>
+				<li><strong class="source-inline">event_source</strong>: An instance of <strong class="source-inline">EventSource</strong> or <strong class="source-inline">None</strong>. If <strong class="source-inline">None</strong>, a new instance of <strong class="source-inline">TimerBase</strong> will be created. This is useful when you want to synchronize <span class="No-Break">multiple animations.</span></li>
+			</ol>
+			<p>These are some of the main arguments you can use with <strong class="source-inline">FuncAnimation</strong>. There are also some internal and base class arguments available, but they’re less commonly used in <span class="No-Break">most applications.</span></p>
+			<h2 id="_idParaDest-107"><a id="_idTextAnchor111"></a>See also</h2>
+			<p>The animation API is very rich offering many animation options. You can read <span class="No-Break">more here:</span></p>
+			<ul>
+				<li><a href="https://matplotlib.org/stable/api/animation_api.html">https://matplotlib.org/stable/api/animation_api.html</a> — Documentation for Matplotlib’s <span class="No-Break">animation API.</span></li>
+			</ul>
+			<h1 id="_idParaDest-108"><a id="_idTextAnchor112"></a>Plotting options implied volatility surfaces with Matplotlib</h1>
+			<p>Traders use Matplotlib to visualize complex data, such as <strong class="bold">options implied volatility surfaces</strong>. These visuals help understand how implied volatility of options changes with different expiration dates and strike prices. Implied volatility surfaces are important for traders for information on the market’s expectations of <span class="No-Break">future volatility.</span></p>
+			<p>These surfaces show two main<a id="_idIndexMarker230"></a> features: skew and term structure. Skew refers to how implied volatility varies at different strike prices for the same<a id="_idIndexMarker231"></a> expiration date. It can indicate the market’s expectation of significant price shifts. Term structure shows how implied volatility changes for options with the same strike price but different expiration dates. Term structure shows how volatility is expected to evolve <span class="No-Break">over time.</span></p>
+			<p>Although a detailed explanation of skew and term structure is beyond the scope of this book, it’s important to note these aspects of the volatility surface are important for making informed trading decisions. They also play a significant role in selecting the right options for hedging and in fine-tuning the pricing and risk assessment models for more complex <span class="No-Break">financial instruments.</span></p>
+			<h2 id="_idParaDest-109"><a id="_idTextAnchor113"></a>Getting ready…</h2>
+			<p>We’ll start with a fresh Jupyter Notebook to avoid plotting the surface plot on the same axis as the <span class="No-Break">animated plot.</span></p>
+			<h2 id="_idParaDest-110"><a id="_idTextAnchor114"></a>How to do it…</h2>
+			<p>As with the animated charts, to create three dimensional surfaces, we need to import the <strong class="source-inline">Axes3D</strong> class from the <span class="No-Break"><strong class="source-inline">mpl_toolkits</strong></span><span class="No-Break"> module.</span></p>
+			<ol>
+				<li>Import <span class="No-Break">the libraries:</span><pre class="source-code">
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download options data using the <span class="No-Break">OpenBB SDK:</span><pre class="source-code">
+chains = obb.derivatives.options.chains(
+    "AAPL",
+    provider="cboe",
+)</pre></li>				<li>Filter the calls with days to <a id="_idIndexMarker232"></a>expiration under three months and with a strike price greater than 100. Then <a id="_idIndexMarker233"></a>drop <span class="No-Break">any duplicates:</span><pre class="source-code">
+calls = calls[
+    (calls.dte &lt; 100)
+    &amp; (calls.strike &gt;= 100)
+]
+calls.drop_duplicates(subset=["strike", "dte"], keep=False,
+    inplace=True)</pre></li>				<li>Pivot the DataFrame to put strikes in the index, days to expiration along the columns, and the implied volatility within the cells. Then drop rows where all values in a column <span class="No-Break">is nan:</span><pre class="source-code">
+vol_surface = (
+    calls
+    .pivot(
+        index="strike",
+        columns="dte",
+        values="implied_volatility"
+    )
+    .dropna(how="all", axis=1)
+)</pre></li>				<li>Use NumPy’s meshgrid method to create a two-dimensional grid using the strike price and days to expiration for use in <span class="No-Break">the plot:</span><pre class="source-code">
+strike, dte = np.meshgrid(
+    vol_surface.columns,
+    vol_surface.index
+)</pre></li>				<li>Finally, plot <span class="No-Break">the</span><span class="No-Break"><a id="_idIndexMarker234"></a></span><span class="No-Break"> surface:</span><pre class="source-code">
+fig = plt.figure(figsize=(15, 15))
+ax = fig.add_subplot(111, projection='3d')
+ax.set_xlabel("Days to Expiration")
+ax.set_ylabel("Strike Price")
+ax.set_zlabel("Implied Volatility")
+ax.plot_surface(
+    strike,
+    dte,
+    vol_surface.values,
+    cmap="viridis"
+)</pre><p class="list-inset">The result is a three-dimensional <a id="_idIndexMarker235"></a>surface plot with the strike price on the x-axis, the days to expiration on the y-axis, and the implied volatility on <span class="No-Break">the z-axis:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer081" class="IMG---Figure">
+					<img src="image/B21323_03_9.jpg" alt="Figure 3.9: Options implied volatility surface showing for AAPL call options." width="881" height="779"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.9: Options implied volatility surface showing for AAPL call options.</p>
+			<h2 id="_idParaDest-111"><a id="_idTextAnchor115"></a>How it works…</h2>
+			<p>We download options data and <a id="_idIndexMarker236"></a>narrow down the dataset to options expiring in less than 90 days with a strike price of $100<a id="_idIndexMarker237"></a> or more. It then cleans the data by removing any entries with identical strike prices and expiration periods to ensure uniqueness. The core of the process involves reorganizing the data into a DataFrame where each row and column represent different strike prices and expiration times. We then use the NumPy <strong class="source-inline">meshgrid</strong> method to build two-dimensional grids corresponding to the strike prices and expiration times. The grid is the same structure as the <strong class="source-inline">vol_surface</strong> DataFrame. The culmination of this process is the generation of a 3D plot, where the axes denote the strike price, days to expiration, and implied <span class="No-Break">volatility, respectively.</span></p>
+			<h2 id="_idParaDest-112"><a id="_idTextAnchor116"></a>There’s more…</h2>
+			<p>The <strong class="source-inline">plot_surface</strong> method of Matplotlib’s 3D axes provides an easy way to create three-dimensional surface plots. In addition to the arguments we used in the preceding section, there are several other arguments commonly used in <span class="No-Break">algorithmic trading:</span></p>
+			<ol>
+				<li><strong class="source-inline">rstride</strong> and <strong class="source-inline">cstride</strong>: These arguments control the stride (step size) used to create the surface plot. The <strong class="source-inline">rstride</strong> and <strong class="source-inline">cstride</strong> parameters set the stride size for row and column <span class="No-Break">data, respectively.</span></li>
+				<li><strong class="source-inline">color</strong>: A single color that can be used to color the <span class="No-Break">entire surface.</span></li>
+				<li><strong class="source-inline">facecolors</strong>: A matrix of the same size as Z that provides the colors for each face of the <span class="No-Break">surface plot.</span></li>
+				<li><strong class="source-inline">linewidth</strong>: The linewidth for the wireframe is drawn on the surface plot. The default is 0, meaning <span class="No-Break">no wireframe.</span></li>
+				<li><strong class="source-inline">antialiased</strong>: If set to <strong class="source-inline">True</strong>, the surface will be <span class="No-Break">antialiased (smoothed).</span></li>
+				<li><strong class="source-inline">shade</strong>: If <strong class="source-inline">True</strong>, the surface<a id="_idIndexMarker238"></a> plot will be<a id="_idIndexMarker239"></a> shaded, giving it a gradient effect based on light source <span class="No-Break">and orientation.</span></li>
+				<li><strong class="source-inline">vmin</strong> and <strong class="source-inline">vmax</strong>: The <strong class="source-inline">colorbar</strong> range. If either is <strong class="source-inline">None</strong>, it will be computed using <strong class="source-inline">min(Z)</strong> or <span class="No-Break"><strong class="source-inline">max(Z)</strong></span><span class="No-Break"> respectively.</span></li>
+				<li><strong class="source-inline">facecolors</strong>: The face colors of the individual patches of the <span class="No-Break">surface plot.</span></li>
+			</ol>
+			<h2 id="_idParaDest-113"><a id="_idTextAnchor117"></a>See also</h2>
+			<p>To learn more about plotting , yield curves, and implied volatility surfaces, see the <span class="No-Break">below resources:</span></p>
+			<ul>
+				<li>Documentation for Matplotlib’s <strong class="source-inline">plot_surface</strong> <span class="No-Break">method: </span><a href="https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface.html"><span class="No-Break">https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface.html</span></a><span class="No-Break">.</span></li>
+				<li>More about the history of inverted yield <span class="No-Break">curves: </span><a href="https://www.investopedia.com/terms/i/invertedyieldcurve.asp"><span class="No-Break">https://www.investopedia.com/terms/i/invertedyieldcurve.asp</span></a><span class="No-Break">.</span></li>
+				<li>More about how the implied volatility surface is used in <span class="No-Break">practice: </span><a href="https://www.investopedia.com/articles/stock-analysis/081916/volatility-surface-explained.asp"><span class="No-Break">https://www.investopedia.com/articles/stock-analysis/081916/volatility-surface-explained.asp</span></a><span class="No-Break">.</span></li>
+			</ul>
+			<h1 id="_idParaDest-114"><a id="_idTextAnchor118"></a>Visualizing statistical relationships with Seaborn</h1>
+			<p>A major part of algorithmic trading is engineering factors. Factor engineering involves creating predictors for algorithmic<a id="_idIndexMarker240"></a> trading models, often called <strong class="bold">alpha factors</strong>. These factors represent patterns <a id="_idIndexMarker241"></a>or anomalies in the market. They aim to predict future price movements based on historical and real-time data. Factor engineering is increasingly reliant on machine learning and statistical methods. These tools help in automatically extracting patterns from vast datasets. Machine learning models, such as <a id="_idIndexMarker242"></a>neural networks, can identify non-linear relationships missed by traditional methods. Feature selection techniques aid in determining the most relevant predictors. Regularization techniques prevent overfitting, ensuring model robustness. Clustering and dimensionality reduction help manage <span class="No-Break">complex datasets.</span></p>
+			<p>The <strong class="source-inline">seaborn</strong> library is tailor-made for visualizing statistical relationships, making it an important tool for factor engineering. Seaborn is built on Matplotlib and integrates with pandas making it familiar to users of those tools (which we <span class="No-Break">now are).</span></p>
+			<h2 id="_idParaDest-115"><a id="_idTextAnchor119"></a>How to do it…</h2>
+			<p>We’ll import Seaborn for the <span class="No-Break">statistical plots.</span></p>
+			<ol>
+				<li>Import <span class="No-Break">the libraries:</span><pre class="source-code">
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download stock price history using the <span class="No-Break">OpenBB SDK:</span><pre class="source-code">
+data = obb.equity.price.historical(
+    ["AAPL", "SPY"],
+    start_date="2020-01-01",
+    provider="yfinance"
+).pivot(columns="symbol", values="close")</pre></li>				<li>Compute the <span class="No-Break">daily returns:</span><pre class="source-code">
+returns = (
+    data
+    .pct_change(fill_method=None)
+    .dropna()
+)</pre></li>				<li>Reshape the data to<a id="_idIndexMarker243"></a> a long format using the pandas <a id="_idIndexMarker244"></a><span class="No-Break">melt method:</span><pre class="source-code">
+returns = returns.reset_index()
+melted = pd.melt(
+    returns,
+    id_vars=["date"],
+    value_vars=["AAPL"],
+    var_name="stock",
+    value_name="returns",
+)</pre></li>				<li>Add a new column for <span class="No-Break">the month:</span><pre class="source-code">
+melted["month"] = melted["date"].dt.to_period("M")</pre></li>				<li>Generate the <span class="No-Break">box plot:</span><pre class="source-code">
+g = sns.boxplot(
+    x="month",
+    y="returns",
+    hue="stock",
+    data=melted
+)
+g.set_xticklabels(
+    melted["month"].unique(),
+    rotation=45
+)</pre><p class="list-inset">The result is a box plot summarizing the <span class="No-Break">monthly returns:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer082" class="IMG---Figure">
+					<img src="image/B21323_03_10.jpg" alt="Figure 3.10: Box plot showing monthly summary statistics for AAPL returns." width="729" height="551"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.10: Box plot showing monthly summary statistics for AAPL returns.</p>
+			<h2 id="_idParaDest-116"><a id="_idTextAnchor120"></a>How it works…</h2>
+			<p>The code computes daily percentage<a id="_idIndexMarker245"></a> changes in AAPL’s closing prices and removes any <strong class="source-inline">nan</strong> values. This Series of returns is then transformed into a DataFrame with two columns: the date and the respective return for that date. Using <strong class="source-inline">melt</strong>, the DataFrame is reshaped to be compatible with Seaborn’s <a id="_idIndexMarker246"></a>boxplot function. It also extracts the month from each date and adds it as a new column. Lastly, the <strong class="source-inline">boxplot</strong> method creates a box plot with months on the x-axis and returns on the y-axis. The x-axis labels (months) are set with a 45-degree rotation to help with readability. The final visualization shows the distribution of AAPL’s daily returns for each month in <span class="No-Break">the data.</span></p>
+			<h2 id="_idParaDest-117"><a id="_idTextAnchor121"></a>There’s more…</h2>
+			<p>Another popular chart type is the <strong class="source-inline">jointplot</strong> which is a combination of a scatter plot and histograms for each variable along the margins. Traders use joint plots to visually assess the correlation between assets, aiding in <a id="_idIndexMarker247"></a>diversification, pairs trading, and risk management. The plots help in identifying linear relationships, distribution<a id="_idIndexMarker248"></a> patterns, and <span class="No-Break">potential outliers.</span></p>
+			<pre class="source-code">
+g = sns.jointplot(
+    x="SPY",
+    y="AAPL",
+    data=returns,
+    kind="reg",
+    truncate=False,
+)</pre>			<p>The result is a <span class="No-Break">joint plot.</span></p>
+			<div>
+				<div id="_idContainer083" class="IMG---Figure">
+					<img src="image/B21323_03_11.jpg" alt="Figure 3.11: Joint plot demonstrating a positive linear relationship between AAPL and SPY returns." width="832" height="810"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.11: Joint plot demonstrating a positive linear relationship between AAPL and SPY returns.</p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">Note the <strong class="source-inline">reg</strong> argument passed to the <strong class="source-inline">kind</strong> parameter. This indicates the type of plot to draw. The value “reg” stands for regression, meaning Seaborn will not only plot the scatter points of SPY vs. AAPL returns but also compute and display a linear regression fit to <span class="No-Break">the data.</span></p>
+			<p>Traders use correlation matrices to understand the linear relationships between multiple assets simultaneously. Let’s build a <a id="_idIndexMarker249"></a>correlation matrix for the <a id="_idIndexMarker250"></a>stocks in the Dow Jones <span class="No-Break">Industrial Average.</span></p>
+			<ol>
+				<li>The first step is to grab the list of companies and their ticker symbols from the DJIA <span class="No-Break">Wikipedia page.</span><pre class="source-code">
+dji = pd.read_html(
+    "https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average"
+)[1]</pre><p class="list-inset">The <strong class="source-inline">read_html</strong> method is a convenient function in pandas that extracts tables from a given webpage. We’re interested in the second table (indexed as <strong class="source-inline">[1]</strong>) which has details about the companies in <span class="No-Break">the DJIA.</span></p></li>				<li>Now that we have the ticker symbols, let’s use them to get the historical stock price data and calculate the <span class="No-Break">daily returns.</span><pre class="source-code">
+dji_data = (
+    obb.equity.price.historical(
+        dji.Symbol, start_date="2020-01-01", provider="yfinance"
+    )
+).pivot(columns="symbol", values="close")
+dji_returns = dji_data.pct_change(fill_method=None).dropna()</pre></li>				<li>To understand the relationship between different stocks, we compute the pairwise correlation between all of them using the pandas <span class="No-Break"><strong class="source-inline">corr</strong></span><span class="No-Break"> method.</span><pre class="source-code">
+corr = dji_returns.corr()</pre></li>				<li>Before visualizing the correlation, we’ll make some tweaks to make our heatmap more intuitive. First, we’ll create a mask to hide the upper triangle of the correlation matrix, as it mirrors the <span class="No-Break">lower triangle.</span><pre class="source-code">
+mask = np.triu(
+    np.ones_like(corr, dtype=bool)
+)</pre></li>				<li>Next, we’ll generate a color palette that will help visually distinguish positive from negative correlations in <span class="No-Break">our heatmap.</span><pre class="source-code">
+cmap = sns.diverging_palette(230, 20, as_cmap=True)</pre></li>				<li>Set the font size to 4 points to include <a id="_idIndexMarker251"></a>more of the labels and<a id="_idIndexMarker252"></a> plot <span class="No-Break">the heatmap.</span><pre class="source-code">
+plt.rcParams["font.size"] = 4
+sns.heatmap(
+    corr,
+    mask=mask,
+    cmap=cmap,
+    vmin=-1.0,
+    vmax=1.0,
+    center=0,
+    square=True,
+    linewidths=0.5,
+)</pre></li>			</ol>
+			<p>The result is a <span class="No-Break">correlation heatmap.</span></p>
+			<div>
+				<div id="_idContainer084" class="IMG---Figure">
+					<img src="image/B21323_03_12.jpg" alt="Figure 3.12: Heatmap shaded with the correlations between the constituents of the Dow Jones Industrial Average." width="585" height="499"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.12: Heatmap shaded with the correlations between the constituents of the Dow Jones Industrial Average.</p>
+			<h2 id="_idParaDest-118"><a id="_idTextAnchor122"></a>See also</h2>
+			<p>Seaborn is a popular charting<a id="_idIndexMarker253"></a> library with many unique visualization <a id="_idIndexMarker254"></a>types. Read <span class="No-Break">more here:</span></p>
+			<ul>
+				<li><a href="https://seaborn.pydata.org/generated/seaborn.boxplot.html">https://seaborn.pydata.org/generated/seaborn.boxplot.html</a> — Documentation for the <span class="No-Break">Seaborn boxplot.</span></li>
+				<li><a href="https://seaborn.pydata.org/generated/seaborn.jointplot.html">https://seaborn.pydata.org/generated/seaborn.jointplot.html</a> — documentation for the Seaborn <span class="No-Break">joint plot.</span></li>
+				<li><a href="https://seaborn.pydata.org/generated/seaborn.heatmap.html">https://seaborn.pydata.org/generated/seaborn.heatmap.html </a>— documentation for the <span class="No-Break">Seaborn heatmap.</span></li>
+			</ul>
+			<h1 id="_idParaDest-119"><a id="_idTextAnchor123"></a>Creating an interactive PCA analytics dashboard with Plotly Dash</h1>
+			<p>Principal component analysis is used widely in data science. It’s a way to reduce the number of dimensions in a data set. In a stock portfolio, a dimension might be a column of returns for one of the stocks. In a portfolio of 100<a id="_idIndexMarker255"></a> stocks, there are 100 dimensions. PCA converts those 100 dimensions into the few that explain the most variance in <span class="No-Break">the data.</span></p>
+			<p>PCA isolates the statistical return drivers<a id="_idIndexMarker256"></a> of a portfolio. These drivers are called “alpha factors” (or just factors) because they create returns that are not<a id="_idIndexMarker257"></a> explained by a benchmark. Quants use factors in trading strategies. First, they isolate the components. Then they buy the stocks with the largest exposure to a factor and sell the stocks with the smallest exposure to a factor. We’ll look at PCA in a later recipe. For now, we’ll use it to create a Plotly <span class="No-Break">Dash app.</span></p>
+			<p>Instead of changing the dates, number of components, and ticker symbols in code, we can do it in an interactive web app. In this recipe, we’ll create a Plotly Dash app that accepts a list of ticker symbols, identifies the principal components of their returns, and generates plots to visualize the <span class="No-Break">top factors.</span></p>
+			<h2 id="_idParaDest-120"><a id="_idTextAnchor124"></a>Getting ready…</h2>
+			<p>So far, we’ve been writing code in Jupyter Notebook. For this recipe, you’ll create a Python script called <strong class="source-inline">app.py</strong> and run it from the command line. Our aim is to highlight some of the intriguing features of Plotly Dash, even if they aren’t essential for a basic app for conducting principal component analysis on <span class="No-Break">stock returns.</span></p>
+			<p>You’ll need to install a few new libraries. Make sure your virtual environment is active and run the <span class="No-Break">following command:</span></p>
+			<pre class="console">
+pip install dash plotly dash-bootstrap-components scikit-learn</pre>			<p>Plotly and <strong class="source-inline">scikit-learn</strong> may already be installed through the OpenBB <span class="No-Break">Platform installation.</span></p>
+			<h2 id="_idParaDest-121"><a id="_idTextAnchor125"></a>How to do it…</h2>
+			<p>All the code below should be written in the <strong class="source-inline">app.py</strong> <span class="No-Break">script file.</span></p>
+			<ol>
+				<li>Begin by importing all necessary libraries to create the <span class="No-Break">web application:</span><pre class="source-code">
+import datetime
+import numpy as np
+import pandas as pd
+import dash
+from dash import dcc, html
+import dash_bootstrap_components as dbc
+from dash.dependencies import Input, Output
+import plotly.graph_objs as go
+import plotly.io as pio
+from sklearn.decomposition import PCA
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Set the default styling, chart <a id="_idIndexMarker258"></a>templates, and initialize<a id="_idIndexMarker259"></a> <span class="No-Break">the app:</span><pre class="source-code">
+pio.templates.default = "plotly"
+app = dash.Dash(__name__, external_stylesheets=[
+    dbc.themes.BOOTSTRAP])</pre></li>				<li>Construct the components of the user interface starting with the text field to enter the list of ticker symbols, the dropdown to select the number of components, the date picker to select the range of data, and the submit button to run <span class="No-Break">the app:</span><pre class="source-code">
+ticker_field = [
+    html.Label("Enter Ticker Symbols:"),
+    dcc.Input(
+        id="ticker-input",
+        type="text",
+        placeholder="Enter Tickers separated by commas (
+            e.g. AAPL,MSFT)",
+        style={"width": "50%"}
+    ),
+]
+components_field = [
+    html.Label("Select Number of Components:"),
+    dcc.Dropdown(
+        id="component-dropdown",
+        options=[{"label": i,"value": i} for i in range(1,6)],
+        value=3,
+        style={"width": "50%"}
+    ),
+]
+date_picker_field = [
+    html.Label("Select Date Range:"),  # Label for date picker
+    dcc.DatePickerRange(
+        id="date-picker",
+        start_date=datetime.datetime.now() - datetime.timedelta(
+            365 * 3),
+        end_date=datetime.datetime.now(),  
+        # Default to today's date
+        display_format="YYYY-MM-DD",
+    ),
+]
+submit = [
+    html.Button("Submit", id="submit-button"),
+]</pre></li>				<li>Combine the form elements and <a id="_idIndexMarker260"></a>placeholders for visualizations<a id="_idIndexMarker261"></a> to form the <span class="No-Break">app layout:</span><pre class="source-code">
+app.layout = dbc.Container(
+    [
+        html.H1("PCA on Stock Returns"),
+        dbc.Row([dbc.Col(ticker_field)]),
+        dbc.Row([dbc.Col(components_field)]),
+        dbc.Row([dbc.Col(date_picker_field)]),
+        dbc.Row([dbc.Col(submit)]),
+        dbc.Row(
+            [
+                dbc.Col([dcc.Graph(id="bar-chart")], width=4),
+                dbc.Col([dcc.Graph(id="line-chart")],
+                    width=4),
+                dbc.Col([dcc.Graph(id="scatter-plot")],
+                    width=4),
+            ]
+        ),
+    ]
+)</pre></li>				<li>Implement the function that <a id="_idIndexMarker262"></a>updates the charts upon <span class="No-Break">user input:</span></li>
+			</ol>
+			<p class="callout-heading">Important</p>
+			<p class="callout">All the code between steps 5 and 13 belongs to the same function. Make sure you properly indent the code after <span class="No-Break">the definition.</span></p>
+			<pre class="source-code">
+@app.callback(
+    [
+        Output("bar-chart", "figure"),
+        Output("line-chart", "figure"),
+        Output("scatter-plot", "figure"),
+    ],
+    [Input("submit-button", "n_clicks")],
+    [
+        dash.dependencies.State("ticker-input", "value"),
+        dash.dependencies.State("component-dropdown", "value"),
+        dash.dependencies.State("date-picker", "start_date"),
+        dash.dependencies.State("date-picker", "end_date"),
+    ],
+)
+def update_graphs(n_clicks, tickers, n_components, start_date, end_date):
+    if not tickers:
+        return {}, {}, {}</pre>			<ol>
+				<li value="6">Parse<a id="_idIndexMarker263"></a> inputs from <span class="No-Break">the </span><span class="No-Break"><a id="_idIndexMarker264"></a></span><span class="No-Break">user:</span><pre class="source-code">
+    tickers = tickers.split(",")
+    start_date = datetime.datetime.strptime(start_date,
+        "%Y-%m-%dT%H:%M:%S.%f").date()
+    end_date = datetime.datetime.strptime(end_date,
+        "%Y-%m-%dT%H:%M:%S.%f").date()</pre></li>				<li>Download <span class="No-Break">stock data:</span><pre class="source-code">
+    data = obb.equity.price.historical(
+        tickers,
+        start_date=start_date,
+        end_date=end_date,
+        provider="yfinance"
+    ).pivot(columns="symbol", values="close")
+    daily_returns = data.pct_change().dropna()</pre></li>				<li>Fit the principal <span class="No-Break">component </span><span class="No-Break"><a id="_idIndexMarker265"></a></span><span class="No-Break">model:</span><pre class="source-code">
+    pca = PCA(n_components=n_components)
+    pca.fit(daily_returns)
+    explained_var_ratio = pca.explained_variance_ratio_</pre></li>				<li>Generate the bar chart <a id="_idIndexMarker266"></a>for individual <span class="No-Break">explained variance:</span><pre class="source-code">
+    bar_chart = go.Figure(
+        data=[
+            go.Bar(
+                x=["PC" + str(i + 1) for i in range(
+                    n_components)],
+                y=explained_var_ratio,
+            )
+        ],
+        layout=go.Layout(
+            title="Explained Variance by Component",
+            xaxis=dict(title="Principal Component"),
+            yaxis=dict(title="Explained Variance"),
+        ),
+    )</pre></li>				<li>Generate the line chart for<a id="_idIndexMarker267"></a> cumulative <span class="No-Break">explained variance:</span><pre class="source-code">
+    cumulative_var_ratio = np.cumsum(explained_var_ratio)
+    line_chart = go.Figure(
+        data=[
+            go.Scatter(
+                x=["PC" + str(i + 1) for i in range(
+                    n_components)],
+                y=cumulative_var_ratio,
+                mode="lines+markers",
+            )
+        ],
+        layout=go.Layout(
+            title="Cumulative Explained Variance",
+            xaxis=dict(title="Principal Component"),
+            yaxis=dict(title="Cumulative Explained Variance"),
+        ),
+    )</pre></li>				<li>Compute <span class="No-Break">factor </span><span class="No-Break"><a id="_idIndexMarker268"></a></span><span class="No-Break">exposures:</span><pre class="source-code">
+    X = np.asarray(daily_returns)
+    factor_returns = pd.DataFrame(
+        columns=["f" + str(i + 1) for i in range(
+            n_components)],
+        index=daily_returns.index,
+        data=X.dot(pca.components_.T),
+    )
+    factor_exposures = pd.DataFrame(
+        index=["f" + str(i + 1) for i in range(n_components)],
+        columns=daily_returns.columns,
+        data=pca.components_,
+    ).T
+    labels = factor_exposures.index
+    data = factor_exposures.values</pre></li>				<li>Generate the chart for<a id="_idIndexMarker269"></a> <span class="No-Break">factor exposures:</span><pre class="source-code">
+    scatter_plot = go.Figure(
+        data=[
+            go.Scatter(
+                x=factor_exposures["f1"],
+                y=factor_exposures["f2"],
+                mode="markers+text",
+                text=labels,
+                textposition="top center",
+            )
+        ],
+        layout=go.Layout(
+            title="Scatter Plot of First Two Factors",
+            xaxis=dict(title="Factor 1"),
+            yaxis=dict(title="Factor 2"),
+        ),
+    )</pre></li>				<li>Return the charts to <a id="_idIndexMarker270"></a><span class="No-Break">the app:</span><pre class="source-code">
+    return bar_chart, line_chart, scatter_plot</pre></li>			</ol>
+			<p>To run the app, open the terminal, navigate to the directory where the <strong class="source-inline">app.py</strong> script is located, and run the <span class="No-Break">following command:</span></p>
+			<pre class="console">
+python app.py</pre>			<p>Running the code starts the app<a id="_idIndexMarker271"></a> and prints the URL where it is running. Navigate to the URL, enter a list of tickers and press submit. The result will look something <span class="No-Break">like this:</span></p>
+			<div>
+				<div id="_idContainer085" class="IMG---Figure">
+					<img src="image/B21323_03_13.jpg" alt="Figure 3.13: Screenshot of our new PCA analytics app" width="1199" height="786"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 3.13: Screenshot of our new PCA analytics app</p>
+			<h2 id="_idParaDest-122"><a id="_idTextAnchor126"></a>How it works…</h2>
+			<p>Callbacks in Plotly Dash define the<a id="_idIndexMarker272"></a> logic that connects the components in the application. These callbacks are what enable user interactions. A callback refers to a Python function that gets automatically executed by Dash whenever an input component’s property changes. In our app, the callback is defined <span class="No-Break">as </span><span class="No-Break"><strong class="source-inline">update_graphs</strong></span><span class="No-Break">.</span></p>
+			<p>First we import the necessary libraries we need for the analysis and web app. We import <strong class="source-inline">datetime</strong> for handling dates, NumPy for numerical operations, and pandas for data manipulation. Dash, its extensions, and other related packages provide the backbone for our web application. Specifically, <strong class="source-inline">dash_bootstrap_components</strong> assists in styling, and OpenBB fetches the stock data. Lastly, PCA from sklearn will help us perform the principal <span class="No-Break">component analysis.</span></p>
+			<p>We then choose a default template for styling the charts and initialize our Dash app with a Bootstrap theme. Next we construct the<a id="_idIndexMarker273"></a> components the user will interact with like a text field for entering ticker symbols, a dropdown to choose the number of principal components, a date picker for specifying the data range, and a submit button to start the analysis. Next we organize our UI components into <span class="No-Break">a layout.</span></p>
+			<p>Next, we implement the callback function, <strong class="source-inline">update_graphs</strong>, which ties our user inputs to the visualization outputs. Every time the user presses the submit button, this function fetches the data, performs the PCA, and updates the visualizations. We define a callback by using the <strong class="source-inline">callback</strong> decorator provided by Dash. This decorator specifies which component properties to watch (<strong class="source-inline">Input</strong>) and which to update (<strong class="source-inline">Output</strong>). In our app, clicking the submit button triggers<a id="_idIndexMarker274"></a> the callback function. The decorator takes <span class="No-Break">three inputs:</span></p>
+			<ul>
+				<li><strong class="source-inline">Output</strong>: Specifies which components will be updated once the callback function <span class="No-Break">is executed.</span></li>
+				<li><strong class="source-inline">Input</strong>: Specifies which components the callback should <span class="No-Break">listen to.</span></li>
+				<li><strong class="source-inline">State</strong>: Specifies which components the callback should read the current value from without triggering <span class="No-Break">the function.</span></li>
+			</ul>
+			<p>When the submit button is clicked, <strong class="source-inline">update_graphs</strong> gets called, the current values of the specified components are passed as arguments to the function, and the logic inside <strong class="source-inline">update_graphs</strong> executes. The function returns the visualizations, and these are rendered in the specified <strong class="source-inline">Output</strong> components in <span class="No-Break">the app.</span></p>
+			<h2 id="_idParaDest-123"><a id="_idTextAnchor127"></a>There’s more…</h2>
+			<p>Plotting with different Python libraries has distinct advantages depending on the context. pandas, while inherently great for data manipulation, offer basic plotting capabilities that are mainly suited for quick and simple visualizations directly from DataFrames. Matplotlib, one of the most widely used plotting libraries for Python, provides a greater degree of flexibility and customization but generally lacks interactive features. Seaborn, which is built on top of Matplotlib, enhances visual aesthetics and has functions tailored for statistical visualizations, making it more intuitive for certain analyses. Plotly Express, on the other hand, is a more modern library designed for interactivity from the ground up, making it well-suited for dynamic environments like Plotly <span class="No-Break">Dash apps.</span></p>
+			<h2 id="_idParaDest-124"><a id="_idTextAnchor128"></a>See also</h2>
+			<p>PCA is common in all data sciences and especially useful in algorithmic trading. Read more about the technical details of PCA <span class="No-Break">at Wikipedia.</span></p>
+			<ul>
+				<li>Description of PCA: <a href="https://en.wikipedia.org/wiki/Principal_component_analysis"><span class="No-Break">https://en.wikipedia.org/wiki/Principal_component_analysis</span></a><span class="No-Break"> .</span></li>
+				<li>Plotly Dash user <span class="No-Break">guide: </span><a href="https://dash.plotly.com"><span class="No-Break">https://dash.plotly.com</span></a><span class="No-Break">.</span></li>
+			</ul>
+		</div>
+	</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,764 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer248">
+			<h1 id="_idParaDest-382" class="chapter-number"><a id="_idTextAnchor393"></a>13</h1>
+			<h1 id="_idParaDest-383"><a id="_idTextAnchor394"></a>Advanced Recipes for Market Data and Strategy Management</h1>
+			<p><a id="_idTextAnchor395"></a>This final chapter covers advanced recipes to stream and store options data, generate risk alerts, and store key strategy information to automate end-of-day reporting. We will start with a deep dive <a id="_idIndexMarker928"></a>into real-time data handling using <strong class="bold">Theta Data</strong>. ThetaData is a data service that specializes in providing real-time options data. It offers a comprehensive stream of unfiltered options market data, including quotes, trades, volumes, and Greeks. With ThetaData, we can combine contracts to price complex options positions in real time. This service is an option for algorithmic traders who want to research and develop complex trading strategies using options contracts. After streaming the data, we will introduce advanced data management storage using ArcticDB. ArcticDB is an open source project built by the systematic strategy manager <strong class="bold">Man Group</strong> and is <a id="_idIndexMarker929"></a>designed to store petabytes of data in <span class="No-Break">DataFrame format.</span></p>
+			<p>In <a href="B21323_12.xhtml#_idTextAnchor360"><span class="No-Break"><em class="italic">Chapter 12</em></span></a>, <em class="italic">Deploy Strategies to a Live Environment</em>, we built a series of risk and performance metrics. In this chapter, we’ll design an alerting system that will send an email if a defined risk level is breached. This approach is popular in professional trading businesses where traders must adhere to defined risk limits. We’ll then introduce recipes to store key strategy information in the SQL database we created in <a href="B21323_10.xhtml#_idTextAnchor282"><span class="No-Break"><em class="italic">Chapter 10</em></span></a>, <em class="italic">Set Up the Interactive Brokers API,</em> automating end-of-day strategy <span class="No-Break">management processes.</span></p>
+			<p>By the end of the chapter, you will have the tools to handle and analyze real-time data, manage risk more carefully, and maintain detailed trade records. All techniques that are instrumental for <span class="No-Break">algorithmic traders.</span></p>
+			<p>In this chapter, we will present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Streaming real-time options data <span class="No-Break">with ThetaData</span></li>
+				<li>Using the ArcticDB DataFrame database for <span class="No-Break">tick storage</span></li>
+				<li>Triggering real-time risk <span class="No-Break">limit alerts</span></li>
+				<li>Storing trade execution details in a <span class="No-Break">SQL database</span></li>
+			</ul>
+			<h1 id="_idParaDest-384"><a id="_idTextAnchor396"></a>Streaming real-time options data with ThetaData</h1>
+			<p>The <strong class="bold">Options Price Reporting Authority</strong> (<strong class="bold">OPRA</strong>) functions as a securities information <a id="_idIndexMarker930"></a>processor, aggregating options <a id="_idIndexMarker931"></a>quotes and transaction details from predominant U.S. exchanges. Approximately 1.4 million active options contracts <a id="_idIndexMarker932"></a>are traded, generating in excess of 3 terabytes of data on a daily basis. OPRA is responsible for the real-time consolidation and dissemination of this data. ThetaData, through its connection to OPRA, facilitates the distribution of this data in an unfiltered format to non-professional users. Furthermore, ThetaData’s Python API is capable of streaming quotes and trades with a latency measured in milliseconds. This efficiency is achieved by compressing the data to approximately 1/30th of its <span class="No-Break">original volume.</span></p>
+			<p>The Theta Terminal is an intermediate layer that bridges our data-providing server with the Python API. The terminal runs as a background process. It hosts a local server on your machine, to which the Python API connects. Primarily, it simplifies data access and processing by handling complex tasks such as forwarding requests to the appropriate server and interpreting responses. Additionally, separating data processing activities like decompression from API-specific features enhances efficiency and usability for traders using the service. This recipe will demonstrate how to use ThetaData for streaming <span class="No-Break">options data.</span></p>
+			<h2 id="_idParaDest-385"><a id="_idTextAnchor397"></a>Getting ready</h2>
+			<p>To use ThetaData, you’ll need Java installed on your computer. Java usually comes pre-installed but in case it’s not, you can find the installation process for your computer <span class="No-Break">at </span><a href="https://www.java.com/en/"><span class="No-Break">https://www.java.com/en/</span></a><span class="No-Break">.</span></p>
+			<p>To install the ThetaData Python library, <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install thetadata</pre>			<h2 id="_idParaDest-386"><a id="_idTextAnchor398"></a>How to do it…</h2>
+			<p>We’ll <a id="_idIndexMarker933"></a>demonstrate how to stream <a id="_idIndexMarker934"></a>real-time trade data for all options contracts, as well as for a single <span class="No-Break">options contract:</span></p>
+			<ol>
+				<li>Import the libraries we need to set up the <span class="No-Break">streaming data:</span><pre class="source-code">
+import datetime as dt
+import thetadata.client
+from thetadata import (
+    Quote,
+    StreamMsg,
+    ThetaClient,
+    OptionRight,
+    StreamMsgType,
+    StreamResponseType
+)</pre></li>				<li>Implement the callback that responds to each trade message. In this example, we will simply print information about the contract, trade, <span class="No-Break">and quote:</span><pre class="source-code">
+def callback(msg):
+    if msg.type == StreamMsgType.TRADE:
+        print(
+            "------------------------------------------------"
+        )
+        print(f"Contract: {msg.contract.to_string()}")
+        print(f"Trade: {msg.trade.to_string()}")
+        print(f"Last quote at time of trade: {
+            msg.quote.to_string()}")</pre></li>				<li>Implement <a id="_idIndexMarker935"></a>the function <a id="_idIndexMarker936"></a>that connects to the ThetaData client, registers the callback, and starts the options data stream (replace <strong class="source-inline">YOURPASSWORD</strong> with your ThetaData <span class="No-Break">login credentials):</span><pre class="source-code">
+def stream_all_trades():
+    client = ThetaClient(
+        username="strimp101@gmail.com",
+        passwd="YOURPASSWORD"
+    )
+    client.connect_stream(
+        callback
+    )
+    req_id = client.req_full_trade_stream_opt()
+    response = client.verify(req_id)
+    if (
+        client.verify(req_id) != StreamResponseType.SUBSCRIBED
+    ):
+        raise Exception("Unable to stream.")</pre></li>				<li>Start the <span class="No-Break">streaming data:</span><pre class="source-code">
+stream_all_trades()</pre><p class="list-inset">After ThetaData connects, you’ll start to see options trades print to <span class="No-Break">the screen:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer239" class="IMG---Figure">
+					<img src="image/B21323_13_01.jpg" alt="Figure 13.1: The firehose of options trades" width="988" height="317"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.1: The firehose of options trades</p>
+			<ol>
+				<li value="5">Define <a id="_idIndexMarker937"></a>an active options <a id="_idIndexMarker938"></a>contract. In this case, we are focused on <strong class="source-inline">SPY</strong> options with a $474 strike expiring on December <span class="No-Break">12, 2023:</span><pre class="source-code">
+ticker = "SPY"
+expiration_date = dt.date(2023, 12, 22)
+strike = 474</pre></li>				<li>Implement the function that connects to the ThetaData client, registers the callback, and starts the options data stream for the specific contract we define (replace <strong class="source-inline">youremail@example.com</strong> and <strong class="source-inline">YOURPASSWORD</strong> with your ThetaData <span class="No-Break">login credentials):</span><pre class="source-code">
+def stream_contract():
+    client = ThetaClient(
+        username="youremail@example.com",
+        passwd=" YOURPASSWORD "
+    )
+    client.connect_stream(callback)
+    req_id = client.req_trade_stream_opt(
+        ticker, expiration_date, strike, OptionRight.CALL)
+    response = client.verify(req_id)
+    if (
+        client.verify(req_id) != StreamResponseType.SUBSCRIBED
+    ):
+        raise Exception("Unable to stream.")</pre></li>				<li>Start <a id="_idIndexMarker939"></a>the <span class="No-Break">streaming data:</span><pre class="source-code">
+stream_contract()</pre><p class="list-inset">After <a id="_idIndexMarker940"></a>ThetaData connects, you’ll start to see options trades print to the screen for the contract <span class="No-Break">you specified:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer240" class="IMG---Figure">
+					<img src="image/B21323_13_02.jpg" alt="Figure 13.2: Options trade data for a specific contract" width="985" height="317"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.2: Options trade data for a specific contract</p>
+			<h2 id="_idParaDest-387"><a id="_idTextAnchor399"></a>How it works…</h2>
+			<p>The Theta Terminal serves as an intermediary layer, facilitating the connection between our data server and the Python API. Operating as a background process, it establishes a local server on the user’s machine, which is then accessed by the Python API. When a request is initiated via the Python API, the process is as follows: the API first relays the request to <a id="_idIndexMarker941"></a>the Theta Terminal. The Terminal, in turn, forwards the request to the nearest ThetaData <strong class="bold">Market Data Distribution Server</strong> (<strong class="bold">MDDS</strong>) and awaits a response. Upon receiving the response, the Terminal processes and sends the data to the user’s Python application. The Python API subsequently parses the response into a format that is more accessible to the end user. This approach of using an intermediate application offers numerous advantages, the most notable being the segregation of data processing tasks (such as decompression) from the functionalities specific to the <span class="No-Break">language-based API.</span></p>
+			<p>We must first define a callback function designed to handle the streaming trade messages that come from the Theta Terminal. The function checks whether the incoming message is a <strong class="source-inline">TRADE</strong> constant. When a trade message is received, the function prints <a id="_idIndexMarker942"></a>details of the contract and trade, as <a id="_idIndexMarker943"></a>well as the last quote at the time of the trade. These details are obtained by calling the <strong class="source-inline">to_string</strong> method on the respective attributes of the <span class="No-Break"><strong class="source-inline">msg</strong></span><span class="No-Break"> object.</span></p>
+			<p>The <strong class="source-inline">stream_all_trades</strong> and <strong class="source-inline">stream_contract</strong> functions initiate streaming connections to receive real-time trade data. They begin by creating a <strong class="source-inline">ThetaClient</strong> instance with specified user credentials. The client then connects to a streaming service using the <strong class="source-inline">connect_stream</strong> method, which uses a callback function for handling incoming data. A request for a full trade stream is made using <strong class="source-inline">req_full_trade_stream_opt</strong> or a single contract with <strong class="source-inline">req_trade_stream_opt</strong>. The response is verified. If the verification fails, it prints a message to <span class="No-Break">the screen.</span></p>
+			<h2 id="_idParaDest-388"><a id="_idTextAnchor400"></a>There’s more…</h2>
+			<p>We demonstrated how to stream real-time data for single contracts. Now we’ll demonstrate how to combine quote data from multiple contracts to generate real-time quotes straddles and <span class="No-Break">iron condors:</span></p>
+			<ol>
+				<li>Create empty <strong class="source-inline">Quote</strong> objects and set <span class="No-Break">a price:</span><pre class="source-code">
+last_call_quote = Quote()
+last_put_quote = Quote()
+price = 0</pre></li>				<li>Implement a callback that creates the straddle price out of the bid and ask prices of the contracts that make up <span class="No-Break">the straddle:</span><pre class="source-code">
+def callback_straddle(msg):
+    if (msg.type != StreamMsgType.QUOTE):
+        return
+    global price
+    if msg.contract.isCall:
+        last_call_quote.copy_from(msg.quote)
+    else:
+        last_put_quote.copy_from(msg.quote)
+    straddle_bid = round(last_call_quote.bid_price + last_put_
+        quote.bid_price, 2)
+    straddle_ask = round(last_call_quote.ask_price + last_put_
+        quote.ask_price, 2)
+    straddle_mid = round((
+        straddle_bid + straddle_ask) / 2, 2)
+    time_stamp = thetadata.client.ms_to_time(
+        msg.quote.ms_of_day
+    )
+    if price != straddle_mid:
+        print(
+            f"time: {time_stamp} bid: {straddle_bid} mid:
+                {straddle_mid} ask: {straddle_ask}"
+        )
+        price = straddle_mid</pre></li>				<li>Implement <a id="_idIndexMarker944"></a>the function <a id="_idIndexMarker945"></a>that starts the streaming data for each of our <span class="No-Break">defined contracts:</span><pre class="source-code">
+def stream_straddle():
+    client = ThetaClient(
+        username="strimp101@gmail.com",
+        passwd="kdk_fzu6pyb0UZA-yuz"
+    )
+    client.connect_stream(
+        callback_straddle
+    )
+    req_id_call = client.req_quote_stream_opt(
+        "SPY", dt.date(2024, 3, 28), 475, OptionRight.CALL
+    )
+    req_id_put = client.req_quote_stream_opt(
+        "SPY", dt.date(2024,3,28),475,OptionRight.PUT
+    )
+    if (
+        client.verify(req_id_call) != StreamResponseType.
+        SUBSCRIBED
+        or client.verify(req_id_put) != StreamResponseType.
+        SUBSCRIBED
+        ):
+        raise Exception("Unable to stream.")</pre></li>				<li>Start <a id="_idIndexMarker946"></a>the <span class="No-Break">streaming data:</span><pre class="source-code">
+stream_straddle()</pre><p class="list-inset">After <a id="_idIndexMarker947"></a>ThetaData connects, you’ll start to see the computed bid, mid, and ask prices for the straddle print to the screen for the contracts that <span class="No-Break">you specified:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer241" class="IMG---Figure">
+					<img src="image/B21323_13_03.jpg" alt="Figure 13.3: Streaming straddle prices" width="472" height="119"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.3: Streaming straddle prices</p>
+			<p class="list-inset">Now let’s implement streaming data for a short iron condor. In <em class="italic">Chatper 11</em>, <em class="italic">Deploy Strategies to a Live Environment</em>, we learned that a short iron condor is <a id="_idIndexMarker948"></a>an options <a id="_idIndexMarker949"></a>strategy that involves selling a lower strike out-of-the-money put, buying an even lower strike out-of-the-money put, selling a higher strike out-of-the-money call, and buying an even higher strike out-of-the-money call with the same <span class="No-Break">expiration date.</span></p>
+			<ol>
+				<li value="5">Define the ticker, expiration date, and strike prices that make up the <span class="No-Break">iron condor:</span><pre class="source-code">
+ticker = "SPY"
+expiration_date = dt.date(2024, 3, 28)
+long_put_strike = 460
+short_put_strike = 465
+short_call_strike = 480
+long_call_strike = 485</pre></li>				<li>Create empty <strong class="source-inline">Quote</strong> objects and set <span class="No-Break">a price:</span><pre class="source-code">
+long_put = Quote()
+short_put = Quote()
+short_call = Quote()
+long_call = Quote()
+price = 0</pre></li>				<li>Implement <a id="_idIndexMarker950"></a>the callback <a id="_idIndexMarker951"></a>that captures quote data from each of the four options contracts, computes the bid, mid, and ask prices, and prints <span class="No-Break">the result:</span><pre class="source-code">
+def callback_iron_condor(msg):
+    if (msg.type != StreamMsgType.QUOTE):
+        return
+    global price
+    if not msg.contract.isCall and msg.contract.strike == 
+    long_put_strike:
+        long_put.copy_from(msg.quote)
+    elif not msg.contract.isCall and msg.contract.strike == 
+    short_put_strike:
+        short_put.copy_from(msg.quote)
+    elif msg.contract.isCall and msg.contract.strike == 
+    short_call_strike:
+        short_call.copy_from(msg.quote)
+    elif msg.contract.isCall and msg.contract.strike == 
+    long_call_strike:
+        long_call.copy_from(msg.quote)
+    condor_bid = round(
+        long_put.bid_price
+        - short_put.bid_price
+        + long_call.bid_price
+        - short_call.bid_price,
+        2,
+    )
+    condor_ask = round(
+        long_put.ask_price
+        - short_put.ask_price
+        + long_call.ask_price
+        - short_call.ask_price,
+        2,
+    )
+    condor_mid = round((condor_ask + condor_bid) / 2, 2)
+    time_stamp = thetadata.client.ms_to_time(
+        msg.quote.ms_of_day
+    )
+    if price != condor_mid:
+        print(
+            f"time: {time_stamp} bid: {condor_bid} mid: 
+                {condor_mid} ask: {condor_ask}"
+        )
+        price = condor_mid</pre></li>				<li>Implement <a id="_idIndexMarker952"></a>the function <a id="_idIndexMarker953"></a>that starts the streaming data for each of our <span class="No-Break">defined contracts:</span><pre class="source-code">
+def streaming_iron_condor():
+    client = ThetaClient(
+        username="strimp101@gmail.com",
+        passwd="YOURPASSWORD"
+    )
+    client.connect_stream(callback_iron_condor)
+    lp_id = client.req_quote_stream_opt(
+        ticker, expiration_date, long_put_strike,
+            OptionRight.PUT
+    )
+    sp_id = client.req_quote_stream_opt(
+        ticker, expiration_date, short_put_strike,
+            OptionRight.PUT
+    )
+    client.req_quote_stream_opt(
+        ticker, expiration_date, short_call_strike,
+            OptionRight.CALL
+    )
+    client.req_quote_stream_opt(
+        ticker, expiration_date, long_call_strike, O
+            ptionRight.CALL
+    )
+    if (
+        client.verify(lp_id) != StreamResponseType.SUBSCRIBED
+        or client.verify(sp_id) != StreamResponseType.SUBSCRIBED
+    ):
+        raise Exception("Unable to stream.")</pre></li>				<li>Start <a id="_idIndexMarker954"></a>the <a id="_idIndexMarker955"></a><span class="No-Break">streaming data:</span><pre class="source-code">
+stream_iron_condor()</pre><p class="list-inset">After <a id="_idIndexMarker956"></a>ThetaData connects, you’ll <a id="_idIndexMarker957"></a>start to see the computed bid, mid, and ask prices for the iron condor print to the screen for the contracts that <span class="No-Break">you specified:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer242" class="IMG---Figure">
+					<img src="image/B21323_13_04.jpg" alt="Figure 13.4: Streaming bid, mid, and ask prices for a short iron condor" width="470" height="104"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.4: Streaming bid, mid, and ask prices for a short iron condor</p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">The prices for the short iron condor are negative. That’s because when we go short an iron condor, we are collecting the premium offered by the combined contracts. For example, if we see a price of <strong class="source-inline">-3.85 </strong>bid, <strong class="source-inline">-3.83</strong> ask, that means if we sell the condor, we will sell at the ask and <span class="No-Break">collect $3.83.</span></p>
+			<h2 id="_idParaDest-389"><a id="_idTextAnchor401"></a>See also</h2>
+			<p>To learn <a id="_idIndexMarker958"></a>more about OPRA and options price dissemination, see this <span class="No-Break">URL: </span><a href="https://www.opraplan.com/%20"><span class="No-Break">https://www.opraplan.com/</span></a></p>
+			<p>Otherwise, check <a id="_idIndexMarker959"></a>out the ThetaData documentation for more details on how you can use the service <span class="No-Break">at </span><a href="https://thetadata-api.github.io/thetadata-python/reference/"><span class="No-Break">https://thetadata-api.github.io/thetadata-python/reference/</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-390"><a id="_idTextAnchor402"></a>Using the ArcticDB DataFrame database for tick storage</h1>
+			<p>ArcticDB <a id="_idIndexMarker960"></a>is an embedded, serverless database engine, tailored for integration with pandas and the Python data science ecosystem. It’s used for the storage, retrieval, and processing of petabyte-scale data in DataFrame format. It uses common object storage solutions such as S3-compatible storage systems and Azure Blob Storage or local storage. It can efficiently store a 20-year historical record of over 400,000 distinct securities under a single symbol with sub-second retrieval. In ArcticDB, each symbol is treated as an independent entity without data overlap. The engine operates independently of any additional infrastructure, requiring only a functional Python environment and object <span class="No-Break">storage access.</span></p>
+			<p>ArcticDB <a id="_idIndexMarker961"></a>was built by Man Group and has demonstrated its capacity for enterprise-level deployment in some of the world’s foremost <a id="_idIndexMarker962"></a>organizations. The library is slated for integration into Bloomberg’s <strong class="bold">BQuant</strong> platform, which will empower algorithmic traders to rapidly test, deploy, and share models for alpha generation, risk management, <span class="No-Break">and trading.</span></p>
+			<p>Some of the reasons why ArcticDB is a great fit for algorithmic trading include <span class="No-Break">the following:</span></p>
+			<ul>
+				<li>ArcticDB offers remarkable processing speed, capable of handling billions of on-disk rows per second. Additionally, its installation process is straightforward and quick with no <span class="No-Break">complex dependencies.</span></li>
+				<li>ArcticDB accommodates both schema-based and schema-less data and is fully equipped to handle streaming data ingestion. It is a bitemporal platform, providing access to all historical versions of the <span class="No-Break">stored data.</span></li>
+				<li>Designed with simplicity in mind, ArcticDB is intuitively accessible to those with experience in Python and pandas, positioning itself as one of the simplest databases in <span class="No-Break">the world.</span></li>
+			</ul>
+			<p>In this recipe, we’ll demonstrate how to use ArcticDB to store streaming trade data <span class="No-Break">from ThetaData.</span></p>
+			<h2 id="_idParaDest-391"><a id="_idTextAnchor403"></a>Getting ready</h2>
+			<p>As of the time of authoring this book, Linux and Windows users can install ArcticDB <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install arcticdb</pre>			<p>For macOS, <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">conda</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+conda install -c conda-forge arcticdb</pre>			<p>For this recipe, we will assume that you have built the streaming options data solution using ThetaData in the <em class="italic">Streaming real-time options data with ThetaData</em> recipe in this chapter. If you have not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-392"><a id="_idTextAnchor404"></a>How to do it…</h2>
+			<p>We’ll set <a id="_idIndexMarker963"></a>up the ThetaData callback to create a DataFrame for each trade and store it <span class="No-Break">in ArcticDB:</span></p>
+			<ol>
+				<li>Import the libraries that we’ll need for the streaming data <span class="No-Break">use case:</span><pre class="source-code">
+import time
+import pytz
+import datetime as dt
+import pandas as pd
+import arcticdb as adb
+import thetadata.client
+from thetadata import (
+    ThetaClient,
+    OptionRight,
+    StreamMsg,
+    StreamMsgType,
+    StreamResponseType,
+)</pre></li>				<li>Create a <a id="_idIndexMarker964"></a>locally hosted <strong class="bold">Lightning Memory-Mapped Database</strong> (<strong class="bold">LMDB</strong>) instance in the current directory and set up an ArcticDB library to store the streaming <span class="No-Break">options data:</span><pre class="source-code">
+arctic = adb.Arctic("lmdb://arcticdb_options")
+lib = arctic.get_library("trades",
+    create_if_missing=True)</pre></li>				<li>Create a helper function that returns a <strong class="source-inline">datetime</strong> object for the timestamp of <span class="No-Break">the trade:</span><pre class="source-code">
+def get_trade_datetime(today, ms_of_day):
+    return today + dt.timedelta(
+        milliseconds=ms_of_day)</pre></li>				<li>Create a <a id="_idIndexMarker965"></a>helper function that computes the number of days <span class="No-Break">to expiration:</span><pre class="source-code">
+def get_days_to_expiration(today, expiration):
+    return (expiration - today).days</pre></li>				<li>Implement the callback function that parses the trade message from ThetaData and stores it <span class="No-Break">in ArcticDB:</span><pre class="source-code">
+def callback(msg):
+    today = dt.datetime.now(
+        pytz.timezone("US/Eastern")
+    ).replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+    if msg.type == StreamMsgType.TRADE:
+        trade_datetime = get_trade_datetime(today,
+            msg.trade.ms_of_day)
+        expiration = pd.to_datetime(
+            msg.contract.exp).tz_localize("US/Eastern")
+        days_to_expiration = get_days_to_expiration(
+            today, expiration)
+        symbol = msg.contract.root
+        trade = {
+            "root": symbol,
+            "expiration": expiration,
+            "days_to_expiration": days_to_expiration,
+            "is_call": msg.contract.isCall,
+            "strike": msg.contract.strike,
+            "size": msg.trade.size,
+            "trade_price": msg.trade.price,
+            "exchange": str(
+                msg.trade.exchange.value[1]),
+            "bid_size": msg.quote.bid_size,
+            "bid_price": msg.quote.bid_price,
+            "ask_size": msg.quote.ask_size,
+            "ask_price": msg.quote.ask_price,
+        }
+        trade_df = pd.DataFrame(
+           trade, index=[trade_datetime])
+        if symbol in lib.list_symbols():
+            lib.update(symbol, trade_df, upsert=True)
+        else:
+            lib.write(symbol, trade_df)</pre></li>				<li>Implement <a id="_idIndexMarker966"></a>the function that connects to ThetaData and starts the stream. We’ll let it run for 120 seconds before canceling <span class="No-Break">the stream:</span><pre class="source-code">
+def stream_all_trades():
+    client = ThetaClient(
+        username="strimp101@gmail.com",
+        passwd="kdk_fzu6pyb0UZA-yuz"
+    )
+    client.connect_stream(callback)
+    req_id = client.req_full_trade_stream_opt()
+    response = client.verify(req_id)
+    if (client.verify(req_id) != StreamResponseType.SUBSCRIBED):
+        raise Exception("Unable to stream.")
+    time.sleep(120)
+    print("Cancelling stream...")
+    client.remove_full_trade_stream_opt()</pre></li>				<li>Start <span class="No-Break">the stream:</span><pre class="source-code">
+stream_all_trades()</pre></li>				<li>After the stream has been canceled, we can interact with the data stored in ArcticDB. First, defragment the data stored in LMDB <span class="No-Break">if required:</span><pre class="source-code">
+for symbol in lib.list_symbols():
+    if lib.is_symbol_fragmented(symbol):
+        lib.defragment_symbol_data(symbol)</pre></li>				<li>List the number of symbols that we have acquired trade <span class="No-Break">data for:</span><pre class="source-code">
+len(lib.list_symbols())</pre></li>				<li>Get a <a id="_idIndexMarker967"></a>DataFrame containing the trade data for a <span class="No-Break">single symbol:</span><pre class="source-code">
+qqq = lib.read("QQQ").data</pre><p class="list-inset">The result is a pandas DataFrame with one row for <span class="No-Break">every trade:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer243" class="IMG---Figure">
+					<img src="image/B21323_13_05.jpg" alt="Figure 13.5: A pandas DataFrame with trade data for ETF QQQ" width="1184" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.5: A pandas DataFrame with trade data for ETF QQQ</p>
+			<ol>
+				<li value="11">We can use the powerful QueryBuilder tool to process the data before acquiring it, which speeds up retrieval. Find all trades where the spread is less <span class="No-Break">than $0.05:</span><pre class="source-code">
+q = adb.QueryBuilder()
+filter = (q.ask_price - q.bid_price) &lt; 0.05
+q = q[filter]
+data = lib.read("QQQ", query_builder=q).data</pre><p class="list-inset">The result is a pandas DataFrame with all trades that were executed when the spread was less <span class="No-Break">than $0.05.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer244" class="IMG---Figure">
+					<img src="image/B21323_13_05.jpg" alt="Figure 13.6: A pandas DataFrame with filtered trade data for ETF QQQ" width="1184" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.6: A pandas DataFrame with filtered trade data for ETF QQQ</p>
+			<ol>
+				<li value="12">Use <a id="_idIndexMarker968"></a>QueryBuilder and native pandas methods to efficiently retrieve and <span class="No-Break">post-process data:</span><pre class="source-code">
+q = adb.QueryBuilder()
+filter = (q.days_to_expiration &gt; 1)
+q = (
+    q[filter]
+    .groupby("expiration")
+    .agg({"bid_size": "sum", "ask_size": "sum"})
+)
+data = lib.read("QQQ", query_builder=q).data.sort_index()</pre></li>			</ol>
+			<p>The result is a pandas DataFrame with a snapshot of the aggregate bid and ask sizes at each expiration at the time of trade for all contracts with greater than 1 day <span class="No-Break">to expiration.</span></p>
+			<div>
+				<div id="_idContainer245" class="IMG---Figure">
+					<img src="image/B21323_13_07.jpg" alt="Figure 13.7: A pandas DataFrame with filtered, grouped, and aggregated bid and ask volumes across a range of strike prices" width="328" height="219"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.7: A pandas DataFrame with filtered, grouped, and aggregated bid and ask volumes across a range of strike prices</p>
+			<h2 id="_idParaDest-393"><a id="_idTextAnchor405"></a>How it works…</h2>
+			<p>We started <a id="_idIndexMarker969"></a>by creating an instance of the <strong class="source-inline">Arctic</strong> class, which is initialized with the <strong class="source-inline">lmdb://arcticdb_options</strong> connection string indicating that the ArcticDB database will use LMDB as its storage engine. Then we call the <strong class="source-inline">get_library</strong> method on the <strong class="source-inline">Arctic</strong> instance. This method attempts to retrieve a library named <strong class="source-inline">trades</strong> from the underlying LMDB database. If the library does not exist, the <strong class="source-inline">create_if_missing=True</strong> argument ensures that it is created. The <strong class="source-inline">get_library</strong> method connects to the underlying storage engine to manage the data associated with the <span class="No-Break"><strong class="source-inline">trades</strong></span><span class="No-Break"> library.</span></p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">LMDB is a high-performance embedded key-value store designed to provide efficient, transactional data storage mechanisms for applications. Built on a memory-mapped file, LMDB allows for data to be quickly read and written with minimal overhead, supporting a substantial number of simultaneous read operations along with a single write transaction. Its architecture is optimized for speed, concurrency, and reliability, making it a suitable choice for applications requiring fast access to large datasets with a small footprint. LMDB operates with a no-overhead approach and can handle databases much larger than RAM, leveraging the operating system’s virtual memory to manage data <span class="No-Break">transactions effectively.</span></p>
+			<p>The <strong class="source-inline">get_trade_datetime</strong> function calculates and returns the datetime of a trade by adding <a id="_idIndexMarker970"></a>a specific number of milliseconds to a given date. ThetaData uses the number of milliseconds since the beginning of the trade day as its timestamp, so this function gives us a more human-readable version. The <strong class="source-inline">get_days_to_expiration</strong> function first calculates a <strong class="source-inline">Timedelta</strong> object between the expiration date and today’s date and returns the number of days between <span class="No-Break">the two.</span></p>
+			<h3>Storing data</h3>
+			<p>The <strong class="source-inline">callback</strong> function processes <a id="_idIndexMarker971"></a>incoming trade messages by first setting a <strong class="source-inline">today</strong> datetime object to the current date with the time set to the start of the day in the U.S. Eastern time zone. If the message type is a trade, it computes the trade <a id="_idIndexMarker972"></a>datetime by adding the number of milliseconds since midnight. The function then calculates the days remaining until the contract’s expiration. From there, we construct a dictionary with trade details. These details include information about the contract and the trade itself such as the symbol, expiration, days to expiration, option type, strike price, size, and the current bid and ask sizes and prices. This trade information is then formatted into a pandas DataFrame with the trade datetime as its index. Depending on whether the symbol already exists in the DataFrame, the trade data is either appended to the existing symbol data or written as new data under the symbol. The <strong class="source-inline">stream_all_trades</strong> function is similar to the one we used in the previous recipe except that we cancel the stream after <span class="No-Break">120 seconds.</span></p>
+			<h3>Retrieving data</h3>
+			<p>We demonstrate how to use the <strong class="source-inline">QueryBuilder</strong> object to retrieve data. The first line, <strong class="source-inline">q = adb.QueryBuilder()</strong>, creates an instance of the <strong class="source-inline">QueryBuilder</strong> class, which is <a id="_idIndexMarker973"></a>used for constructing database queries that are passed to the ArcticDB processing engine. The second line, <strong class="source-inline">filter = (q.ask_price - q.bid_price) &lt; 0.05</strong>, defines a filter condition whereby only records with a difference between <strong class="source-inline">ask_price</strong> and <strong class="source-inline">bid_price</strong> of less than <strong class="source-inline">0.05</strong> are returned. This filter is applied in the third line, <strong class="source-inline">q = q[filter]</strong>, which modifies the <strong class="source-inline">QueryBuilder</strong> instance to include this filtering criterion. Finally, <strong class="source-inline">data = lib.read("QQQ", query_builder=q).data</strong> uses the <strong class="source-inline">read</strong> method of the <strong class="source-inline">lib</strong> object to execute the query against the <strong class="source-inline">QQQ</strong> dataset, retrieving records that match the filter. The <strong class="source-inline">data</strong> attribute accesses the actual data from the <span class="No-Break">query result.</span></p>
+			<p>In the second example, we construct a <strong class="source-inline">QueryBuilder</strong> object to select records where <strong class="source-inline">days_to_expiration</strong> is greater than <strong class="source-inline">1</strong>. The query is then refined to group the results by the <strong class="source-inline">expiration</strong> field and aggregate the <strong class="source-inline">bid_size</strong> and <strong class="source-inline">ask_size</strong> fields by summing <a id="_idIndexMarker974"></a>them up. Finally, the <strong class="source-inline">read</strong> method is used to execute this query against the <strong class="source-inline">QQQ</strong> dataset in the LMDB datastore. The resulting data is sorted <span class="No-Break">by index.</span></p>
+			<h2 id="_idParaDest-394"><a id="_idTextAnchor406"></a>There’s more…</h2>
+			<p>We demonstrated how to store data locally using LMDB. We can achieve a similar performance using remote object storage backends. At the time of writing, ArcticDB has tested the following <span class="No-Break">S3 backends:</span></p>
+			<ul>
+				<li><span class="No-Break">AWS S3</span></li>
+				<li><span class="No-Break">Ceph</span></li>
+				<li>MinIO <span class="No-Break">on Linux</span></li>
+				<li>Pure <span class="No-Break">Storage S3</span></li>
+				<li><span class="No-Break">Scality S3</span></li>
+				<li>VAST <span class="No-Break">Data S3</span></li>
+			</ul>
+			<p>To use ArcticDB with S3, you simply need an S3 bucket with PUT permissions. Then you can instantiate the Arctic class with its path. Use this example if your AWS <strong class="source-inline">credentials</strong> file is <span class="No-Break">stored locally:</span></p>
+			<pre class="source-code">
+Arctic("s3://MY_ENDPOINT:MY_BUCKET?aws_auth=true")</pre>			<p>Otherwise, you can specify the credentials in the <span class="No-Break">connection string:</span></p>
+			<pre class="source-code">
+Arctic("s3://MY_ENDPOINT:MY_BUCKET?region=YOUR_REGION&amp;access=ABCD&amp;secret=DCBA")</pre>			<h2 id="_idParaDest-395"><a id="_idTextAnchor407"></a>See also</h2>
+			<p>For more <a id="_idIndexMarker975"></a>information on ArcticDB, see the <span class="No-Break">following resources:</span></p>
+			<ul>
+				<li>The ArcticDB homepage with documentation, community information, and <span class="No-Break">blog: </span><a href="https://arcticdb.io/%20"><span class="No-Break">https://arcticdb.io/</span></a></li>
+				<li>Detailed documentation with <span class="No-Break">walkthroughs: </span><a href="https://docs.arcticdb.io/latest/%20"><span class="No-Break">https://docs.arcticdb.io/latest/</span></a></li>
+				<li>The ArcticDB GitHub <span class="No-Break">page: </span><a href="https://github.com/man-group/ArcticDB"><span class="No-Break">https://github.com/man-group/ArcticDB</span></a></li>
+				<li>LMDB documentation and <span class="No-Break">homepage: </span><a href="http://www.lmdb.tech/doc/"><span class="No-Break">http://www.lmdb.tech/doc/</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-396"><a id="_idTextAnchor408"></a>Triggering real-time risk limit alerts</h1>
+			<p>Once a strategy is in place, algorithmic trading revolves around managing performance and risk metrics, emphasizing monitoring exceptions or deviations that exceed predefined <a id="_idIndexMarker976"></a>thresholds. Risk metrics are critical indicators that flag potential issues or opportunities in the trading strategy. Professional algorithmic traders rely heavily on real-time alert systems. These systems detect and notify traders when specific risk metrics reach or surpass set thresholds. This notification enables traders to respond to market changes, adjust strategies, or mitigate risks. These <a id="_idIndexMarker977"></a>alerts can be based on various risk metrics, such as <strong class="bold">Conditional Values at Risk</strong> (<strong class="bold">CVaRs</strong>), drawdowns, or unusual trading volumes. Effectively managing these alerts and understanding the underlying causes is a cornerstone of successful <span class="No-Break">algorithmic trading.</span></p>
+			<p>In this recipe, you’ll set up real-time alerts to monitor our portfolio’s intraday CVaR. In <a href="B21323_12.xhtml#_idTextAnchor360"><span class="No-Break"><em class="italic">Chapter 12</em></span></a>, <em class="italic">Deploy Strategies to a Live Environment</em>, we learned that CVaR measures the <a id="_idIndexMarker978"></a>expected losses that occur beyond the <strong class="bold">Value at Risk</strong> (<strong class="bold">VaR</strong>) in the tail end of a distribution of possible returns. Our focus will be on setting up the infrastructure for alerting. The decision of how to send alerts via email, SMS, Slack, Telegram bot, or other channels is left up to <span class="No-Break">the reader.</span></p>
+			<h2 id="_idParaDest-397"><a id="_idTextAnchor409"></a>Getting ready</h2>
+			<p>For this recipe, we assume that you have built the real-time risk and performance metrics detailed in <a href="B21323_12.xhtml#_idTextAnchor360"><span class="No-Break"><em class="italic">Chapter 12</em></span></a>, <em class="italic">Deploy Strategies to a Live Environment</em>. We also assume that you’ve followed the recipes in <a href="B21323_12.xhtml#_idTextAnchor360"><span class="No-Break"><em class="italic">Chapter 12</em></span></a>. If you have not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-398"><a id="_idTextAnchor410"></a>How to do it…</h2>
+			<p>We’ll edit the <strong class="source-inline">app.py</strong> file to include a new thread to check whether the portfolio CVaR exceeds a defined threshold. Since we’ve already set up the app’s scaffolding, adding a new method <a id="_idIndexMarker979"></a>to a background thread requires only a few lines <span class="No-Break">of code:</span></p>
+			<ol>
+				<li>Add a <strong class="source-inline">watch_cvar</strong> method at the end of the <strong class="source-inline">IBApp</strong> class <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break">:</span><pre class="source-code">
+def watch_cvar(self, threshold, interval):
+    print("Watching CVaR in 60 seconds...")
+    time.sleep(60)
+    while True:
+        cvar = self.cvar[1]
+        if cvar &lt; threshold:
+            print(f"Portfolio CVaR ({
+                cvar}) crossed threshold ({
+                    threshold})")
+            pass
+        time.sleep(interval)</pre></li>				<li>Modify the <strong class="source-inline">__init__</strong> method to resemble <span class="No-Break">the following:</span><pre class="source-code">
+def __init__(self, ip, port, client_id, account,
+    interval=5, **kwargs):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.account = account
+        self.create_table()
+        self.connect(ip, port, client_id)
+        threading.Thread(target=self.run,
+            daemon=True).start()
+        time.sleep(5)
+        threading.Thread(
+           target=self.get_streaming_returns,
+           args=(99, interval, "unrealized_pnl"),
+            daemon=True
+        ).start()
+        time.sleep(5)
+        threading.Thread(
+            target=self.watch_cvar,
+            args=(kwargs["cvar_threshold"], interval),
+            daemon=True
+        ).start()</pre></li>				<li>To run <a id="_idIndexMarker980"></a>the app, modify the line under <strong class="source-inline">if __name__ == "__main__":</strong> to resemble <span class="No-Break">the following:</span><pre class="source-code">
+app = IBApp(
+    "127.0.0.1",
+    7497,
+    client_id=12,
+    account="DU7129120",
+    interval=10,
+    cvar_threshold=-500
+)</pre></li>			</ol>
+			<h2 id="_idParaDest-399"><a id="_idTextAnchor411"></a>How it works…</h2>
+			<p>The method monitors the CVaR of our portfolio against a specified threshold at regular intervals. Initially, it prints a message and pauses for 60 seconds. Then, in an infinite loop, it checks whether the dollar CVaR falls below the given threshold. If it does, <strong class="source-inline">watch_cvar</strong> prints a message indicating that the CVaR has crossed this threshold. After each check, the method pauses for a duration specified by the <strong class="source-inline">interval</strong> parameter <a id="_idIndexMarker981"></a>before repeating the process. In this method, we can implement our actual <span class="No-Break">alerting code.</span></p>
+			<p>To start the process of monitoring the intraday CVaR, we follow the same pattern that we introduced in previous chapters. We create and start a new thread that executes the <strong class="source-inline">watch_cvar</strong> method. The thread runs independently, passing the specified <strong class="source-inline">cvar_threshold</strong> and <strong class="source-inline">interval</strong> values from <strong class="source-inline">kwargs</strong> as arguments to the <strong class="source-inline">watch_cvar</strong> method. Running the method in a thread allows us to execute other code with the monitoring in <span class="No-Break">the background.</span></p>
+			<h2 id="_idParaDest-400"><a id="_idTextAnchor412"></a>There’s more…</h2>
+			<p>Depending on your use case, you may choose to send alerts via email or SMS. Short snippets are included to get you started with each. Depending on your email provider, you may have to take steps to enable sending emails through code. For example, Gmail stopped supporting logins through “less secure” means in 2022 and now requires the OAuth2 <a id="_idIndexMarker982"></a>authorization framework. You can learn more <span class="No-Break">at </span><a href="https://developers.google.com/gmail/api/quickstart/python"><span class="No-Break">https://developers.google.com/gmail/api/quickstart/python</span></a><span class="No-Break">.</span></p>
+			<h3>Sending emails using Python</h3>
+			<p>Python has <a id="_idIndexMarker983"></a>two built-in libraries that make it easy to send <a id="_idIndexMarker984"></a>simple emails. We’ll demonstrate a simple example of how to send emails with Python that you can use for <span class="No-Break">your alerts:</span></p>
+			<ol>
+				<li>Include the following imports at the top <span class="No-Break">of </span><span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break">:</span><pre class="source-code">
+&lt;snip&gt;
+import smtplib
+from email.message import EmailMessage
+s = smtplib.SMTP("localhost")</pre></li>				<li>Update <a id="_idIndexMarker985"></a>the <strong class="source-inline">watch_cvar</strong> method to include <a id="_idIndexMarker986"></a>the following code to construct and send <span class="No-Break">an email:</span><pre class="source-code">
+def watch_cvar(self, threshold, interval):
+    print("Watching CVaR in 60 seconds...")
+    time.sleep(60)
+    while True:
+        cvar = self.cvar[1]
+        if cvar &lt; threshold:
+            print(f"Portfolio CVaR ({
+                cvar}) crossed threshold ({
+                    threshold})")
+            msg = EmailMessage()
+            msg.set_content(
+                """
+            Risk alert:
+            f"Portfolio CVaR ({
+                cvar}) crossed threshold ({
+                    threshold})"
+            """
+            )
+            msg["Subject"] = "CVaR threshold crossed"
+            msg["From"] = "sender@email.com"
+            msg["To"] = "you@email.com"
+            s.send_message(msg)
+            s.quit()
+        time.sleep(interval)</pre></li>			</ol>
+			<p>First, we create an <strong class="source-inline">EmailMessage</strong> object and connect it to an email server. In a production <a id="_idIndexMarker987"></a>application, you would replace <strong class="source-inline">localhost</strong> with the <a id="_idIndexMarker988"></a>server details of your email provider. You would also need to include the provider’s authentication code. Within the <strong class="source-inline">watch_cvar</strong> method, we must check whether CVaR exceeds our threshold and construct our email. The email’s subject, sender, and recipient are then specified. Next, we send the prepared email message and close <span class="No-Break">the connection.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">There are several paid services that offer bulk email sending for very little cost. <strong class="bold">Mailgun</strong> is one <a id="_idIndexMarker989"></a>that offers thousands of emails per month for a reasonable cost. If you don’t expect to send hundreds or thousands of emails per month, consider using your existing email provider. Depending on your provider, instructions for authentication and sending emails <span class="No-Break">will differ.</span></p>
+			<h3>Sending alerts via SMS</h3>
+			<p>There are many third-party services that we can use to send SMS via Python. We’ll look at the most <a id="_idIndexMarker990"></a>popular one, <strong class="bold">Twilio</strong>. Twilio’s APIs provide seamless interaction with users through voice, SMS, video, or messaging. Thousands of businesses use Twilio <a id="_idIndexMarker991"></a>for sending SMS notifications such as password changes <a id="_idIndexMarker992"></a>or informational alerts. Twilio operates on a pay-as-you-use <span class="No-Break">pricing model.</span></p>
+			<p>To start, install the Twilio library <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install twilio</pre>			<p>We’ll demonstrate a simple example of how to send SMS with Python using the Twilio API that you can use for <span class="No-Break">your alerts.</span></p>
+			<ol>
+				<li>Include the following imports at the top <span class="No-Break">of </span><span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break">:</span><pre class="source-code">
+&lt;snip&gt;
+from twilio.rest import Client
+account_sid = TWILIO_ACCOUNT_SID
+auth_token = TWILIO_AUTH_TOKEN
+client = Client(account_sid, auth_token)</pre></li>				<li>Update <a id="_idIndexMarker993"></a>the <strong class="source-inline">watch_cvar</strong> method to include the following <a id="_idIndexMarker994"></a>code to construct and send <span class="No-Break">an SMS:</span><pre class="source-code">
+def watch_cvar(self, threshold, interval):
+    print("Watching CVaR in 60 seconds...")
+    time.sleep(60)
+    while True:
+        cvar = self.cvar[1]
+        if cvar &lt; threshold:
+            print(f"Portfolio CVaR ({
+                cvar}) crossed threshold ({
+                    threshold})")
+            body = """
+            Risk alert:
+            f"Portfolio CVaR ({
+                cvar}) crossed threshold ({
+                    threshold})"
+            """
+            message = client.messages.create(
+                body, from_=FROM_NUMBER, to=TO_NUMBER
+            )
+        time.sleep(interval)</pre></li>			</ol>
+			<p>Replace <strong class="source-inline">TWILIO_ACCOUNT_SID</strong> and <strong class="source-inline">TWILIO_AUTH_TOKEN</strong> with the account ID and auth <a id="_idIndexMarker995"></a>token you can retrieve from the Twilio console. Then <a id="_idIndexMarker996"></a>replace <strong class="source-inline">FROM_NUMBER</strong> with the number you purchased and <strong class="source-inline">TO_NUMBER</strong> with your <span class="No-Break">mobile number.</span></p>
+			<h2 id="_idParaDest-401"><a id="_idTextAnchor413"></a>See also</h2>
+			<p>To learn <a id="_idIndexMarker997"></a>more about sending emails and SMS alerts, see the <span class="No-Break">following resources:</span></p>
+			<ul>
+				<li>Mailgun <a id="_idIndexMarker998"></a>homepage : <a href="https://www.mailgun.com/"><span class="No-Break">https://www.mailgun.com/</span></a></li>
+				<li>Twilio <a id="_idIndexMarker999"></a><span class="No-Break">homepage: </span><a href="https://www.twilio.com/en-us%20"><span class="No-Break">https://www.twilio.com/en-us</span></a></li>
+				<li><strong class="bold">Amazon Simple Notification Service</strong> (<span class="No-Break"><strong class="bold">SNS</strong></span><span class="No-Break">): </span><a href="https://aws.amazon.com/sns/%20"><span class="No-Break">https://aws.amazon.com/sns/</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-402"><a id="_idTextAnchor414"></a>Storing trade execution details in a SQL database</h1>
+			<p>Capturing trade data is essential in algorithmic trading. Recording order execution data provides <a id="_idIndexMarker1000"></a>the ability to monitor the time interval between the placement and fulfillment of orders. This aspect is particularly <a id="_idIndexMarker1001"></a>important in volatile markets where prices are moving quickly, since it allows us to evaluate and enhance our execution strategies for better efficiency. Another benefit is measuring slippage – the difference between the expected and actual execution prices. Analyzing slippage is important for understanding the impact of execution on trading costs and profitability. Since transaction costs, both broker fees and slippage, erode returns, minimizing costs can have a real impact on returns. Tracking open orders can help us assess current market exposure but also ensures adherence to risk management processes and helps in balancing <span class="No-Break">our portfolio.</span></p>
+			<p>As we’ve learned, the IB API facilitates this process through its EWrapper callback methods. These methods are called in response to events such as order status changes, order executions, and open orders. The callback methods offer a streamlined and event-driven approach for capturing order-related data. In this recipe, we’ll use the three order callback methods we established in <a href="B21323_10.xhtml#_idTextAnchor282"><span class="No-Break"><em class="italic">Chapter 10</em></span></a>, <em class="italic">Set up the Interactive Brokers Python API</em>, to capture <span class="No-Break">order details.</span></p>
+			<h2 id="_idParaDest-403"><a id="_idTextAnchor415"></a>Getting ready</h2>
+			<p>For this recipe, we assume that you have set up the code to establish the SQLite database in <a href="B21323_10.xhtml#_idTextAnchor282"><span class="No-Break"><em class="italic">Chapter 10</em></span></a>, <em class="italic">Set up the Interactive Brokers Python API</em>, and the methods to acquire portfolio data in <a href="B21323_11.xhtml#_idTextAnchor327"><span class="No-Break"><em class="italic">Chapter 11</em></span></a>, <em class="italic">Manage Orders, Positions, and Portfolios with the IB API</em>. If you have not, do <span class="No-Break">it now.</span></p>
+			<p>We’ll do <a id="_idIndexMarker1002"></a>some cleanup to make our code <a id="_idIndexMarker1003"></a>more organized. In the <strong class="source-inline">IBApp</strong> class, find the <strong class="source-inline">create_table</strong> method. In the method, there’s a long line of SQL we use to create the table to store bid and ask data. We’ll move that to the <span class="No-Break"><strong class="source-inline">utils.py</strong></span><span class="No-Break"> file.</span></p>
+			<ol>
+				<li>Cut the SQL from the <strong class="source-inline">create_table</strong> method and paste it into <strong class="source-inline">utils.py</strong> similar to <span class="No-Break">the following:</span><pre class="source-code">
+CREATE_BID_ASK_DATA = """
+CREATE TABLE IF NOT EXISTS bid_ask_data
+    (
+        timestamp DATETIME,
+        symbol STRING,
+        bid_price REAL,
+        ask_price REAL,
+        bid_size INTEGER,
+        ask_size INTEGER
+    )"""</pre></li>				<li>Now in <strong class="source-inline">app.py</strong>, add the following import under the <span class="No-Break">existing imports:</span><pre class="source-code">
+from utils import CREATE_BID_ASK_DATA</pre></li>				<li>Modify <strong class="source-inline">create_table</strong> to resemble <span class="No-Break">the following:</span><pre class="source-code">
+def create_table(self):
+    cursor = self.connection.cursor()
+    cursor.execute(CREATE_BID_ASK_DATA)</pre></li>				<li>Update the name of the SQLite file being created to the name of the strategy since now we’re storing more than just bid and <span class="No-Break">ask data:</span><pre class="source-code">
+@property
+def connection(self):
+    return sqlite3.connect("strategy_1.sqlite",
+        isolation_level=None)</pre></li>			</ol>
+			<h2 id="_idParaDest-404"><a id="_idTextAnchor416"></a>How to do it…</h2>
+			<p>We’ll add <a id="_idIndexMarker1004"></a>three new SQL statements <a id="_idIndexMarker1005"></a>to create tables to store order status, open order details, and <span class="No-Break">executed trades.</span></p>
+			<ol>
+				<li>In <strong class="source-inline">utils.py</strong>, add the following statement under the previous declaration to create an SQLite table to store open <span class="No-Break">order details:</span><pre class="source-code">
+CREATE_OPEN_ORDERS = """
+CREATE TABLE IF NOT EXISTS open_orders
+    (
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        order_id INTEGER,
+        symbol STRING,
+        sec_type STRING,
+        exhange STRING,
+        action STRING,
+        order_type STRING,
+        quantity INTEGER,
+        status STRING
+    )"""</pre></li>				<li>In <strong class="source-inline">utils.py</strong>, add <a id="_idIndexMarker1006"></a>the following <a id="_idIndexMarker1007"></a>statement under the previous declaration to create an SQLite table to store order <span class="No-Break">execution details:</span><pre class="source-code">
+CREATE_TRADES = """
+CREATE TABLE IF NOT EXISTS trades
+    (
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        request_id INTEGER,
+        order_id INTEGER,
+        execution_id INTEGER,
+        symbol STRING,
+        sec_type STRING,
+        currency STRING,
+        quantity INTEGER,
+        last_liquidity REAL
+    )"""</pre></li>				<li>In <strong class="source-inline">app.py</strong>, update the import for the bid ask data to include <span class="No-Break">all imports:</span><pre class="source-code">
+from utils import (
+    CREATE_BID_ASK_DATA,
+    CREATE_OPEN_ORDERS,
+    CREATE_TRADES
+)</pre></li>				<li>Modify <strong class="source-inline">create_table</strong> in the <strong class="source-inline">IBApp</strong> class in <strong class="source-inline">app.py</strong> to resemble <span class="No-Break">the following:</span><pre class="source-code">
+def create_table(self):
+    cursor = self.connection.cursor()
+    cursor.execute(CREATE_BID_ASK_DATA)
+    cursor.execute(CREATE_OPEN_ORDERS)
+    cursor.execute(CREATE_TRADES)</pre></li>				<li>In <strong class="source-inline">wrapper.py</strong>, update the <strong class="source-inline">openOrder</strong> method to generate and execute a SQL <a id="_idIndexMarker1008"></a>insert statement when <a id="_idIndexMarker1009"></a>the callback is triggered. Replace the code that simply prints a message with <span class="No-Break">the following:</span><pre class="source-code">
+def openOrder(self, order_id, contract, order, order_state):
+    cursor = self.connection.cursor()
+    query = "INSERT INTO open_orders (
+        order_id, symbol, sec_type, exhange, action,
+        order_type, quantity, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    values = (
+        order_id,
+        contract.symbol,
+        contract.secType,
+        contract.exchange,
+        order.action,
+        order.orderType,
+        order.totalQuantity,
+        order_state.status,
+    )
+    cursor.execute(query, values)</pre><p class="list-inset">When submitting an order, we will end up with an entry in the SQLite <span class="No-Break"><strong class="source-inline">open_orders</strong></span><span class="No-Break"> table.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer246" class="IMG---Figure">
+					<img src="image/B21323_13_08.jpg" alt="Figure 13.8: Entry in the open_orders table executed from the openOrder callback" width="1164" height="76"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.8: Entry in the open_orders table executed from the openOrder callback</p>
+			<ol>
+				<li value="6">In <strong class="source-inline">wrapper.py</strong>, update the <strong class="source-inline">execDetails</strong> method to generate and execute a SQL <a id="_idIndexMarker1010"></a>insert statement when <a id="_idIndexMarker1011"></a>the callback is triggered. Replace the code that simply prints a message with <span class="No-Break">the following:</span><pre class="source-code">
+def execDetails(self, request_id, contract,
+    execution):
+        cursor = self.connection.cursor()
+        query = "INSERT INTO trades (request_id,
+            symbol, sec_type, currency, execution_id,
+            order_id, quantity, last_liquidity)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    values = (
+        request_id,
+        contract.symbol,
+        contract.secType,
+        contract.currency,
+        execution.execId,
+        execution.orderId,
+        execution.shares,
+        execution.lastLiquidity,
+    )
+    cursor.execute(query, values)</pre><p class="list-inset">When an order is executed, we will end up with an entry in the SQLite <span class="No-Break"><strong class="source-inline">trades</strong></span><span class="No-Break"> table.</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer247" class="IMG---Figure">
+					<img src="image/B21323_13_09.jpg" alt="Figure 13.9: Entry in the trades table executed from the execDetails callback" width="1261" height="58"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.9: Entry in the trades table executed from the execDetails callback</p>
+			<h2 id="_idParaDest-405"><a id="_idTextAnchor417"></a>How it works…</h2>
+			<p>We <a id="_idIndexMarker1012"></a>extend the <strong class="source-inline">create_table</strong> method to automatically create <a id="_idIndexMarker1013"></a>additional tables to store or <a id="_idIndexMarker1014"></a>trade status and execution data. These tables will be created when the <strong class="source-inline">IBApp</strong> class is instantiated. For the <strong class="source-inline">openOrder</strong> and <strong class="source-inline">execDetail</strong> methods, SQL insert statements are created when they are triggered. The methods specify the columns to be populated and the corresponding values. These values are then executed against the query to insert the data into the database. The question mark in the SQL statement serves as a placeholder for parameters that will be substituted with actual values when the query <span class="No-Break">is executed.</span></p>
+			<h2 id="_idParaDest-406"><a id="_idTextAnchor418"></a>There’s more…</h2>
+			<p>We demonstrated a small sample of the fields that can be captured in <strong class="source-inline">execDetails</strong>. Both callback methods receive objects that contain <span class="No-Break">many properties.</span></p>
+			<h3>Contract</h3>
+			<p>The <strong class="source-inline">contract</strong> object <a id="_idIndexMarker1015"></a>has the following attributes <a id="_idIndexMarker1016"></a>that can be stored in <span class="No-Break">your tables:</span></p>
+			<ul>
+				<li><strong class="source-inline">conId</strong>: A <span class="No-Break">unique </span><span class="No-Break"><a id="_idIndexMarker1017"></a></span><span class="No-Break">identifier</span></li>
+				<li><strong class="source-inline">symbol</strong>: An <span class="No-Break">asset symbol</span></li>
+				<li><strong class="source-inline">secType</strong>: Type (stock, <span class="No-Break">option, etc.)</span></li>
+				<li><strong class="source-inline">lastTradeDateOrContractMonth</strong>: The last trading day <span class="No-Break">or month</span></li>
+				<li><strong class="source-inline">strike</strong>: An option’s <span class="No-Break">strike price</span></li>
+				<li><strong class="source-inline">right</strong>: Used with a call or <span class="No-Break">put option</span></li>
+				<li><strong class="source-inline">multiplier</strong>: An options <a id="_idIndexMarker1018"></a>or <span class="No-Break">futures multiplier</span></li>
+				<li><strong class="source-inline">exchange</strong>: A <span class="No-Break">contract’s exchange</span></li>
+				<li><strong class="source-inline">currency</strong>: An <span class="No-Break">asset’s currency</span></li>
+				<li><strong class="source-inline">localSymbol</strong>: A local <span class="No-Break">exchange symbol</span></li>
+				<li><strong class="source-inline">primaryExch</strong>: The <span class="No-Break">primary exchange</span></li>
+				<li><strong class="source-inline">tradingClass</strong>: The contract <span class="No-Break">trading class</span></li>
+				<li><strong class="source-inline">includeExpired</strong>: Includes <span class="No-Break">expired futures</span></li>
+				<li><strong class="source-inline">secIdType</strong>: The identifier type (<span class="No-Break">ISIN, CUSIP)</span></li>
+				<li><strong class="source-inline">secId</strong>: A <span class="No-Break">security identifier</span></li>
+				<li><strong class="source-inline">description</strong>: The <span class="No-Break">contract description</span></li>
+				<li><strong class="source-inline">issuerId</strong>: An <span class="No-Break">issuer identifier</span></li>
+				<li><strong class="source-inline">comboLegsDescription</strong>: Combo <span class="No-Break">legs details</span></li>
+				<li><strong class="source-inline">comboLegs</strong>: Combined <span class="No-Break">contract legs</span></li>
+				<li><strong class="source-inline">deltaNeutralContract</strong>: Delta <span class="No-Break">neutral details</span></li>
+			</ul>
+			<h3>Order</h3>
+			<p>The <strong class="source-inline">order</strong> object <a id="_idIndexMarker1019"></a>has 66 properties available. Here we capture some of <a id="_idIndexMarker1020"></a>the more valuable ones that that can be stored in <span class="No-Break">your tables:</span></p>
+			<ul>
+				<li><strong class="source-inline">orderId</strong>: A client’s <span class="No-Break">order ID</span></li>
+				<li><strong class="source-inline">clientId</strong>: Placing <a id="_idIndexMarker1021"></a>a <span class="No-Break">client ID</span></li>
+				<li><strong class="source-inline">permId</strong>: The host <span class="No-Break">order identifier</span></li>
+				<li><strong class="source-inline">action</strong>: The side (<strong class="source-inline">BUY</strong>, <span class="No-Break"><strong class="source-inline">SELL</strong></span><span class="No-Break">, etc.)</span></li>
+				<li><strong class="source-inline">totalQuantity</strong>: The <span class="No-Break">positions number</span></li>
+				<li><strong class="source-inline">orderType</strong>: The <span class="No-Break">order’s type</span></li>
+				<li><strong class="source-inline">lmtPrice</strong>: <strong class="source-inline">LIMIT</strong> <span class="No-Break">order price</span></li>
+				<li><strong class="source-inline">auxPrice</strong>: Stop the price for <span class="No-Break"><strong class="source-inline">STP LMT</strong></span></li>
+				<li><strong class="source-inline">tif</strong>: Time in force (<strong class="source-inline">DAY</strong>, <span class="No-Break"><strong class="source-inline">GTC</strong></span><span class="No-Break">, etc.)</span></li>
+			</ul>
+			<h3>Order state</h3>
+			<p>The <strong class="source-inline">order_state</strong> object <a id="_idIndexMarker1022"></a>has the following <a id="_idIndexMarker1023"></a>attributes that can be stored in <span class="No-Break">your tables:</span></p>
+			<ul>
+				<li><strong class="source-inline">status</strong>: An order’s <span class="No-Break">current status</span></li>
+				<li><strong class="source-inline">initMarginBefore</strong>: The <a id="_idIndexMarker1024"></a>initial <span class="No-Break">margin before</span></li>
+				<li><strong class="source-inline">maintMarginBefore</strong>: The maintenance <span class="No-Break">margin before</span></li>
+				<li><strong class="source-inline">equityWithLoanBefore</strong>: Account equity with <span class="No-Break">loan before</span></li>
+				<li><strong class="source-inline">initMarginChange</strong>: The initial <span class="No-Break">margin change</span></li>
+				<li><strong class="source-inline">maintMarginChange</strong>: The maintenance <span class="No-Break">margin change</span></li>
+				<li><strong class="source-inline">equityWithLoanChange</strong>: The equity with <span class="No-Break">loan change</span></li>
+				<li><strong class="source-inline">initMarginAfter</strong>: The initial margin after <span class="No-Break">an order</span></li>
+				<li><strong class="source-inline">maintMarginAfter</strong>: The maintenance margin after <span class="No-Break">an order</span></li>
+				<li><strong class="source-inline">equityWithLoanAfter</strong>: The equity with loan after <span class="No-Break">an order</span></li>
+				<li><strong class="source-inline">commission</strong>: The <span class="No-Break">generated commission</span></li>
+				<li><strong class="source-inline">minCommission</strong>: The <a id="_idIndexMarker1025"></a><span class="No-Break">minimum commission</span></li>
+				<li><strong class="source-inline">maxCommission</strong>: The <span class="No-Break">maximum commission</span></li>
+				<li><strong class="source-inline">commissionCurrency</strong>: The <span class="No-Break">commission currency</span></li>
+				<li><strong class="source-inline">warningText</strong>: An order <span class="No-Break">warning message</span></li>
+				<li><strong class="source-inline">completedTime</strong>: The order <span class="No-Break">completion time</span></li>
+				<li><strong class="source-inline">completedStatus</strong>: The order <span class="No-Break">completion status</span></li>
+			</ul>
+			<h3>Executions</h3>
+			<p>The execution <a id="_idIndexMarker1026"></a>object has the following attributes that can be stored <a id="_idIndexMarker1027"></a>in <span class="No-Break">your tables:</span></p>
+			<ul>
+				<li><strong class="source-inline">orderId</strong>: The client’s <span class="No-Break">order ID</span></li>
+				<li><strong class="source-inline">clientId</strong>: The placing <span class="No-Break">client ID</span></li>
+				<li><strong class="source-inline">execId</strong>: The <span class="No-Break">execution identifier</span></li>
+				<li><strong class="source-inline">time</strong>: The execution <a id="_idIndexMarker1028"></a><span class="No-Break">server time</span></li>
+				<li><strong class="source-inline">acctNumber</strong>: The allocated <span class="No-Break">account number</span></li>
+				<li><strong class="source-inline">exchange</strong>: The <span class="No-Break">execution exchange</span></li>
+				<li><strong class="source-inline">side</strong>: The transaction side (<span class="No-Break"><strong class="source-inline">BOT</strong></span><span class="No-Break">, </span><span class="No-Break"><strong class="source-inline">SLD</strong></span><span class="No-Break">)</span></li>
+				<li><strong class="source-inline">shares</strong>: Number of <span class="No-Break">shares filled</span></li>
+				<li><strong class="source-inline">price</strong>: The <span class="No-Break">execution price</span></li>
+				<li><strong class="source-inline">permId</strong>: The TWS <span class="No-Break">order identifier</span></li>
+				<li><strong class="source-inline">liquidation</strong>: The IB <span class="No-Break">liquidation indicator</span></li>
+				<li><strong class="source-inline">cumQty</strong>: The <span class="No-Break">cumulative quantity</span></li>
+				<li><strong class="source-inline">avgPrice</strong>: The <a id="_idIndexMarker1029"></a><span class="No-Break">average price</span></li>
+				<li><strong class="source-inline">orderRef</strong>: A <span class="No-Break">user-customizable string</span></li>
+				<li><strong class="source-inline">evRule</strong>: The <strong class="bold">Economic Value</strong> (<span class="No-Break"><strong class="bold">EV</strong></span><span class="No-Break">) rule</span></li>
+				<li><strong class="source-inline">evMultiplier</strong>: The EV <a id="_idIndexMarker1030"></a>price <span class="No-Break">change unit</span></li>
+				<li><strong class="source-inline">modelCode</strong>: The <span class="No-Break">model code</span></li>
+				<li><strong class="source-inline">lastLiquidity</strong>: The execution <span class="No-Break">liquidity type</span></li>
+			</ul>
+			<h2 id="_idParaDest-407"><a id="_idTextAnchor419"></a>See also</h2>
+			<p>For more details on the various IB API callbacks and objects used in this recipe, see the <span class="No-Break">following resources:</span></p>
+			<ul>
+				<li>Documentation <a id="_idIndexMarker1031"></a>on the <strong class="source-inline">openOrder</strong> EWrapper <span class="No-Break">method: </span><a href="https://interactivebrokers.github.io/tws-api/interfaceIBApi_1_1EWrapper.html#aa05258f1d005accd3efc0d60bc151407%0D"><span class="No-Break">https://interactivebrokers.github.io/tws-api/interfaceIBApi_1_1EWrapper.html#aa05258f1d005accd3efc0d60bc151407</span></a></li>
+				<li>Documentation <a id="_idIndexMarker1032"></a>on the <strong class="source-inline">execDetails</strong> EWrapper <span class="No-Break">method: </span><a href="https://interactivebrokers.github.io/tws-api/interfaceIBApi_1_1EWrapper.html#a09f82de3d0666d13b00b5168e8b9313d%0D"><span class="No-Break">https://interactivebrokers.github.io/tws-api/interfaceIBApi_1_1EWrapper.html#a09f82de3d0666d13b00b5168e8b9313d</span></a></li>
+				<li>Documentation <a id="_idIndexMarker1033"></a>on the <strong class="source-inline">Contract</strong> <span class="No-Break">object: </span><a href="https://interactivebrokers.github.io/tws-api/classIBApi_1_1Contract.html%0D"><span class="No-Break">https://interactivebrokers.github.io/tws-api/classIBApi_1_1Contract.html</span></a></li>
+				<li>Documentation <a id="_idIndexMarker1034"></a>on the <strong class="source-inline">Order</strong> <span class="No-Break">object: </span><a href="https://interactivebrokers.github.io/tws-api/classIBApi_1_1Order.html%0D"><span class="No-Break">https://interactivebrokers.github.io/tws-api/classIBApi_1_1Order.html</span></a></li>
+				<li>Documentation <a id="_idIndexMarker1035"></a>on the <strong class="source-inline">OrderState</strong> <span class="No-Break">object: </span><a href="https://interactivebrokers.github.io/tws-api/classIBApi_1_1OrderState.html"><span class="No-Break">https://interactivebrokers.github.io/tws-api/classIBApi_1_1OrderState.html</span></a></li>
+				<li>Documentation <a id="_idIndexMarker1036"></a>on the <strong class="source-inline">Execution</strong> <span class="No-Break">object: </span><a href="https://interactivebrokers.github.io/tws-api/classIBApi_1_1Execution.html"><span class="No-Break">https://interactivebrokers.github.io/tws-api/classIBApi_1_1Execution.html</span></a></li>
+			</ul>
+		</div>
+	</div>
+</div>
+</body>
+</html>

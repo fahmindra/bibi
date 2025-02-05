@@ -1,0 +1,950 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer072">
+			<h1 id="_idParaDest-40" class="chapter-number"><a id="_idTextAnchor040"></a>2</h1>
+			<h1 id="_idParaDest-41"><a id="_idTextAnchor041"></a>Analyze and Transform Financial Market Data with pandas</h1>
+			<p><a id="_idTextAnchor042"></a>The pandas library was invented by Wes McKinney while at the investment management firm <strong class="bold">AQR Capital Management</strong>, where he researched macro and credit trading strategies. He built pandas to provide flexible, easy-to-use data structures for data analysis. Since it was open sourced in 2009, pandas has become the standard tool to analyze and transform data <span class="No-Break">using Python.</span></p>
+			<p>pandas is well-suited for working with tabular data, like that stored in spreadsheets or databases, and it integrates well with many other data analysis libraries in the Python ecosystem. Its capabilities extend to handling missing data, reshaping datasets, and merging and joining datasets, and it also provides robust tools for loading data from flat files, Excel files, databases, and HDF5 file formats. It’s widely used in academia, finance, and many areas of business due to its rich features and ease <span class="No-Break">of use.</span></p>
+			<p>This chapter will begin by covering recipes to help you build pandas data structures, primarily focusing on DataFrames and Series, the two primary data structures of pandas. You will learn how these structures allow for a wide variety of operations, such as slicing, indexing, and subsetting large datasets, all of which are crucial in algorithmic trading. From there, you will learn how to inspect and select data <span class="No-Break">from DataFrames.</span></p>
+			<p>After you have a firm understanding of manipulating data using pandas, we’ll cover recipes for analyses that are common in algorithmic trading, including how to compute asset returns and the volatility of a return series. The chapter will teach you how to generate a cumulative return series and resample data to different time frames, providing you with the flexibility to analyze data at various granularities. You will also learn how to handle missing data, a common issue in <span class="No-Break">real-world datasets.</span></p>
+			<p>Lastly, this chapter will show you how to apply custom functions to time series data. Throughout this chapter, you will see how pandas integrates with other libraries in the scientific Python ecosystem, such as Matplotlib for data visualization, NumPy for numerical operations, and Scikit-Learn for <span class="No-Break">machine learning.</span></p>
+			<p>In this chapter, we’ll cover the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Diving into pandas <span class="No-Break">index types</span></li>
+				<li>Building pandas Series <span class="No-Break">and DataFrames</span></li>
+				<li>Manipulating and <span class="No-Break">transforming DataFrames</span></li>
+				<li>Examining and selecting data <span class="No-Break">from DataFrames</span></li>
+				<li>Calculating asset returns <span class="No-Break">using pandas</span></li>
+				<li>Measuring the volatility of a <span class="No-Break">return series</span></li>
+				<li>Generating a cumulative <span class="No-Break">return series</span></li>
+				<li>Resampling data for different <span class="No-Break">time frames</span></li>
+				<li>Addressing missing <span class="No-Break">data issues</span></li>
+				<li>Applying custom functions to analyze time <span class="No-Break">series data</span></li>
+			</ul>
+			<h1 id="_idParaDest-42"><a id="_idTextAnchor043"></a>Diving into pandas index types</h1>
+			<p>The Index is an immutable sequence that’s used for indexing and alignment that serves as the label or key for rows in the DataFrame or elements in a series. It allows for fast lookup and relational <a id="_idIndexMarker046"></a>operations and as of pandas version 2, it can contain values of any type, including integers, strings, and even tuples. Indexes in pandas are immutable, which makes them safe to share across multiple DataFrames or Series. They also have several built-in methods for common operations, such as sorting, grouping, and set operations such as union and intersection. pandas supports multiple indexes, allowing for complex, hierarchical data organization. This feature is particularly useful when dealing with high-dimensional data such as option chains. We’ll see examples of MultiIndexes later in <span class="No-Break">this chapter.</span></p>
+			<p>There are seven types of pandas indexes. The differences are dependent on the type of data used to create the index. For example, an Int64Index is an index that’s made up of 64-bit integers. pandas is smart enough to create the right type of index, depending on the data used to <span class="No-Break">instantiate it.</span></p>
+			<h2 id="_idParaDest-43"><a id="_idTextAnchor044"></a>How to do it…</h2>
+			<p>We’ll start by creating a <a id="_idIndexMarker047"></a>simple index with a series <span class="No-Break">of integers:</span></p>
+			<ol>
+				<li>Import pandas as the common <span class="No-Break">alias, </span><span class="No-Break"><strong class="source-inline">pd</strong></span><span class="No-Break">:</span><pre class="source-code">
+import pandas as pd</pre></li>				<li>Instantiate the <span class="No-Break"><strong class="source-inline">Index</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+idx_1 = pd.Index([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])</pre></li>				<li>Inspect <span class="No-Break">the index:</span><pre class="source-code">
+print(idx_1)</pre><p class="list-inset">Running the preceding code generates the index and prints out <span class="No-Break">its type:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer022" class="IMG---Figure">
+					<img src="image/B21323_02_1.jpg" alt="Figure 2.1: A pandas Int64Index index with 10 values" width="374" height="25"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.1: A pandas Int64Index index with 10 values</p>
+			<h2 id="_idParaDest-44"><a id="_idTextAnchor045"></a>How it works…</h2>
+			<p>This is the simplest example of creating <a id="_idIndexMarker048"></a>a pandas index. You can instantiate the <strong class="source-inline">Index</strong> class with a one-dimensional, array-like data structure containing the values you want in <span class="No-Break">the index.</span></p>
+			<h2 id="_idParaDest-45"><a id="_idTextAnchor046"></a>There’s more…</h2>
+			<p>pandas has several <strong class="source-inline">Index</strong> types to support many use cases, including those related to time series analysis. We’ll cover examples of the most often-used <span class="No-Break">index types.</span></p>
+			<h4>DatetimeIndex</h4>
+			<p>A more interesting index type is <strong class="source-inline">DatetimeIndex</strong>. This type of index is extremely useful when dealing with time <span class="No-Break">series</span><span class="No-Break"><a id="_idIndexMarker049"></a></span><span class="No-Break"> data:</span></p>
+			<pre class="source-code">
+days = pd.date_range("2016-01-01", periods=6, freq="D")</pre>			<p>This creates an index with <a id="_idIndexMarker050"></a>six incremental datetime objects starting <span class="No-Break">from 2016-01-01.</span></p>
+			<p>You can use many different frequencies, <span class="No-Break">including </span><span class="No-Break"><strong class="source-inline">seconds</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+seconds = pd.date_range("2016-01-01", periods=100, freq="s")</pre>			<p>By default, DatetimeIndexes are “timezone naive.” This means they have no time zone information attached. To “localize” <strong class="source-inline">DatetimeIndex</strong>, <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">tz_localize</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+seconds_utc = seconds.tz_localize("UTC")</pre>			<p>Localizing <strong class="source-inline">DatetimeIndex</strong> just appends time zone information to the object. It does not adjust the time from one time zone to another. To do that, you can <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">tz_convert</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+seconds_utc.tz_convert("US/Eastern")</pre>			<h4>PeriodIndex</h4>
+			<p>It’s possible to create ranges <a id="_idIndexMarker051"></a>of periods, such as quarters, using the pandas <span class="No-Break"><strong class="source-inline">period_range</strong></span><span class="No-Break"> method:</span></p>
+			<pre class="source-code">
+prng = pd.period_range("1990Q1", "2000Q4", freq="Q-NOV")</pre>			<p><strong class="source-inline">period_range</strong> returns a <strong class="source-inline">PeriodIndex</strong> object that has special labels that represent periods. In this case, the period starts in 1990Q1 and extends through to 2000Q4 at quarterly increments, with the year <a id="_idIndexMarker052"></a>ending <span class="No-Break">in November.</span></p>
+			<h4>MultiIndex</h4>
+			<p><strong class="source-inline">MultiIndex</strong>, also known as a hierarchical<a id="_idIndexMarker053"></a> index, is a data structure<a id="_idIndexMarker054"></a> that allows for <a id="_idIndexMarker055"></a>complex data organization within pandas DataFrames and Series. It allows data spanning multiple dimensions to be represented, even within the inherently two-dimensional structure of a DataFrame, by allowing multiple levels of indices. We’ll look at <strong class="source-inline">MultiIndex</strong> in detail later in this book, so don’t worry if it’s not exactly<a id="_idIndexMarker056"></a> clear how they <span class="No-Break">work yet.</span></p>
+			<p>To create a <strong class="source-inline">MultiIndex</strong> object, pass a list of tuples to the <span class="No-Break"><strong class="source-inline">from_tuples</strong></span><span class="No-Break"> method:</span></p>
+			<pre class="source-code">
+tuples = [
+    (pd.Timestamp("2023-07-10"), "WMT"),
+    (pd.Timestamp("2023-07-10"), "JPM"),
+    (pd.Timestamp("2023-07-10"), "TGT"),
+    (pd.Timestamp("2023-07-11"), "WMT"),
+    (pd.Timestamp("2023-07-11"), "JPM"),
+    (pd.Timestamp("2023-07-11"), "TGT"),
+]
+midx = pd.MultiIndex.from_tuples(
+    tuples,
+    names=("date", "symbol")
+)</pre>			<p>There are several ways to create a <strong class="source-inline">MultiIndex</strong> object. In this example, we use a list of tuples. Each tuple contains a pandas <a id="_idIndexMarker057"></a>timestamp and a ticker symbol. Using the list of tuples, you can call the <strong class="source-inline">from_tuples</strong> method to create the <strong class="source-inline">MultiIndex</strong> object. The result is a two-dimensional index that supports <span class="No-Break">hierarchical DataFrames.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">Giving the <strong class="source-inline">names</strong> argument to the <strong class="source-inline">from_tuples</strong> method is done to give names to the index columns for label-based indexing. This <span class="No-Break">is optional.</span></p>
+			<h2 id="_idParaDest-46"><a id="_idTextAnchor047"></a>See also</h2>
+			<p>The pandas documentation is very thorough. To learn more about the index types we covered in this recipe, take a look at the<a id="_idIndexMarker058"></a> <span class="No-Break">following resources:</span></p>
+			<ul>
+				<li>Documentation<a id="_idIndexMarker059"></a> on pandas <span class="No-Break">indexes: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.Index.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.Index.html</span></a></li>
+				<li>Documentation <a id="_idIndexMarker060"></a>on pandas<a id="_idIndexMarker061"></a> <span class="No-Break">DatatimeIndexes: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DatetimeIndex.html%20"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DatetimeIndex.html</span></a></li>
+				<li>Documentation <a id="_idIndexMarker062"></a>on pandas <a id="_idIndexMarker063"></a><span class="No-Break">MultiIndexes: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.MultiIndex.html%20"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.MultiIndex.html</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-47"><a id="_idTextAnchor048"></a>Building pandas Series and DataFrames</h1>
+			<p>A Series is a one-dimensional labeled array that can hold any data type, including integers, floats, strings, and objects. The axis <a id="_idIndexMarker064"></a>labels of a Series are collectively referred to as the index, which allows for easy data manipulation and access. A key feature of the pandas Series is its ability to handle missing data, represented as a NumPy <strong class="source-inline">nan</strong> (Not <span class="No-Break">a Number).</span></p>
+			<p class="callout-heading">Important</p>
+			<p class="callout">NumPy’s <strong class="source-inline">nan</strong> is a special floating-point value. It is commonly used as a marker for missing data in numerical datasets. The <strong class="source-inline">nan</strong> value being <a id="_idIndexMarker065"></a>a float is useful because it can be used in numerical computations and included in arrays of numbers without changing their data type, which aids in maintaining consistent data types in numeric datasets. Unlike other values, <strong class="source-inline">nan</strong> doesn’t equal anything, which is why we need to use functions such as <strong class="source-inline">numpy.isnan()</strong> to check <span class="No-Break">for </span><span class="No-Break"><strong class="source-inline">nan</strong></span><span class="No-Break">.</span></p>
+			<p>Furthermore, the <strong class="source-inline">Series</strong> object provides a host of methods for operations such as statistical functions, string manipulation, and <span class="No-Break">even plotting.</span></p>
+			<p>A DataFrame is a two-dimensional data structure that can be thought of as a spreadsheet with rows and columns. It’s essentially a table of data with rows and columns. The data is aligned in a tabular fashion in rows and columns, and it can be of different types (for example, numbers and strings). DataFrames make manipulating data easy, allowing for operations such as aggregation, slicing, indexing, subsetting, merging, and reshaping. They also handle<a id="_idIndexMarker066"></a> missing data gracefully and provide convenient methods for filtering out, filling in, or otherwise manipulating <span class="No-Break">null values.</span></p>
+			<h2 id="_idParaDest-48"><a id="_idTextAnchor049"></a>Getting ready</h2>
+			<p>Before building a Series and DataFrame, make sure you completed the previous recipe and have the indexes stored <span class="No-Break">in memory.</span></p>
+			<h2 id="_idParaDest-49"><a id="_idTextAnchor050"></a>How to do it…</h2>
+			<p>Execute the following steps to construct a <a id="_idIndexMarker067"></a>DataFrame out of <span class="No-Break">several Series:</span></p>
+			<ol>
+				<li>Import NumPy to create an array of normally distributed <span class="No-Break">random numbers:</span><pre class="source-code">
+import numpy as np</pre></li>				<li>Create a function that returns a NumPy array of randomly distributed numbers with the same length as the <strong class="source-inline">DatetimeIndex</strong> object you <span class="No-Break">created earlier:</span><pre class="source-code">
+def rnd():
+    return np.random.randn(100,)</pre><p class="list-inset">The return value is a NumPy array of length <strong class="source-inline">100</strong>. It’s filled with random samples from a normal distribution. Creating a function allows you to return a different set of values each time the function <span class="No-Break">is called.</span></p></li>			</ol>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">When working with pandas, it’s common to use random numbers to populate Series and DataFrames <span class="No-Break">for testing.</span></p>
+			<ol>
+				<li value="3">Create three pandas Series that you’ll use to create <span class="No-Break">the DataFrame:</span><pre class="source-code">
+s_1 = pd.Series(rnd(), index=seconds)
+s_2 = pd.Series(rnd(), index=seconds)
+s_3 = pd.Series(rnd(), index=seconds)</pre><p class="list-inset">We use the same DatetimeIndex object we created in the previous recipe as the index for each of the Series. This lets pandas align each of the columns along the <span class="No-Break">common index.</span></p></li>				<li>Create the DataFrame <a id="_idIndexMarker068"></a>using <span class="No-Break">a dictionary:</span><pre class="source-code">
+df = pd.DataFrame({"a": s_1, "b": s_2, "c": s_3})</pre><p class="list-inset">The result is a DataFrame with a DatetimeIndex object of second resolution and three columns all with samples from a <span class="No-Break">normal distribution:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer023" class="IMG---Figure">
+					<img src="image/B21323_02_2.jpg" alt="Figure 2.2: DataFrame with a DatetimeIndex object and three columns of random data" width="380" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.2: DataFrame with a DatetimeIndex object and three columns of random data</p>
+			<h2 id="_idParaDest-50"><a id="_idTextAnchor051"></a>How it works…</h2>
+			<p>pandas Series and DataFrames have <a id="_idIndexMarker069"></a>several ways of being constructed. Series can take any array-like, iterable (for example, list or tuple), dictionary, or scalar value to be created. In this example, you created a NumPy array-like object called an array. We passed in the <strong class="source-inline">DatetimeIndex</strong> object created in the previous recipe, which is the <a id="_idIndexMarker070"></a>same length as the array that was used to create <span class="No-Break">the Series.</span></p>
+			<p>DataFrames accept any multidimensional structured or homogenous objects, be they iterable, dictionaries, or other DataFrames. In this example, you passed in a Python dictionary, which is a list of key-value pairs. Each key represents the column name and each value represents the data for that column. DataFrames also accept an <strong class="source-inline">index</strong> argument in case the input data is not structured with an index. DataFrames can also accept a <strong class="source-inline">columns</strong> argument, which names the columns. Since the Series included indexes, pandas automatically used them to create the DataFrame index and aligned the values appropriately. If there were missing data for an index, pandas would still include the index but include <strong class="source-inline">nan</strong> as <span class="No-Break">the value.</span></p>
+			<h2 id="_idParaDest-51"><a id="_idTextAnchor052"></a>There’s more…</h2>
+			<p>A <strong class="source-inline">MultiIndex</strong> object is a multidimensional index that <a id="_idIndexMarker071"></a>provides added flexibility to DataFrames. You can create a <strong class="source-inline">MultiIndex</strong> DataFrame from scratch or “reindex” an existing DataFrame to make it a <span class="No-Break"><strong class="source-inline">MultiIndex</strong></span><span class="No-Break"> DataFrame.</span></p>
+			<h3>Building a MultiIndex DataFrame from scratch</h3>
+			<p>Use the same <strong class="source-inline">MultiIndex</strong> object you <a id="_idIndexMarker072"></a>created in the <span class="No-Break">previous recipe:</span></p>
+			<pre class="source-code">
+tuples = [
+    (pd.Timestamp("2023-07-10"), "WMT"),
+    (pd.Timestamp("2023-07-10"), "JPM"),
+    (pd.Timestamp("2023-07-10"), "TGT"),
+    (pd.Timestamp("2023-07-11"), "WMT"),
+    (pd.Timestamp("2023-07-11"), "JPM"),
+    (pd.Timestamp("2023-07-11"), "TGT"),
+]
+midx = pd.MultiIndex.from_tuples(
+    tuples,
+    names=("date", "symbol")
+)</pre>			<p>Now that we have the index, we <a id="_idIndexMarker073"></a>can create <span class="No-Break">the DataFrame:</span></p>
+			<pre class="source-code">
+df_2 = pd.DataFrame(
+    {
+        "close":[158.11,144.64,132.55,158.20,146.61,134.86],
+        "factor_1": [0.31, 0.24, 0.67, 0.29, 0.23, 0.71],
+    },
+    index=midx,
+)</pre>			<p>We create the DataFrame using a dictionary. The keys are the column names and the values are the data for the columns. Note that we use the <strong class="source-inline">index</strong> argument while passing in the <strong class="source-inline">MultiIndex</strong> object. The result is a DataFrame that contains records for each of the three symbols for <span class="No-Break">each date:</span></p>
+			<div>
+				<div id="_idContainer024" class="IMG---Figure">
+					<img src="image/B21323_02_3.jpg" alt="Figure 2.3: MultiIndex DataFrame" width="276" height="230"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.3: MultiIndex DataFrame</p>
+			<h3>Reindexing an existing DataFrame with a MultiIndex object</h3>
+			<p>It’s common to add a <strong class="source-inline">MultiIndex</strong> object to a DataFrame. Let’s consider an example of reindexing options <a id="_idIndexMarker074"></a>data for a <span class="No-Break"><strong class="source-inline">MultiIndex</strong></span><span class="No-Break"> object:</span></p>
+			<ol>
+				<li>Import the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download option chains <span class="No-Break">using OpenBB:</span><pre class="source-code">
+chains = obb.derivatives.options.chains(
+    "SPY",
+    provider="cboe"
+)</pre><p class="list-inset">The result is a DataFrame with a <strong class="source-inline">RangeIndex</strong> object starting <span class="No-Break">at 0:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer025" class="IMG---Figure">
+					<img src="image/B21323_02_4.jpg" alt="Figure 2.4: DataFrame with SPY options data" width="938" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.4: DataFrame with SPY options data</p>
+			<ol>
+				<li value="3">Options are derivatives that are frequently grouped by expiration date, strike price, option type, and any combination <a id="_idIndexMarker075"></a>of those three. Using the <strong class="source-inline">set_index</strong> method takes the arguments in the list and uses those columns as indexes, converting <strong class="source-inline">RangeIndex</strong> into a <strong class="source-inline">MultiIndex</strong> object. In this example, we use the expiration date, strike price, and option type as the <span class="No-Break">three indexes:</span><pre class="source-code">
+df_3 = chains.set_index(["expiration", "strike",
+    "option_type"])</pre><p class="list-inset">The result is a hierarchical DataFrame with a <span class="No-Break">three-dimensional </span><span class="No-Break"><strong class="source-inline">MultiIndex</strong></span><span class="No-Break">:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer026" class="IMG---Figure">
+					<img src="image/B21323_02_5.jpg" alt="Figure 2.5: A DataFrame with a three-dimensional MultiIndex" width="720" height="406"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.5: A DataFrame with a three-dimensional MultiIndex</p>
+			<p>You can inspect the index using<a id="_idIndexMarker076"></a> <span class="No-Break">dot notation:</span></p>
+			<pre class="source-code">
+df_3.index</pre>			<p>As you can see, the <strong class="source-inline">MultiIndex</strong> object is a list of tuples. Each tuple contains the elements of the <strong class="source-inline">MultiIndex</strong> object. We also have a property called <strong class="source-inline">names</strong>, which includes a list of the <strong class="source-inline">MultiIndex</strong> <span class="No-Break">level names:</span></p>
+			<div>
+				<div id="_idContainer027" class="IMG---Figure">
+					<img src="image/B21323_02_6.jpg" alt="Figure 2.6: Inspecting the MultiIndex object" width="592" height="382"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.6: Inspecting the MultiIndex object</p>
+			<h2 id="_idParaDest-52"><a id="_idTextAnchor053"></a>See also</h2>
+			<p>To learn more about the Series and DataFrame objects, take a look at the <span class="No-Break">following resources:</span></p>
+			<ul>
+				<li>Documentation on<a id="_idIndexMarker077"></a> pandas <span class="No-Break">Series: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.Series.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.Series.html</span></a></li>
+				<li>Documentation on<a id="_idIndexMarker078"></a> pandas <span class="No-Break">DataFrames: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-53"><a id="_idTextAnchor054"></a>Manipulating and transforming DataFrames</h1>
+			<p>Before moving on to more<a id="_idIndexMarker079"></a> advanced recipes, it’s important to understand the fundamentals of working with data. DataFrames are the most common pandas data structures you’ll work with. Despite the existence of hundreds of methods for DataFrame manipulation, only a subset of these are <span class="No-Break">regularly used.</span></p>
+			<p>In this recipe, we will show you how to manipulate a DataFrame using the following <span class="No-Break">common methods:</span></p>
+			<ul>
+				<li>Creating new columns <a id="_idIndexMarker080"></a>using aggre<a id="_idTextAnchor055"></a><a id="_idTextAnchor056"></a>gates, Booleans, <span class="No-Break">and strings</span></li>
+				<li>Concatenating two <span class="No-Break">DataFrames together</span></li>
+				<li>Pivoting a DataFrame such <span class="No-Break">as Excel</span></li>
+				<li>Grouping data on a key or index and applying <span class="No-Break">an aggregate</span></li>
+				<li>Joining options data together to create <span class="No-Break">straddle prices</span></li>
+			</ul>
+			<h2 id="_idParaDest-54"><a id="_idTextAnchor057"></a>Getting ready…</h2>
+			<p>We’ll start by importing the necessary <a id="_idIndexMarker081"></a>libraries and downloading market <span class="No-Break">price data:</span></p>
+			<ol>
+				<li>Start by importing NumPy, pandas, and the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Load some stock price data to <span class="No-Break">work with:</span><pre class="source-code">
+asset = obb.equity.price.historical(
+    "AAPL",
+    provider="yfinance"
+)
+benchmark = obb.equity.price.historical(
+    "SPY",
+    provider="yfinance"
+)</pre></li>			</ol>
+			<h2 id="_idParaDest-55"><a id="_idTextAnchor058"></a>How to do it…</h2>
+			<p>Creating new columns is a common operation when dealing with DataFrames. Let’s learn how to <span class="No-Break">do this.</span></p>
+			<h3>Creating new columns using aggregates, Booleans, and strings</h3>
+			<p>Here’s how to create new columns using<a id="_idIndexMarker082"></a> aggregates, Booleans, <span class="No-Break">and </span><span class="No-Break"><a id="_idIndexMarker083"></a></span><span class="No-Break">strings:</span></p>
+			<ol>
+				<li>Start by<a id="_idIndexMarker084"></a> renaming the <a id="_idIndexMarker085"></a>columns so that they <a id="_idIndexMarker086"></a>follow <span class="No-Break">Python</span><span class="No-Break"><a id="_idIndexMarker087"></a></span><span class="No-Break"> conventions:</span><pre class="source-code">
+columns = [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "dividends",
+    "splits",
+]
+asset.columns = columns
+benchmark.columns = columns + ["capital_gain"]</pre></li>				<li>Add a new column with values from <span class="No-Break">an aggregate:</span><pre class="source-code">
+asset["price_diff"] = asset.close.diff()
+benchmark["price_diff"] = benchmark.close.diff()</pre></li>			</ol>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">When adding a new column to a DataFrame, the data you provide is automatically aligned by the DataFrame’s index. This means that if you add a Series as a new column, pandas matches each value to its corresponding row in the DataFrame using the Series’s index. If any index values in the DataFrame don’t exist in the new Series, pandas will fill them with <strong class="source-inline">nan</strong> values, signifying <span class="No-Break">missing data.</span></p>
+			<ol>
+				<li value="3">Add a new<a id="_idIndexMarker088"></a> column with <span class="No-Break">a</span><span class="No-Break"><a id="_idIndexMarker089"></a></span><span class="No-Break"> Boolean:</span><pre class="source-code">
+asset["gain"] = asset.price_diff &gt; 0
+benchmark["gain"] = benchmark.price_diff &gt; 0</pre></li>				<li>Add a<a id="_idIndexMarker090"></a> new column<a id="_idIndexMarker091"></a> with a <span class="No-Break">string value:</span><pre class="source-code">
+asset["symbol"] = "AAPL"
+benchmark["symbol"] = "SPY"</pre><p class="list-inset">Three new columns<a id="_idIndexMarker092"></a> of data are added <a id="_idIndexMarker093"></a>to each DataFrame – <strong class="source-inline">returns</strong>, <strong class="source-inline">gain</strong>, <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">symbol</strong></span><span class="No-Break">:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer028" class="IMG---Figure">
+					<img src="image/B21323_02_7.jpg" alt="Figure 2.7: Result of adding new columns to the asset DataFrame" width="926" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.7: Result of adding new columns to the asset DataFrame</p>
+			<ol>
+				<li value="5">Set a single value<a id="_idIndexMarker094"></a> based on the aggregate <span class="No-Break">of </span><span class="No-Break"><a id="_idIndexMarker095"></a></span><span class="No-Break">values:</span><pre class="source-code">
+asset_2 = asset.copy()
+asset_2.at[
+    asset_2.index[10],
+    "volume"
+] = asset_2.volume.mean()</pre><p class="list-inset">You can inspect the value by<a id="_idIndexMarker096"></a> using the <strong class="source-inline">iat</strong> method<a id="_idIndexMarker097"></a> on the <span class="No-Break"><strong class="source-inline">asset_2</strong></span><span class="No-Break"> DataFrame:</span></p><pre class="source-code">asset_2.iat[10, 5]</pre><p class="list-inset">The result is a scalar value <a id="_idIndexMarker098"></a>representing the mean<a id="_idIndexMarker099"></a> volume between indexes <strong class="source-inline">5</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">10</strong></span><span class="No-Break">.</span></p></li>			</ol>
+			<h3>Concatenating two DataFrames together</h3>
+			<p>In the simplest case, concatenating two<a id="_idIndexMarker100"></a> DataFrames together either stacks one on top of each other (row-wise concatenation) or lines them up next to each other (column-wise concatenation). You can control this through the <span class="No-Break"><strong class="source-inline">axis</strong></span><span class="No-Break"> argument.</span></p>
+			<p>Call the pandas <strong class="source-inline">concat</strong> method, leaving <strong class="source-inline">axis</strong> as the default (0 for <span class="No-Break">row-wise concatenation):</span></p>
+			<pre class="source-code">
+pd.concat([asset, asset_2]).drop_duplicates()</pre>			<p>Here are the <span class="No-Break">concatenated DataFrames:</span></p>
+			<div>
+				<div id="_idContainer029" class="IMG---Figure">
+					<img src="image/B21323_02_8.jpg" alt="Figure 2.8: Two DataFrames concatenated row-wise (stacked on top of each other)" width="926" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.8: Two DataFrames concatenated row-wise (stacked on top of each other)</p>
+			<p>The method takes a list of DataFrames to concatenate. In this example, we concatenated two identical DataFrames before dropping the duplicate values using the <span class="No-Break"><strong class="source-inline">drop_duplicates</strong></span><span class="No-Break"> method.</span></p>
+			<h3>Pivoting a DataFrame such as Excel</h3>
+			<p>Pivot tables are ubiquitous in Excel. They’re used to aggregate data along a defined set of columns. They work the same <a id="_idIndexMarker101"></a>way in pandas. In this example, we’ll aggregate the returns using three methods – <strong class="source-inline">sum</strong>, <strong class="source-inline">mean</strong>, <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">std</strong></span><span class="No-Break">:</span></p>
+			<p>Call the <span class="No-Break">pivot_table method:</span></p>
+			<pre class="source-code">
+pd.pivot_table(
+    data=asset,
+    values="price_diff",
+    columns="gain",
+    aggfunc=["sum", "mean", "std"]
+)</pre>			<p>The result is a pivoted DataFrame with <strong class="source-inline">MultiIndex</strong> <span class="No-Break">column labels:</span></p>
+			<div>
+				<div id="_idContainer030" class="IMG---Figure">
+					<img src="image/B21323_02_9.jpg" alt="Figure 2.9: A pivoted DataFrame" width="530" height="84"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.9: A pivoted DataFrame</p>
+			<h3>Grouping data on a key or index and applying an aggregate</h3>
+			<p>Grouping lets you aggregate different sections of your data. This is useful when you’re working with market data and a <a id="_idIndexMarker102"></a>single DataFrame contains prices for <span class="No-Break">multiple assets:</span></p>
+			<ol>
+				<li>Concatenate asset data and benchmark data into the <span class="No-Break">same DataFrame:</span><pre class="source-code">
+concated = pd.concat([asset, benchmark])</pre></li>				<li>Group the resulting DataFrame by the <strong class="source-inline">symbol</strong> column, return the <strong class="source-inline">adj_close</strong> column, and apply the <span class="No-Break"><strong class="source-inline">ohlc</strong></span><span class="No-Break"> aggregate:</span><pre class="source-code">
+concated.groupby("symbol").close.ohlc()</pre><p class="list-inset">The result is a DataFrame with <strong class="source-inline">open</strong>, <strong class="source-inline">high</strong>, <strong class="source-inline">low</strong>, and <strong class="source-inline">close</strong> properties for the asset symbol (<strong class="bold">AAPL</strong>) and the benchmark <a id="_idIndexMarker103"></a><span class="No-Break">symbol (</span><span class="No-Break"><strong class="bold">SPY</strong></span><span class="No-Break">):</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer031" class="IMG---Figure">
+					<img src="image/B21323_02_10.jpg" alt="Figure 2.10: Grouped DataFrame" width="414" height="106"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.10: Grouped DataFrame</p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">The <strong class="source-inline">ohlc</strong> aggregate is a pandas <strong class="source-inline">Resampler</strong>. <strong class="source-inline">open</strong> is the first value of the group, <strong class="source-inline">high</strong> is the maximum value of the<a id="_idIndexMarker104"></a> group, <strong class="source-inline">low</strong> is the minimum value of the group, and <strong class="source-inline">close</strong> is the last value of <span class="No-Break">the group.</span></p>
+			<h3>Joining options data together to create straddle prices</h3>
+			<p>DataFrame joins are similar to SQL joins. It combines two DataFrames based on a matching key. A great use <a id="_idIndexMarker105"></a>case for joins is combining two DataFrames containing options chains to price straddles. A straddle is a complex options position made up of a long call and long put with the same strike <span class="No-Break">and expiration:</span></p>
+			<ol>
+				<li>Download option chains data using the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+chains = obb.derivatives.options.chains(
+    "AAPL", provider="cboe")</pre></li>				<li>Filter out the call options and the put options for a <span class="No-Break">specific expiration:</span><pre class="source-code">
+expirations = chains.expiration.unique()
+calls = chains[
+    (chains.optionType == "call")
+    &amp; (chains.expiration == expirations[5])
+]
+puts = chains[
+    (chains.optionType == "put")
+    &amp; (chains.expiration == expirations[5])
+]</pre></li>			</ol>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">The pandas <strong class="source-inline">unique</strong> method returns an array of unique values from the Series. In this case, it returns a unique set of expiration<a id="_idIndexMarker106"></a> dates. From there, we select the expiration at index 5, which is sufficiently into the future and is where there will be <span class="No-Break">trading activity.</span></p>
+			<ol>
+				<li value="3">Set the index to the<a id="_idIndexMarker107"></a> <span class="No-Break">strike prices:</span><pre class="source-code">
+calls_strike = calls.set_index("strike")
+puts_strike = puts.set_index("strike")</pre></li>				<li>Then, join the call DataFrame on the put DataFrame using a <span class="No-Break">left join:</span><pre class="source-code">
+joined = calls_strike.join(
+    puts_strike,
+    how="left",
+    lsuffix="_call",
+    rsuffix="_put"
+)</pre><p class="list-inset">Since both DataFrames have a column named <strong class="source-inline">lastPrice</strong>, we add the <strong class="source-inline">lsuffix</strong> and <strong class="source-inline">rsuffix</strong> arguments to distinguish the <strong class="source-inline">lastPrice</strong> columns from <span class="No-Break">each other.</span></p></li>				<li>Use only the price columns from the <span class="No-Break">joined DataFrame:</span><pre class="source-code">
+prices = joined[["last_trade_price_call",
+     "last_trade_price_put"]]</pre></li>				<li>Sum up the call and put prices by using the <strong class="source-inline">axis</strong> argument in the <span class="No-Break"><strong class="source-inline">sum</strong></span><span class="No-Break"> method:</span><pre class="source-code">
+prices["straddle_price"] = prices.sum(axis=1)</pre><p class="list-inset">The result is a DataFrame with the strike prices as the index, and the call, put, and straddle prices as columns for <a id="_idIndexMarker108"></a><span class="No-Break">each strike:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer032" class="IMG---Figure">
+					<img src="image/B21323_02_11.jpg" alt="Figure 2.11: DataFrame containing call, put, and straddle prices" width="464" height="406"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.11: DataFrame containing call, put, and straddle prices</p>
+			<h2 id="_idParaDest-56"><a id="_idTextAnchor059"></a>How it works…</h2>
+			<p>In this recipe, we covered four ways of <span class="No-Break">manipulating DataFrames.</span></p>
+			<p>DataFrames supports column addition via the <strong class="source-inline">df["new_col"] = value</strong> assignment syntax. For aggregates, methods such as <strong class="source-inline">groupby</strong> and <strong class="source-inline">agg</strong> compute summary metrics, which can be joined to the original DataFrame. By using Boolean indexing, such as <strong class="source-inline">df["new_col"] = df["existing_col"] &gt; threshold</strong>, we can create new columns based<a id="_idIndexMarker109"></a> <span class="No-Break">on conditions.</span></p>
+			<p>The <strong class="source-inline">pivot_table</strong> method reshapes data, providing a multidimensional analysis tool similar to pivot tables in Excel. By specifying the <strong class="source-inline">index</strong> and <strong class="source-inline">columns</strong> parameters, we can set row and column keys, respectively. The <strong class="source-inline">values</strong> parameter denotes which DataFrame columns to aggregate, and <strong class="source-inline">aggfunc</strong> defines the aggregation function, such as <strong class="source-inline">sum</strong> or <strong class="source-inline">mean</strong>. This method then constructs a new DataFrame, where rows and columns are determined by unique combinations of <span class="No-Break">key values.</span></p>
+			<p>The <strong class="source-inline">groupby</strong> method enables data segmentation based on column values. By passing one or multiple column names to <strong class="source-inline">groupby</strong>, we create a <strong class="source-inline">GroupBy</strong> object, segmenting the data. This object allows aggregation, transformation, or filtering of these groups using methods such as <strong class="source-inline">sum</strong>, <strong class="source-inline">mean</strong>, or <strong class="source-inline">apply</strong>. The result is a DataFrame with an index based on the grouping columns and aggregated or <span class="No-Break">transformed values.</span></p>
+			<p>Finally, we covered the join method, which combines two DataFrames based on their indexes. Specifying the <strong class="source-inline">on</strong> parameter can alter the default behavior, using a particular column as the join key. The <strong class="source-inline">how</strong> parameter determines the type of join: <strong class="source-inline">left</strong>, <strong class="source-inline">right</strong>, <strong class="source-inline">inner</strong>, or <strong class="source-inline">outer</strong>. This method appends columns from the joining DataFrame to the calling DataFrame based on matching index or <span class="No-Break">column values.</span></p>
+			<h2 id="_idParaDest-57"><a id="_idTextAnchor060"></a>There’s more…</h2>
+			<p>The pandas <strong class="source-inline">groupby</strong> method is one of the most used transforms since it lets you aggregate and perform analysis on different chunks of data in the same DataFrame. Here are a few more ways to <span class="No-Break">use it.</span></p>
+			<h3>Grouping by multiple columns</h3>
+			<p><strong class="source-inline">groupby</strong> can be used with multiple columns, providing a detailed view of your data. This is useful when you want to group <a id="_idIndexMarker110"></a>data based on a combination of values from different columns. For example, let’s say you want to aggregate the open interest for <span class="No-Break">each contract:</span></p>
+			<pre class="source-code">
+(
+    chains
+    .groupby(
+        ["option_type", "strike", "expiration"]
+    )
+    .open_interest
+    .sum()
+)</pre>			<p>The result is a Series with a <strong class="source-inline">MultiIndex</strong> object composed of <strong class="source-inline">optionType</strong>, <strong class="source-inline">strike</strong>, and <strong class="source-inline">expiration</strong>. The<a id="_idIndexMarker111"></a> values are the sum of the <strong class="source-inline">openInterest</strong> aggregate for <span class="No-Break">each group:</span></p>
+			<div>
+				<div id="_idContainer033" class="IMG---Figure">
+					<img src="image/B21323_02_12.jpg" alt="Figure 2.12: Option chains grouped by option type, strike, and expiration with the openInterest aggregate" width="368" height="215"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.12: Option chains grouped by option type, strike, and expiration with the openInterest aggregate</p>
+			<h3>Applying different methods to different columns</h3>
+			<p>You can use <strong class="source-inline">agg</strong> to apply specific methods <a id="_idIndexMarker112"></a>to specific columns after grouping. For example, let’s say you want to find the maximum <strong class="source-inline">lastPrice</strong> and the total <strong class="source-inline">openInterest</strong> for <span class="No-Break">each </span><span class="No-Break"><strong class="source-inline">optionType</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+(
+    chains
+    .groupby(
+        ["option_type", "strike", "expiration"]
+    )
+    .agg({
+        "last_trade_price": "max",
+        "open_interest": "sum"
+    })
+)</pre>			<p>This provides a DataFrame with <strong class="source-inline">option_type</strong>, <strong class="source-inline">strike</strong>, and <strong class="source-inline">expiration</strong> as the indexes and two columns: one<a id="_idIndexMarker113"></a> with the maximum <strong class="source-inline">last_price</strong> and the other with the sum of <strong class="source-inline">open_interest</strong> for each option type. It offers a snapshot of the highest option price and total open interest for the call and <span class="No-Break">put options:</span></p>
+			<div>
+				<div id="_idContainer034" class="IMG---Figure">
+					<img src="image/B21323_02_13.jpg" alt="Figure 2.13: Maximum price and aggregate open interest for each combination of option type, strike, and expiration" width="460" height="406"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.13: Maximum price and aggregate open interest for each combination of option type, strike, and expiration</p>
+			<h3>Applying custom functions</h3>
+			<p>You can apply your own functions using the <strong class="source-inline">apply</strong> method. For example, let’s say you want to calculate the <a id="_idIndexMarker114"></a>average spread (difference between <strong class="source-inline">ask</strong> and <strong class="source-inline">bid</strong>) for each group <span class="No-Break">of </span><span class="No-Break"><strong class="source-inline">optionType</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+(
+    chains
+    .groupby(["option_type"])
+    .apply(lambda x: (x["ask"] - x["bid"]).mean(),        include_groups=False)
+)</pre>			<p>The result is a Series with <strong class="source-inline">option_type</strong> as the index, where the values represent the average spread for each <span class="No-Break">option type:</span></p>
+			<div>
+				<div id="_idContainer035" class="IMG---Figure">
+					<img src="image/B21323_02_14.jpg" alt="Figure 2.14: Average spread for calls and puts" width="136" height="73"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.14: Average spread for calls and puts</p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">A lambda function can’t be defined using the <strong class="source-inline">def</strong> keyword. It can accept any number of input arguments and returns any number of outputs. Lambda functions must exist on a single line and are useful for logic that can be <span class="No-Break">written concisely.</span></p>
+			<h3>Grouping and transforming data</h3>
+			<p>The <strong class="source-inline">transform</strong> method can be used after <strong class="source-inline">groupby</strong> to return a Series with the same shape as the original, where each <a id="_idIndexMarker115"></a>group is replaced with the value from a method applied to that <a id="_idIndexMarker116"></a>group. For example, let’s say you want to compute the z-score of <strong class="source-inline">lastPrice</strong> within each <span class="No-Break"><strong class="source-inline">expiration</strong></span><span class="No-Break"> date:</span></p>
+			<pre class="source-code">
+(
+    chains
+    .groupby("expiration")
+    .last_trade_price
+    .transform(lambda x: (x - x.mean()) / x.std())
+)</pre>			<p>This results in a Series of the<a id="_idIndexMarker117"></a> same length as <strong class="source-inline">chains</strong>, where <strong class="source-inline">lastPrice</strong> is replaced with its z-score value within<a id="_idIndexMarker118"></a> each <strong class="source-inline">expiration</strong> date. The z-score can be useful for comparisons as it puts all the prices on the same scale relative to their specific expiration <span class="No-Break">date group:</span></p>
+			<div>
+				<div id="_idContainer036" class="IMG---Figure">
+					<img src="image/B21323_02_15.jpg" alt="Figure 2.15: Creating a standardized price within each expiration" width="397" height="219"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.15: Creating a standardized price within each expiration</p>
+			<h2 id="_idParaDest-58"><a id="_idTextAnchor061"></a>See also</h2>
+			<p>For more on option straddles, Investopedia offers a high-quality description. To learn more about the methods that were used in this recipe, take a look at the <span class="No-Break">following documentation:</span></p>
+			<ul>
+				<li>Understanding option <span class="No-Break">staddles: </span><a href="https://www.investopedia.com/terms/s/straddle.asp"><span class="No-Break">https://www.investopedia.com/terms/s/straddle.asp</span></a></li>
+				<li>Documentation on concatenating pandas data <span class="No-Break">structures: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.concat.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.concat.html</span></a></li>
+				<li>Documentation on pivoting <a id="_idIndexMarker119"></a>pandas <span class="No-Break">DataFrames: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pivot.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pivot.html</span></a></li>
+				<li>Documentation on grouping pandas <span class="No-Break">DataFrames: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.groupby.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.groupby.html</span></a></li>
+				<li>Documentation on joining pandas <span class="No-Break">DataFrames: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.join.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.join.html</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-59"><a id="_idTextAnchor062"></a>Examining and selecting data from DataFrames</h1>
+			<p>Once you’ve loaded, manipulated, and transformed data in DataFrames, the next step is retrieving the data from DataFrames. This is where indexing and selecting data come into play. This functionality allows you to access data using methods such as <strong class="source-inline">iloc</strong> and <strong class="source-inline">loc</strong> and techniques such as Boolean indexing or query functions. These methods can target data based on its<a id="_idIndexMarker120"></a> position, labels, or condition based on whether you’re after a specific row, column, or combination. Inspection enables potential issues to be<a id="_idIndexMarker121"></a> identified, such as missing values, outliers, or inconsistencies, that can affect analysis and modeling. Additionally, an initial inspection provides insights into the nature of data, helping determine appropriate preprocessing steps and <span class="No-Break">analysis methods.</span></p>
+			<h2 id="_idParaDest-60"><a id="_idTextAnchor063"></a>How to do it…</h2>
+			<p>Let’s start by downloading stock <span class="No-Break">price data:</span></p>
+			<ol>
+				<li>Start by importing pandas and the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Then, load <span class="No-Break">some data:</span><pre class="source-code">
+df = obb.equity.price.historical(
+    "AAPL",
+    start_date="2021-01-01",
+    provider="yfinance"
+)</pre></li>				<li>Display the first <span class="No-Break">5 records:</span><pre class="source-code">
+df.head(5)</pre></li>				<li>Display the last <span class="No-Break">5 records:</span><pre class="source-code">
+df.tail(5)</pre></li>				<li>Return the DataFrame as<a id="_idIndexMarker122"></a> a <span class="No-Break">NumPy array:</span><pre class="source-code">
+df.values</pre></li>				<li>Get <span class="No-Break">descriptive statistics:</span><pre class="source-code">
+df.describe()</pre></li>				<li>Rename the columns so that<a id="_idIndexMarker123"></a> they follow <span class="No-Break">Python conventions:</span><pre class="source-code">
+df.columns = [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "dividends",
+    "splits",
+]</pre></li>				<li>Select one column <span class="No-Break">of data:</span><pre class="source-code">
+df["close"]</pre></li>			</ol>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">When selecting one column from a DataFrame, the return type is a Series. If you try to apply a DataFrame method on <a id="_idIndexMarker124"></a>a Series, this results in an exception. To select one column while returning a<a id="_idIndexMarker125"></a> DataFrame instead of a Series, slice the DataFrame using a list by <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">df[["close"]].</strong></span></p>
+			<ol>
+				<li value="9">Select rows <span class="No-Break">by index:</span><pre class="source-code">
+df[0:3]</pre></li>			</ol>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">When slicing Python objects using indexes, the result <em class="italic">is not</em> inclusive of the last index. For example, when slicing using indexes 0:3, the values at index location 0, 1, and 2 are returned, but not the value at index <span class="No-Break">location 3.</span></p>
+			<ol>
+				<li value="10">pandas is smart enough to turn strings into <strong class="source-inline">DatetimeIndex</strong> values and use them to return a range of data between <span class="No-Break">two dates:</span><pre class="source-code">
+df.index = pd.to_datetime(df.index)
+df["2021-01-02":"2021-01-11"]</pre></li>			</ol>
+			<p class="callout-heading"> Important note</p>
+			<p class="callout">When slicing Python objects using labels, the result <em class="italic">is</em> inclusive of the last label. For example, when slicing using labels “2021-01-02”:”2021-01-11”, the value at label location “2021-01-11” is included in the <span class="No-Break">return value.</span></p>
+			<h3>Selection by label using loc</h3>
+			<p>The <strong class="source-inline">loc</strong> method is a method that’s used for<a id="_idIndexMarker126"></a> data selection based on label-based indexing. It allows data to be selected by row, column, or both, using labels of rows or list-like objects. This method is useful when the index of a DataFrame is a label other than a <span class="No-Break">numerical series:</span></p>
+			<ol>
+				<li>Selecting a single row transposes the Series and puts the DataFrame columns as <span class="No-Break">row labels:</span><pre class="source-code">
+df.loc[df.index[0]]</pre></li>				<li>Selecting a single row and single column returns <span class="No-Break">a scalar:</span><pre class="source-code">
+df.loc[df.index[0], "close"]</pre></li>				<li>Selecting a range of rows and a list of columns returns a subsection of <span class="No-Break">the data:</span><pre class="source-code">
+df.loc[df.index[0:6], ["high", "low"]]</pre></li>				<li>Selecting a range of labels <a id="_idIndexMarker127"></a>and a list of columns returns a subsection of <span class="No-Break">the data:</span><pre class="source-code">
+df.loc["2021-01-02":"2021-01-11", ["high", "low"]]</pre></li>			</ol>
+			<h3>Selection by position using iloc</h3>
+			<p>The pandas <strong class="source-inline">iloc</strong> method is a data <a id="_idIndexMarker128"></a>selection method that’s used for indexing based on integer locations. <strong class="source-inline">iloc</strong> works independently of the DataFrame’s <span class="No-Break">index labels:</span></p>
+			<ol>
+				<li>Selecting a single row by index location transposes the Series and puts the DataFrame columns as <span class="No-Break">row labels:</span><pre class="source-code">
+df.iloc[3]</pre></li>				<li>Selecting a range of rows by index and a range of columns by index returns a subset of <span class="No-Break">the data:</span><pre class="source-code">
+df.iloc[3:5, 0:2]</pre></li>				<li>Selecting a combination of specific rows and columns by index <span class="No-Break">works too:</span><pre class="source-code">
+df.iloc[[1, 2, 4], [0, 2]]</pre></li>			</ol>
+			<h3>Selection by Boolean indexing</h3>
+			<p>Boolean indexing involves generating a Boolean Series that corresponds to the rows in the DataFrame, where <strong class="source-inline">True</strong> indicates that the row meets the condition and <strong class="source-inline">False</strong> denotes it does not. By passing this<a id="_idIndexMarker129"></a> Boolean Series to the DataFrame, it returns only the rows where the condition is <strong class="source-inline">True</strong>, thereby allowing for conditional selection and manipulation <span class="No-Break">of data:</span></p>
+			<ol>
+				<li>Inspect where a condition is True for <span class="No-Break">each row:</span><pre class="source-code">
+df.close &gt; df.close.mean()</pre></li>				<li>Using single-column values to <span class="No-Break">select data:</span><pre class="source-code">
+df[df.close &gt; df.close.mean()]</pre></li>				<li>Use the result to return all the rows and the data at column index <span class="No-Break">location 0:</span><pre class="source-code">
+df[df.close &gt; df.close.mean()].iloc[:, 0]</pre></li>				<li>Use label-based indexing with Boolean indexing to create <span class="No-Break">query-like slicing:</span><pre class="source-code">
+df.loc[
+    (df.close &gt; df.close.mean())
+    &amp; (df.close.mean() &gt; 100)
+    &amp; (df.volume &gt; df.volume.mean())
+]</pre></li>			</ol>
+			<h2 id="_idParaDest-61"><a id="_idTextAnchor064"></a>How it works…</h2>
+			<p>The <strong class="source-inline">loc</strong> method is for label-based <a id="_idIndexMarker130"></a>data selection within a DataFrame or Series. We can reference rows and columns using their labels, defining both the row index and column name in <strong class="source-inline">df.loc[row, column]</strong> format. It supports slicing, as we saw previously, enabling multiple rows and columns to be selected based on <span class="No-Break">label ranges.</span></p>
+			<p>The <strong class="source-inline">iloc</strong> method is for<a id="_idIndexMarker131"></a> integer-location-based indexing. We use the index positions referencing rows and columns in <strong class="source-inline">df.iloc[row, column]</strong> format. It also supports slicing, allowing multiple rows and columns to be selected based on integer ranges. Unlike <strong class="source-inline">loc</strong>, <strong class="source-inline">iloc</strong> disregards index or column labels and strictly operates on <span class="No-Break">integer positions.</span></p>
+			<p>Boolean indexing allows for data filtering based on condition evaluations. Within a DataFrame or Series, a condition that’s applied to a column or the entire structure returns a Boolean array, where <strong class="source-inline">True</strong> values indicate rows meeting the condition. By placing this Boolean array within the DataFrame’s square brackets – for example, <strong class="source-inline">df[boolean_array]</strong> – only the rows with <strong class="source-inline">True</strong> values are extracted. Multiple conditions can be combined using the <strong class="source-inline">&amp;</strong> (and), <strong class="source-inline">|</strong> (or), and <strong class="source-inline">~</strong> (not) operators. Additionally, the <strong class="source-inline">query</strong> method can be used as an alternative to achieve the same result in a more readable syntax. Boolean indexing can return results from full DataFrames considerably faster than looping or enumerating through <span class="No-Break">DataFrame rows.</span></p>
+			<h2 id="_idParaDest-62"><a id="_idTextAnchor065"></a>There’s more…</h2>
+			<p>Indexing is one of the most<a id="_idIndexMarker132"></a> important aspects of working with pandas. Let’s look at some<a id="_idIndexMarker133"></a> advanced examples of how to <span class="No-Break">slice data.</span></p>
+			<h3>Partial string indexing</h3>
+			<p>You can select data using a <strong class="source-inline">DatetimeIndex</strong> object based on a <span class="No-Break">partial string:</span></p>
+			<pre class="source-code">
+df["2023"]</pre>			<p>The preceding code will return a DataFrame <a id="_idIndexMarker134"></a>containing all records from 2023. The resulting DataFrame maintains the same columns as the original DataFrame but only includes rows where the index falls <span class="No-Break">within 2023.</span></p>
+			<p>You can also include <span class="No-Break">the month:</span></p>
+			<pre class="source-code">
+df["2023-07"]</pre>			<p>The preceding code will return a <a id="_idIndexMarker135"></a>DataFrame with all records from <span class="No-Break">July 2023.</span></p>
+			<h3>Using at for fast access to a scalar</h3>
+			<p>If we want to quickly access the value <a id="_idIndexMarker136"></a>of a specific cell, we can use the <strong class="source-inline">at</strong> accessor. For example, to get the <strong class="source-inline">close</strong> price on July 12, 2023, we can run the <span class="No-Break">following command:</span></p>
+			<pre class="source-code">
+df.at["2023-07-12", "close"]</pre>			<p>The result is the closing price on July 12, 2023. The <strong class="source-inline">at</strong> accessor provides a fast way to access a single value at a specific <span class="No-Break">row-column pair.</span></p>
+			<h3>Using nsmallest and nlargest</h3>
+			<p>Pandas provides handy methods to get rows with the smallest or largest values in a column. For instance, to get <a id="_idIndexMarker137"></a>the five rows with the highest volume, we can use the <span class="No-Break">following command:</span></p>
+			<pre class="source-code">
+df.nlargest(5, "volume")</pre>			<p>The result is a DataFrame with the five rows with the highest <span class="No-Break"><strong class="source-inline">volume</strong></span><span class="No-Break"> values.</span></p>
+			<h3>Using the query method to query DataFrames</h3>
+			<p>The <strong class="source-inline">query</strong> method allows you to query a DataFrame in a more readable way. For instance, to get all rows<a id="_idIndexMarker138"></a> where the <strong class="source-inline">close</strong> price is higher than the <strong class="source-inline">open</strong> price, you can use the <span class="No-Break">following command:</span></p>
+			<pre class="source-code">
+df.query("close &gt; open")</pre>			<p>The resulting DataFrame will contain all rows where the <strong class="source-inline">close</strong> price was higher than the <span class="No-Break"><strong class="source-inline">open</strong></span><span class="No-Break"> price.</span></p>
+			<h2 id="_idParaDest-63"><a id="_idTextAnchor066"></a>See also</h2>
+			<p>Indexing can be a complex topic that takes practice to master. This recipe covers many use cases that are common in algorithmic trading. For more details, take a look at the following documentation on indexing and slicing pandas <span class="No-Break">DataFrames: </span><a href="https://pandas.pydata.org/docs/user_guide/indexing.html"><span class="No-Break">https://pandas.pydata.org/docs/user_guide/indexing.html</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-64"><a id="_idTextAnchor067"></a>Calculating asset returns using pandas</h1>
+			<p>Returns are integral to understanding the performance of a portfolio. There are two types: simple returns and compound (or <span class="No-Break">log) returns.</span></p>
+			<p><strong class="bold">Simple returns</strong>, which are calculated as<a id="_idIndexMarker139"></a> the difference in price from one period to<a id="_idIndexMarker140"></a> the next divided by the price at the<a id="_idIndexMarker141"></a> beginning of the period, are beneficial in certain circumstances. They aggregate across assets, meaning the simple return of a portfolio is the aggregate of the returns of the individual assets, weighted according to their proportions. This trait makes simple returns practical for comparing assets and evaluating portfolio performance <a id="_idIndexMarker142"></a>over <span class="No-Break">short-term intervals.</span></p>
+			<p>Simple returns are defined <span class="No-Break">as follows:</span></p>
+			<p><img src="image/1.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;R&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:math&gt;' style="vertical-align:-0.772em;height:2.144em;width:9.397em" width="392" height="89"/></p>
+			<p>On the other hand, <strong class="bold">compound returns</strong>, which are calculated <a id="_idIndexMarker143"></a>using the natural logarithm of the price-relative change, are additive over time. This quality makes them suitable for multi-period <a id="_idIndexMarker144"></a>analyses as the compound return for a given period is the sum of the log returns within <span class="No-Break">that period.</span></p>
+			<p>Compound returns are defined <span class="No-Break">as follows:</span></p>
+			<p><img src="image/2.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi mathvariant="normal"&gt;log&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi mathvariant="normal"&gt;log&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mi mathvariant="normal"&gt;l&lt;/mml:mi&gt;&lt;mml:mi mathvariant="normal"&gt;o&lt;/mml:mi&gt;&lt;mml:mi mathvariant="normal"&gt;g&lt;/mml:mi&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mo&gt;(&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;)&lt;/mml:mo&gt;&lt;/mml:math&gt;' style="vertical-align:-0.816em;height:2.187em;width:14.843em" width="618" height="91"/></p>
+			<p>Compound returns are generally preferred in practice since they have mathematical properties that make them easier to use in analytics. They’re less influenced by extreme values, which might skew the analysis. A major price change in a single period will have a large effect on simple returns but a moderated effect on <span class="No-Break">log returns.</span></p>
+			<p>The additive nature of compound returns across time is mathematically convenient. If you need to calculate the total return over a sequence of periods, you simply sum up the log returns, whereas for simple returns, you would need to calculate the product of (1 plus each period’s return) and then <span class="No-Break">subtract one.</span></p>
+			<p>Given a daily compounded return, <img src="image/3.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:math&gt;' style="vertical-align:-0.374em;height:0.822em;width:0.525em" width="23" height="34"/>, it is straightforward to solve back for the corresponding simple net <span class="No-Break">return, </span><span class="No-Break"><img src="image/4.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;R&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:math&gt;' style="vertical-align:-0.374em;height:1.022em;width:0.741em" width="32" height="43"/></span><span class="No-Break">:</span></p>
+			<p><img src="image/5.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;R&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:msup&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;e&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:msup&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:math&gt;' style="vertical-align:-0.374em;height:1.022em;width:4.620em" width="193" height="43"/></p>
+			<p>The difference between simple and log returns becomes evident when we look into the statistical properties. If we assume that asset prices follow a log-normal distribution, which may not always be the case, the log returns would be normally distributed. This assumption is beneficial because normal distribution is a cornerstone in statistical modeling. For daily or intraday data, the difference between simple and log returns is usually minimal, with log returns generally being <span class="No-Break">slightly smaller.</span></p>
+			<h2 id="_idParaDest-65"><a id="_idTextAnchor068"></a>How to do it…</h2>
+			<p>Let’s start building returns using stock data from the <span class="No-Break">OpenBB Platform:</span></p>
+			<ol>
+				<li>Import pandas, NumPy, and <a id="_idIndexMarker145"></a>the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download stock <a id="_idIndexMarker146"></a>price data <span class="No-Break">for AAPL:</span><pre class="source-code">
+data = obb.equity.price.historical(
+    "AAPL",
+    provider="yfinance"
+)</pre></li>				<li>Select the <span class="No-Break">close data:</span><pre class="source-code">
+df = data.loc[:, ["close"]]</pre></li>				<li>Add a new column with simple returns and compound returns using the adjusted <span class="No-Break">closing price:</span><pre class="source-code">
+df["simple"] = df["close"].pct_change()
+df["compound"] = np.log(
+    df["close"] / df["close"].shift()
+)</pre></li>			</ol>
+			<p>The resulting DataFrame now has two <span class="No-Break">additional columns:</span></p>
+			<div>
+				<div id="_idContainer042" class="IMG---Figure">
+					<img src="image/B21323_02_16.jpg" alt="Figure 2.16: The resulting DataFrame with daily simple and compound returns" width="341" height="406"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.16: The resulting DataFrame with daily simple and compound returns</p>
+			<h2 id="_idParaDest-66"><a id="_idTextAnchor069"></a>How it works…</h2>
+			<p>First, we imported NumPy for <a id="_idIndexMarker147"></a>numerical operations, pandas for data <a id="_idIndexMarker148"></a>manipulation, and the OpenBB Platform for financial <span class="No-Break">data retrieval.</span></p>
+			<p>Then, we used the OpenBB Platform’s <strong class="source-inline">stocks.load</strong> method to fetch the stock price data for AAPL. The data was stored in <span class="No-Break">a DataFrame.</span></p>
+			<p>Next, we created a new DataFrame containing only the <strong class="source-inline">close</strong> column. We did this using the <strong class="source-inline">loc</strong> function, a label-based <span class="No-Break">data selector.</span></p>
+			<p>After, we used the <strong class="source-inline">pct_change</strong> method to calculate simple returns, which represent the percentage change in the adjusted close price from the previous day. The result was stored in a new column <span class="No-Break">called </span><span class="No-Break"><strong class="source-inline">simple</strong></span><span class="No-Break">.</span></p>
+			<p>For compound returns, we calculated the ratio of the current day’s adjusted close price to the previous day’s price using the <strong class="source-inline">shift</strong> method. This shifted the DataFrame index by one period. Then, we took the natural logarithm of these ratios with <strong class="source-inline">log</strong>, reflecting the formula for compound returns. The results were stored in another new column <span class="No-Break">called </span><span class="No-Break"><strong class="source-inline">compound</strong></span><span class="No-Break">.</span></p>
+			<h2 id="_idParaDest-67"><a id="_idTextAnchor070"></a>There’s more…</h2>
+			<p>The <strong class="source-inline">pct_change</strong> method accepts a <strong class="source-inline">periods</strong> argument<a id="_idIndexMarker149"></a> that will shift the input data by that number before computing <a id="_idIndexMarker150"></a>the simple return. This is useful for computing returns that are multiple periods, such as <span class="No-Break">3 days:</span></p>
+			<pre class="source-code">
+df["close"].pct_change(periods=3)</pre>			<p>The result is a new Series, where each element represents a three-period simple return. Note that the first three elements of the resulting Series will be <strong class="source-inline">nan</strong> because there aren’t enough prior periods for the calculation. (We’ll learn how to fill in missing data in the<em class="italic"> Addressing Missing Data Issues</em> recipe in <span class="No-Break">this chapter.)</span></p>
+			<p>You can also do the same with compound returns by passing an argument to the <span class="No-Break"><strong class="source-inline">shift</strong></span><span class="No-Break"> method:</span></p>
+			<pre class="source-code">
+np.log(df["close"] / df["close"].shift(3))</pre>			<p>The <strong class="source-inline">pct_change</strong> method also accepts a <strong class="source-inline">freq</strong> parameter, which lets you resample the return to an aligned period. For example, instead of passing in 22 to the <strong class="source-inline">periods</strong> argument (since not all months have 22 trading days), you can pass <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">ME</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+df.index = pd.to_datetime(df.index)
+df["close"].pct_change(freq="ME").dropna()</pre>			<p>The result is a DataFrame with <span class="No-Break">monthly returns:</span></p>
+			<div>
+				<div id="_idContainer043" class="IMG---Figure">
+					<img src="image/B21323_02_17.jpg" alt="Figure 2.17: Series with simple returns resampled to a monthly frequency" width="799" height="490"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.17: Series with simple returns resampled to a monthly frequency</p>
+			<h2 id="_idParaDest-68"><a id="_idTextAnchor071"></a>See also</h2>
+			<p>For more on the <strong class="source-inline">pct_change</strong> method, see <a id="_idIndexMarker151"></a>the following <a id="_idIndexMarker152"></a><span class="No-Break">documentation: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pct_change.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pct_change.html</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-69"><a id="_idTextAnchor072"></a>Measuring the volatility of a return series</h1>
+			<p>Volatility plays an integral role in finance, serving <a id="_idIndexMarker153"></a>as a key indicator of risk linked to a particular asset. A higher degree of volatility suggests a greater risk associated with the asset as it indicates more significant price changes and, therefore, a less predictable <span class="No-Break">investment outcome.</span></p>
+			<p>Standard deviation is widely used as the measure of asset return volatility. It statistically quantifies the dispersion of asset returns from their mean, thus providing an effective metric for risk. When asset returns exhibit a larger standard deviation, it signifies more pronounced volatility, pointing to a higher risk level. Conversely, a lower standard deviation implies that the asset <a id="_idIndexMarker154"></a>returns are more stable and less likely to deviate significantly from their average, indicating a <span class="No-Break">lower risk.</span></p>
+			<p>The standard deviation’s value as a risk measure extends beyond its ability to quantify risk alone. It is a common component in calculating risk-adjusted returns that provides a more nuanced evaluation of investment performance by considering the risk taken to achieve the returns. The Sharpe ratio, for instance, is a popular risk-adjusted return measure that divides the excess return of an investment (over the risk-free rate) by its <span class="No-Break">standard deviation.</span></p>
+			<h2 id="_idParaDest-70"><a id="_idTextAnchor073"></a>How to do it…</h2>
+			<p>We’ll use AAPL’s historic stock price to compute the volatility. Here’s how <span class="No-Break">it’s done:</span></p>
+			<ol>
+				<li>Import the <span class="No-Break">necessary libraries:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Load stock price data from the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+df = obb.equity.price.historical(
+    "AAPL",
+    start_date="2020-01-01",
+    provider="yfinance"
+)</pre></li>				<li>Grab the series of adjusted <span class="No-Break">close prices:</span><pre class="source-code">
+close = df["close"]</pre></li>				<li> Compute the daily <span class="No-Break">simple return:</span><pre class="source-code">
+returns = close.pct_change()</pre></li>				<li>Calculate the daily standard deviation <span class="No-Break">of returns:</span><pre class="source-code">
+std_dev = returns.dropna().std()</pre></li>				<li>Annualize the standard deviation assuming 252 trading days in <span class="No-Break">a year:</span><pre class="source-code">
+annualized_std_dev = std_dev * np.sqrt(252)</pre><p class="list-inset">The result is a float that represents the annualized volatility over the <span class="No-Break">entire period.</span></p></li>			</ol>
+			<h2 id="_idParaDest-71"><a id="_idTextAnchor074"></a>How it works…</h2>
+			<p>The multiplication that’s done by <a id="_idIndexMarker155"></a>the square root of 252 in the calculation of standard deviation is based on the concept of scaling in statistics. Scaling is used when transferring a data point from one timescale to another. The number 252 is used because there are typically 252 trading days in a year. In statistical terms, variance, which is the square of standard deviation, is additive over time. This means that if you want to calculate the variance over a certain period, you can add up the variances for each sub-period. However, the standard deviation is not additive, but its square (that is, variance) is. To convert daily standard deviation into annual standard deviation, we must square it to get the variance, multiply this variance by 252 (the typical number of trading days in a year) to annualize, and then take the square root to revert to standard deviation. This process ensures we respect the additive property of variance while transitioning from daily to annual measure. By taking the square root of 252, we’re essentially projecting the daily volatility over a yearly timeframe under the assumption of independent <span class="No-Break">daily returns.</span></p>
+			<h2 id="_idParaDest-72"><a id="_idTextAnchor075"></a>There’s more…</h2>
+			<p>Depending on the frequency of returns, we can annualize the volatility measure to match. For example, if you’re looking over a long period, you may be dealing with monthly or quarterly returns. Alternatively, you may be working with daily data and want to resample to a monthly or <span class="No-Break">quarterly period:</span></p>
+			<pre class="source-code">
+close.index = pd.to_datetime(close.index)
+(
+    close
+    .pct_change(freq="ME")
+    .dropna()
+    .std()
+    * np.sqrt(12)
+)</pre>			<p>You can pass the <strong class="source-inline">freq</strong> argument to the <strong class="source-inline">pct_change</strong> method to generate monthly returns. Then, instead of multiplying the standard deviation by the square root of 252, you can multiply it by the square root <span class="No-Break">of </span><span class="No-Break"><strong class="source-inline">12</strong></span><span class="No-Break">.</span></p>
+			<p>Similarly, for quarters, you can <a id="_idIndexMarker156"></a>pass the <strong class="source-inline">freq</strong> argument and multiply the standard deviation by the square root <span class="No-Break">of 4:</span></p>
+			<pre class="source-code">
+(
+    close
+    .pct_change(freq="QE")
+    .dropna()
+    .std()
+    * np.sqrt(4)
+)</pre>			<p>In both cases, the result is a float that represents the <span class="No-Break">annualized volatility.</span></p>
+			<p>Looking at historical price changes, rather than just one moment, is important to get a broader picture of how much and how often the price has moved in the past. We’ll use the pandas <strong class="source-inline">rolling</strong> method to plot the annualized volatility <span class="No-Break">through time:</span></p>
+			<pre class="source-code">
+(
+    close
+    .pct_change()
+    .rolling(window=22)
+    .std()
+    * np.sqrt(252)
+).plot()</pre>			<p>This results in the <span class="No-Break">following plot:</span></p>
+			<div>
+				<div id="_idContainer044" class="IMG---Figure">
+					<img src="image/B21323_02_18.jpg" alt="Figure 2.18: Rolling annualized volatility based on a 22-day lookback window" width="668" height="490"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.18: Rolling annualized volatility based on a 22-day lookback window</p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">Rolling a method in pandas involves taking a range of data, applying a function or method that returns a single value, moving that range of data forward one step, applying the function, and repeating this. The result is a method being applied over a window of data that extends through the entire range <span class="No-Break">of data.</span></p>
+			<h2 id="_idParaDest-73"><a id="_idTextAnchor076"></a>See also</h2>
+			<p>Volatility is a critical part <a id="_idIndexMarker157"></a>of algorithmic trading. To learn more about volatility, take a look at the following article, which describes how investors think about volatility for risk <span class="No-Break">management: </span><span class="No-Break">https://www.investopedia.com/terms/v/volatility.asp</span><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-74"><a id="_idTextAnchor077"></a>Generating a cumulative return series</h1>
+			<p>Cumulative returns quantify the total <a id="_idIndexMarker158"></a>change in the value of an investment over a specific period. To compute the cumulative return of a series of simple single-period returns, you need to add 1 to each return, then multiply these results together, and finally subtract 1 from the product. Recall the formula for the <span class="No-Break">simple return:</span></p>
+			<p><img src="image/1.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;R&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:math&gt;' style="vertical-align:-0.772em;height:2.144em;width:9.397em" width="392" height="89"/></p>
+			<p>Upon writing <img src="image/7.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:math&gt;' style="vertical-align:-0.411em;height:1.398em;width:6.728em" width="280" height="58"/>, the two-period return can be expressed <span class="No-Break">as follows:</span></p>
+			<p><img src="image/8.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:mi&gt;R&lt;/mml:mi&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:math&gt;' style="vertical-align:-0.794em;height:2.166em;width:9.763em" width="407" height="90"/></p>
+			<p><img src="image/9.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;R&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;R&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:math&gt;' style="vertical-align:-0.408em;height:1.097em;width:8.998em" width="375" height="46"/></p>
+			<p>To compute the cumulative return of a series of continuously compounded single-period returns, you need to sum up all the single-period returns. This is because, in the case of continuously compounded returns, the logarithmic returns are additive. To illustrate this, consider a two-period compound return, which is defined <span class="No-Break">as follows:</span></p>
+			<p><img src="image/10.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi mathvariant="normal"&gt;ln&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;R&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi mathvariant="normal"&gt;ln&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi mathvariant="normal"&gt;ln&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi mathvariant="normal"&gt;ln&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;p&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;p&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:math&gt;' style="vertical-align:-0.794em;height:2.166em;width:25.384em" width="1058" height="90"/></p>
+			<p>Taking the exponent of both sides and rearranging the preceding formula gives us the <span class="No-Break">following output:</span></p>
+			<p><img src="image/11.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;p&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:msup&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;e&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;(&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;mml:mo&gt;)&lt;/mml:mo&gt;&lt;/mml:mrow&gt;&lt;/mml:msup&gt;&lt;/mml:math&gt;' style="vertical-align:-0.374em;height:1.254em;width:5.273em" width="220" height="52"/></p>
+			<p>Here, <img src="image/12.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;(&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;mml:mo&gt;)&lt;/mml:mo&gt;&lt;/mml:math&gt;' style="vertical-align:-0.374em;height:1.256em;width:1.935em" width="81" height="52"/>is the compounded growth rate of prices between periods <img src="image/13.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:math&gt;' style="vertical-align:-0.012em;height:0.646em;width:1.859em" width="78" height="27"/> and <img src="image/14.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:math&gt;' style="vertical-align:-0.012em;height:0.599em;width:0.305em" width="14" height="25"/>. Using <span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">P</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">t</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Base">_</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">P</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">t</span><span class="_-----MathTools-_Math_Operator">−</span><span class="_-----MathTools-_Math_Number">2</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Operator">=</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Base">(</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">P</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">t</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Base">_</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">P</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">t</span><span class="_-----MathTools-_Math_Operator">−</span><span class="_-----MathTools-_Math_Number">1</span><span class="_-----MathTools-_Math_Base">)</span><span class="_-----MathTools-_Math_Base">(</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">P</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">t</span><span class="_-----MathTools-_Math_Operator">−</span><span class="_-----MathTools-_Math_Number">1</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Base">_</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">P</span><span class="_-----MathTools-_Math_Base"> </span><span class="_-----MathTools-_Math_Variable">t</span><span class="_-----MathTools-_Math_Operator">−</span><span class="_-----MathTools-_Math_Number">2</span><span class="_-----MathTools-_Math_Base">)</span> and the fact that <img src="image/15.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"&gt;&lt;mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi mathvariant="normal"&gt;ln&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;x&lt;/mml:mi&gt;&lt;mml:mi&gt;y&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi mathvariant="normal"&gt;ln&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mrow&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;x&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:mrow&gt;&lt;/mml:mrow&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:mi mathvariant="normal"&gt;l&lt;/mml:mi&gt;&lt;mml:mi mathvariant="normal"&gt;n&lt;/mml:mi&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mo&gt;(&lt;/mml:mo&gt;&lt;mml:mi&gt;y&lt;/mml:mi&gt;&lt;mml:mo&gt;)&lt;/mml:mo&gt;&lt;/mml:math&gt;' style="vertical-align:-0.257em;height:1.065em;width:8.925em" width="372" height="44"/>, we get <span class="No-Break">the following:</span></p>
+			<p><img src="image/16.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mi mathvariant="normal"&gt;l&lt;/mml:mi&gt;&lt;mml:mi mathvariant="normal"&gt;n&lt;/mml:mi&gt;&lt;mml:mo&gt;⁡&lt;/mml:mo&gt;&lt;mml:mo&gt;(&lt;/mml:mo&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mo&gt;)&lt;/mml:mo&gt;&lt;/mml:math&gt;' style="vertical-align:-0.816em;height:2.187em;width:9.967em" width="415" height="91"/></p>
+			<p><img src="image/17.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:mi&gt;l&lt;/mml:mi&gt;&lt;mml:mi&gt;n&lt;/mml:mi&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:mi&gt;l&lt;/mml:mi&gt;&lt;mml:mi&gt;n&lt;/mml:mi&gt;&lt;mml:mfenced separators="|"&gt;&lt;mml:mrow&gt;&lt;mml:mfrac&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;P&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;2&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:mrow&gt;&lt;/mml:mfrac&gt;&lt;/mml:mrow&gt;&lt;/mml:mfenced&gt;&lt;/mml:math&gt;' style="vertical-align:-0.794em;height:2.166em;width:8.338em" width="347" height="90"/></p>
+			<p><img src="image/18.png" alt='&lt;mml:math xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" display="block"&gt;&lt;mml:mo&gt;=&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;mml:mo&gt;+&lt;/mml:mo&gt;&lt;mml:msub&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;r&lt;/mml:mi&gt;&lt;/mml:mrow&gt;&lt;mml:mrow&gt;&lt;mml:mi&gt;t&lt;/mml:mi&gt;&lt;mml:mo&gt;-&lt;/mml:mo&gt;&lt;mml:mn&gt;1&lt;/mml:mn&gt;&lt;/mml:mrow&gt;&lt;/mml:msub&gt;&lt;/mml:math&gt;' style="vertical-align:-0.374em;height:0.860em;width:3.592em" width="150" height="36"/></p>
+			<h2 id="_idParaDest-75"><a id="_idTextAnchor078"></a>Getting ready…</h2>
+			<p>We assume that you’ve followed the instructions from the previous recipes and have a Series called <strong class="source-inline">close</strong> with a <strong class="source-inline">DatetimeIndex</strong> object as <span class="No-Break">the index.</span></p>
+			<h2 id="_idParaDest-76"><a id="_idTextAnchor079"></a>How to do it…</h2>
+			<p>We’ll use pandas to <a id="_idIndexMarker159"></a>compute the cumulative sum of simple and <span class="No-Break">compound returns.</span></p>
+			<h3>The cumulative sum of simple returns</h3>
+			<p>We’ll start with the cumulative sum of<a id="_idIndexMarker160"></a> <span class="No-Break">simple returns:</span></p>
+			<ol>
+				<li>Compute the single period daily <span class="No-Break">simple returns:</span><pre class="source-code">
+returns = close.pct_change()</pre></li>				<li>Replace all <strong class="source-inline">nan</strong> values with zeros by using NumPy’s <strong class="source-inline">isnan</strong> method as <span class="No-Break">a mask:</span><pre class="source-code">
+returns[np.isnan(returns)] = 0</pre><p class="list-inset">Note that this is equivalent to <span class="No-Break">using pandas:</span></p><pre class="source-code">returns.fillna(0.0, inplace=True)</pre></li>				<li>Now, add <strong class="source-inline">1</strong> to each of the daily <span class="No-Break">simple returns:</span><pre class="source-code">
+returns += 1</pre></li>				<li>Use the <strong class="source-inline">cumprod</strong> method to build the cumulative product of returns and <span class="No-Break">subtract </span><span class="No-Break"><strong class="source-inline">1</strong></span><span class="No-Break">:</span><pre class="source-code">
+cumulative_returns = returns.cumprod() - 1</pre></li>				<li>Plot <span class="No-Break">the result:</span><pre class="source-code">
+cumulative_returns.plot()</pre><p class="list-inset">The result is the <span class="No-Break">following plot:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer058" class="IMG---Figure">
+					<img src="image/B21323_02_19.jpg" alt="Figure 2.19: Cumulative simple returns of AAPL" width="675" height="490"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.19: Cumulative simple returns of AAPL</p>
+			<h3>The cumulative sum of compound returns</h3>
+			<p>Next, we’ll build the cumulative<a id="_idIndexMarker161"></a> sum of <span class="No-Break">compound returns:</span></p>
+			<ol>
+				<li>Compute the single-period <span class="No-Break">compound returns:</span><pre class="source-code">
+log_returns = np.log(close / close.shift())</pre></li>				<li>Use the pandas <strong class="source-inline">cumsum</strong> method to build the cumulative product <span class="No-Break">of returns:</span><pre class="source-code">
+cumulative_log_returns = log_returns.cumsum()</pre></li>				<li>Plot <span class="No-Break">the result:</span><pre class="source-code">
+cumulative_log_returns.plot()</pre><p class="list-inset">The result is the <span class="No-Break">following plot:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer059" class="IMG---Figure">
+					<img src="image/B21323_02_20.jpg" alt="Figure 2.20: Cumulative compound returns of AAPL" width="675" height="490"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.20: Cumulative compound returns of AAPL</p>
+			<p>Note that simple returns and <a id="_idIndexMarker162"></a>compound returns will not be equal. Compound returns take into consideration returns earned on prior returns, while simple returns <span class="No-Break">do not.</span></p>
+			<h2 id="_idParaDest-77"><a id="_idTextAnchor080"></a>How it works…</h2>
+			<p><strong class="source-inline">isnan</strong> checks each value in the <strong class="source-inline">returns</strong> Series to see if it is a <strong class="source-inline">nan</strong> value. <strong class="source-inline">returns[np.isnan(returns)] = 0</strong> takes all the positions in the <strong class="source-inline">returns</strong> Series where the value is <strong class="source-inline">nan</strong> and replaces those <strong class="source-inline">nan</strong> values with <strong class="source-inline">0</strong>. To compute cumulative simple returns, we first need to add <strong class="source-inline">1</strong> to every single period return. This can be accomplished by incrementing every value in the returns Series by <strong class="source-inline">1</strong> with <strong class="source-inline">returns += 1</strong>. Finally, we generate the<a id="_idIndexMarker163"></a> cumulative product using the <strong class="source-inline">cumprod</strong>. It calculates the cumulative product of the Series, meaning it multiplies the values in the Series together and keeps track of the result. For example, if you have a Series with the numbers 1, 2, 3, and 4, the <strong class="source-inline">cumprod</strong> method will create a new Series with the values 1, <em class="italic">2 (1 x 2)</em>, <em class="italic">6 (1 x 2 x 3)</em>, and <em class="italic">24 (1 x 2 x 3 x 4)</em>. Finally, we subtract <strong class="source-inline">1</strong> from each value in the cumulative series, compute the compound returns, and call <strong class="source-inline">cumsum</strong> to generate the cumulative sum of the values. Instead of multiplying the values together via <strong class="source-inline">cumprod</strong>, <strong class="source-inline">cumsum</strong> <span class="No-Break">adds them.</span></p>
+			<h2 id="_idParaDest-78"><a id="_idTextAnchor081"></a>See also</h2>
+			<p>While computing <a id="_idIndexMarker164"></a>returns may seem trivial, it’s important to understand the difference between simple returns and compound returns. You can learn more about them, along with the methods we used to compute them, by taking a look at the <span class="No-Break">following documentation:</span></p>
+			<ul>
+				<li>A deep dive into the mathematics behind simple and compound returns (and a lot <span class="No-Break">more): </span><a href="https://bookdown.org/compfinezbook/introcompfinr/AssetReturnCalculations.html#continuously-compounded-returns"><span class="No-Break">https://bookdown.org/compfinezbook/introcompfinr/AssetReturnCalculations.html#continuously-compounded-returns</span></a></li>
+				<li>Documentation<a id="_idIndexMarker165"></a> on the pandas <strong class="source-inline">cumsum</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.Series.cumsum.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.Series.cumsum.html</span></a></li>
+				<li>Documentation on the<a id="_idIndexMarker166"></a> pandas <strong class="source-inline">cumprod</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.Series.cumprod.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.Series.cumprod.html</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-79"><a id="_idTextAnchor082"></a>Resampling data for different time frames</h1>
+			<p>Two types of resampling are upsampling, where data is converted into a higher frequency (such as daily data to hourly data), and downsampling, where data is converted into a lower frequency (such as daily data to monthly data). In financial data analysis, resampling can help in <a id="_idIndexMarker167"></a>various ways. For instance, if you have daily stock prices, you can resample this data to calculate monthly or yearly average prices, which can be useful for long-term trend analysis. A common use case is when aligning trade and quote data. There are a lot more quotes than trades – often an order of magnitude more – and we may need to align the open, high, low, and closing quote prices to the open, high, low, and closing trade data. Since the quotes and trades will have different timestamps, resampling to a 1-second resolution is a great way to align these disparate <span class="No-Break">data sources.</span></p>
+			<h2 id="_idParaDest-80"><a id="_idTextAnchor083"></a>How to do it…</h2>
+			<p>We’ll work on resampling stock price data from one period <span class="No-Break">to another:</span></p>
+			<ol>
+				<li>Import the <span class="No-Break">necessary libraries:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Use the OpenBB Platform to<a id="_idIndexMarker168"></a> download intraday data at <span class="No-Break">1-minute intervals:</span><pre class="source-code">
+df = obb.equity.price.historical(
+    "AAPL",
+    interval="1m",
+    provider="yfinance"
+)</pre></li>				<li>Resample the 1-minute resolution adjusted close data <span class="No-Break">to hourly:</span><pre class="source-code">
+resampled = df.resample(rule="h")["close"]</pre></li>				<li>Grab the first value within the resampled <span class="No-Break">time interval:</span><pre class="source-code">
+resampled.first()</pre><p class="list-inset">Here’s <span class="No-Break">the output:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer060" class="IMG---Figure">
+					<img src="image/B21323_02_21.jpg" alt="Figure 2.21: Resampled Series with the first value in the interval" width="467" height="234"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.21: Resampled Series with the first value in the interval</p>
+			<ol>
+				<li value="5">Now, grab the <span class="No-Break">last value:</span><pre class="source-code">
+resampled.last()</pre><p class="list-inset">Here’s <span class="No-Break">the output:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer061" class="IMG---Figure">
+					<img src="image/B21323_02_22.jpg" alt="Figure 2.22: Resampled Series with the last value in the interval" width="461" height="229"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.22: Resampled Series with the last value in the interval</p>
+			<ol>
+				<li value="6">Compute the<a id="_idIndexMarker169"></a> mean value within the resampled <span class="No-Break">time interval:</span><pre class="source-code">
+resampled.mean()</pre><p class="list-inset">Here’s <span class="No-Break">the output:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer062" class="IMG---Figure">
+					<img src="image/B21323_02_23.jpg" alt="Figure 2.23: Resampled Series with the mean value in the interval" width="461" height="231"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.23: Resampled Series with the mean value in the interval</p>
+			<ol>
+				<li value="7">Generate the open, high, low, and <a id="_idIndexMarker170"></a>closing values for the resampled <span class="No-Break">time interval:</span><pre class="source-code">
+resampled.ohlc()</pre><p class="list-inset">Here’s <span class="No-Break">the output:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer063" class="IMG---Figure">
+					<img src="image/B21323_02_24.jpg" alt="Figure 2.24: Resampled Series with the open, high, low, and closing values in the interval" width="444" height="371"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.24: Resampled Series with the open, high, low, and closing values in the interval</p>
+			<h2 id="_idParaDest-81"><a id="_idTextAnchor084"></a>How it works…</h2>
+			<p>The <strong class="source-inline">resample</strong> method is <a id="_idIndexMarker171"></a>used for time series data resampling and alters the frequency. By specifying a time frequency string, such as <strong class="source-inline">D</strong> for daily or <strong class="source-inline">M</strong> for monthly, we can decide on the new sampling rate. This method creates a <strong class="source-inline">Resampler</strong> object, upon which aggregation or transformation functions such as <strong class="source-inline">mean</strong> or <strong class="source-inline">sum</strong> can be applied. The resulting DataFrame or Series reflects the data that’s consolidated or redistributed to the desired frequency. There’s also a choice in how the boundaries of the bins are defined. The <strong class="source-inline">closed</strong> parameter can dictate which side of the bin interval is closed, either <strong class="source-inline">right</strong> or <strong class="source-inline">left</strong>. Moreover, the <strong class="source-inline">label</strong> parameter specifies which bin edge label to use for labeling the <span class="No-Break">aggregation result.</span></p>
+			<p>The <strong class="source-inline">resample</strong> method has several <span class="No-Break">useful arguments:</span></p>
+			<ul>
+				<li><strong class="source-inline">rule</strong>: This is the offset string or object representing <span class="No-Break">target conversion.</span></li>
+				<li><strong class="source-inline">axis</strong>: This specifies the axis to be resampled. By default, it’s <span class="No-Break"><strong class="source-inline">0</strong></span><span class="No-Break"> (index).</span></li>
+				<li><strong class="source-inline">closed</strong>: This specifies which side of the bin interval is closed. The options are <strong class="source-inline">right</strong> <span class="No-Break">or </span><span class="No-Break"><strong class="source-inline">left</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">label</strong>: This specifies which bin edge label to label the bucket with. The options are <strong class="source-inline">right</strong> <span class="No-Break">or </span><span class="No-Break"><strong class="source-inline">left</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">convention</strong>: This is used when resampling period data (a time series with <strong class="source-inline">PeriodIndex</strong>) with the <strong class="source-inline">start</strong> or <strong class="source-inline">end</strong> option. The default <span class="No-Break">is </span><span class="No-Break"><strong class="source-inline">end</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">kind</strong>: This is used when upsampling from low to high frequency. The options are <strong class="source-inline">timestamp</strong> or <strong class="source-inline">period</strong>. By default, <strong class="source-inline">timestamp</strong> <span class="No-Break">is used.</span></li>
+				<li><strong class="source-inline">loffset</strong>: This adjusts the resampled <span class="No-Break">time labels.</span></li>
+				<li><strong class="source-inline">base</strong>: This is used for adjusting the start of the bins to a <span class="No-Break">different timestamp.</span></li>
+				<li><strong class="source-inline">on</strong>: This is used for a <a id="_idIndexMarker172"></a>DataFrame, to resample based on the time of a particular column rather than the <span class="No-Break">DataFrame index.</span></li>
+				<li><strong class="source-inline">level</strong>: This is used for a <strong class="source-inline">MultiIndex</strong> DataFrame, to resample based on the time of a particular level of the <span class="No-Break"><strong class="source-inline">MultiIndex</strong></span><span class="No-Break"> object.</span></li>
+				<li><strong class="source-inline">origin</strong>: This defines the origin of the <span class="No-Break">adjusted timestamps.</span></li>
+				<li><strong class="source-inline">offset</strong>: This adjusts the start of the bins based on this <span class="No-Break">time delta.</span></li>
+			</ul>
+			<h2 id="_idParaDest-82"><a id="_idTextAnchor085"></a>There’s more…</h2>
+			<p>The <strong class="source-inline">resample</strong> and <strong class="source-inline">asfreq</strong> methods in pandas are both used to change the frequency of time series data, but they serve slightly different purposes and can be used in different scenarios. The <strong class="source-inline">resample</strong> method is primarily used for downsampling, where it provides different ways to aggregate the data for the new frequency (such as taking the mean, sum, maximum, minimum, and so on). When upsampling, <strong class="source-inline">resample</strong> can also interpolate the missing values by passing an arbitrary function to perform binning over a Series or DataFrame object in bins of <span class="No-Break">arbitrary size.</span></p>
+			<p>The <strong class="source-inline">asfreq</strong> method is used when you want to convert a time series into a specified frequency. It does not provide any aggregation or transformation – it simply changes the frequency of the data. If you’re upsampling (increasing the frequency), <strong class="source-inline">asfreq</strong> will introduce <strong class="source-inline">nan</strong> values for the newly created data points. If you’re downsampling (decreasing the frequency), <strong class="source-inline">asfreq</strong> will drop the data points that don’t fit into the <span class="No-Break">new frequency.</span></p>
+			<p>pandas offers over 40 offsets that we can use with both <strong class="source-inline">resample</strong> and <strong class="source-inline">asfreq</strong>. They allow for even more flexibility than passing in <strong class="source-inline">D</strong> or <strong class="source-inline">H</strong> (for day or minute). You can see a full list by <span class="No-Break">running </span><span class="No-Break"><strong class="source-inline">pd.offsets.__all__</strong></span><span class="No-Break">.</span></p>
+			<p>Downsample the minute data to daily and adjust the labels in the index so that they match <span class="No-Break">the frequency.</span></p>
+			<pre class="source-code">
+df.asfreq("D").to_period()</pre>			<p>The result is a <a id="_idIndexMarker173"></a>DataFrame. Note that the time portion of the index is dropped. Also, note the <strong class="source-inline">nan</strong> values on the days when there is no <span class="No-Break">market data:</span></p>
+			<div>
+				<div id="_idContainer064" class="IMG---Figure">
+					<img src="image/B21323_02_25.jpg" alt="Figure 2.25: DataFrame with frequency changed from 1 minute to calendar days" width="608" height="270"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.25: DataFrame with frequency changed from 1 minute to calendar days</p>
+			<p>The <strong class="source-inline">asfreq</strong> method incorporates a <strong class="source-inline">method</strong> argument, directing pandas on how to handle <strong class="source-inline">nan</strong> values. This argument permits either <strong class="source-inline">backfill</strong> to populate <strong class="source-inline">nan</strong> values using the preceding valid observation or <strong class="source-inline">pad</strong> to populate with the subsequent valid observation. Additionally, the <strong class="source-inline">fill_value</strong> parameter lets us specify a custom value for filling in missing entries during the <span class="No-Break">upsampling process.</span></p>
+			<p>If we want to avoid including <a id="_idIndexMarker174"></a>days with no market prices, we can use the business <span class="No-Break">day offset:</span></p>
+			<pre class="source-code">
+df.asfreq(pd.offsets.BDay())</pre>			<p>The result is a DataFrame that only includes valid business days in <span class="No-Break">the index:</span></p>
+			<div>
+				<div id="_idContainer065" class="IMG---Figure">
+					<img src="image/B21323_02_26.jpg" alt="Figure 2.26: DataFrame with frequency changed from 1 minute to business days" width="654" height="208"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.26: DataFrame with frequency changed from 1 minute to business days</p>
+			<p class="callout-heading">Important</p>
+			<p class="callout"><strong class="source-inline">resample</strong> applies an aggregate to the data within the selected interval (for example, <strong class="source-inline">ohlc</strong>), whereas <strong class="source-inline">asfreq</strong> changes the index and does not aggregate the data. This is apparent in <span class="No-Break"><em class="italic">Figure 2</em></span><em class="italic">.23</em>, where the time portion of the index is displayed. The values that match the given index (for example, <strong class="source-inline">2023-07-12 09:30:00</strong>) are selected for inclusion in the returned DataFrame. We can see this by selecting data from the first row using <strong class="source-inline">df.loc["2023-07-12 09:30:00"]</strong>. The result is a Series with values that match those in the <span class="No-Break">first row.</span></p>
+			<h2 id="_idParaDest-83"><a id="_idTextAnchor086"></a>See also</h2>
+			<p>See the documentation for more about the differences between <strong class="source-inline">resample</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">asfreq</strong></span><span class="No-Break">:</span></p>
+			<ul>
+				<li>Documentation on the<a id="_idIndexMarker175"></a> pandas <strong class="source-inline">resample</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.resample.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.resample.html</span></a></li>
+				<li>Documentation on the <a id="_idIndexMarker176"></a>pandas <strong class="source-inline">asfreq</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.asfreq.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.asfreq.html</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-84"><a id="_idTextAnchor087"></a>Addressing missing data issues</h1>
+			<p>pandas is well-suited to handling missing data in time series data. In the context of financial market data, missing data can <a id="_idIndexMarker177"></a>occur for <span class="No-Break">various reasons:</span></p>
+			<ul>
+				<li><strong class="bold">Market closures</strong>: Most financial markets <a id="_idIndexMarker178"></a>aren’t open 24/7. They operate on specific days and hours, closing for weekends, public holidays, or special events. If a data source tries to retrieve data when the market is closed, it might represent this as a <span class="No-Break">missing value.</span></li>
+				<li><strong class="bold">Data availability</strong>: Not all historical data is available for every market or every security. Some markets may only have data available from a certain date, or some data may be missing due to technological issues, glitches, or errors during data recording <span class="No-Break">and transmission.</span></li>
+				<li><strong class="bold">Delisting of securities</strong>: If a security gets delisted from a market (for example, a company going out of business), no new data is produced for that security. If your timeframe extends beyond the delisting date, missing data will <span class="No-Break">be encountered.</span></li>
+				<li><strong class="bold">Data granularity</strong>: The level of detail in the<a id="_idIndexMarker179"></a> dataset might also influence the<a id="_idIndexMarker180"></a> existence of missing data. For example, if you’re looking for minute-by-minute data but your source only provides hourly data, you’ll have missing data for each minute that isn’t the start of a <span class="No-Break">new hour.</span></li>
+			</ul>
+			<p>pandas has ways of handling missing data. This recipe presents those most common for <span class="No-Break">algorithmic trading.</span></p>
+			<h2 id="_idParaDest-85"><a id="_idTextAnchor088"></a>Getting ready…</h2>
+			<p>We’ll demonstrate several ways of filling in missing data. We’ll start with AAPL’s stock <span class="No-Break">price data:</span></p>
+			<ol>
+				<li>Import the <span class="No-Break">necessary libraries:</span><pre class="source-code">
+import numpy as np
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download the stock <span class="No-Break">price data:</span><pre class="source-code">
+df = obb.equity.price.historical(
+    "AAPL",
+    start_date="2020-07-01",
+    end_date="2023-07-06",
+    provider="yfinance",
+)</pre></li>				<li><strong class="source-inline">df</strong> only contains the trading <a id="_idIndexMarker181"></a>days for AAPL, so we’ll reindex the DataFrame so that it includes all calendar days between the start and end date of the time series. First, create a <strong class="source-inline">DatetimeIndex</strong> object with <span class="No-Break">calendar days:</span><pre class="source-code">
+calendar_dates = pd.date_range(
+    start=df.index.min(),
+    end=df.index.max(),
+    freq="D"
+)</pre></li>				<li>Then, reindex <span class="No-Break">the DataFrame:</span><pre class="source-code">
+calendar_prices = df.reindex(calendar_dates)</pre></li>				<li>The resulting DataFrame is populated with <strong class="source-inline">nan</strong> values for dates where there is <span class="No-Break">no data:</span></li>
+			</ol>
+			<div>
+				<div id="_idContainer066" class="IMG---Figure">
+					<img src="image/B21323_02_27.jpg" alt="Figure 2.27: A DataFrame of stock prices with missing data on non-trading days" width="796" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.27: A DataFrame of stock prices with missing data on non-trading days</p>
+			<h2 id="_idParaDest-86"><a id="_idTextAnchor089"></a>How to do it…</h2>
+			<p>We’ll demonstrate several <a id="_idIndexMarker182"></a>examples of filling in the <span class="No-Break">missing values:</span></p>
+			<ol>
+				<li>Use the pandas <strong class="source-inline">fillna</strong> method with the <strong class="source-inline">method</strong> argument set to <strong class="source-inline">bfill</strong> to replace <strong class="source-inline">nan</strong> values with the next <span class="No-Break">valid observation:</span><pre class="source-code">
+calendar_prices.bfill()</pre><p class="list-inset">The result is a <span class="No-Break">filled DataFrame:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer067" class="IMG---Figure">
+					<img src="image/B21323_02_28.jpg" alt="Figure 2.28: A DataFrame with missing data backfilled to the previous NaN" width="796" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.28: A DataFrame with missing data backfilled to the previous NaN</p>
+			<ol>
+				<li value="2">Use <strong class="source-inline">ffill</strong> to propagate the last<a id="_idIndexMarker183"></a> valid <span class="No-Break">observation forward:</span><pre class="source-code">
+calendar_prices.ffill()</pre><p class="list-inset">The result is a <span class="No-Break">filled DataFrame:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer068" class="IMG---Figure">
+					<img src="image/B21323_02_29.jpg" alt="Figure 2.29: A DataFrame with missing data backfilled to the next NaN" width="796" height="363"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.29: A DataFrame with missing data backfilled to the next NaN</p>
+			<h2 id="_idParaDest-87"><a id="_idTextAnchor090"></a>How it works…</h2>
+			<p>The <strong class="source-inline">fillna</strong> method in pandas has several arguments that provide different ways to handle <span class="No-Break">missing values:</span></p>
+			<ul>
+				<li><strong class="source-inline">value</strong>: This specifies the value to use to fill NA/NaN values. It could be a scalar, dictionary, <span class="No-Break">or Series.</span></li>
+				<li><strong class="source-inline">axis</strong>: This determines whether to<a id="_idIndexMarker184"></a> fill missing values along rows (<strong class="source-inline">0</strong> or <strong class="source-inline">index</strong>) or columns (<strong class="source-inline">1</strong> <span class="No-Break">or </span><span class="No-Break"><strong class="source-inline">columns</strong></span><span class="No-Break">).</span></li>
+				<li><strong class="source-inline">inplace</strong>: If set to <strong class="source-inline">True</strong>, the operation modifies the data in place. The default <span class="No-Break">is </span><span class="No-Break"><strong class="source-inline">False</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">limit</strong>: Limits the number of consecutive forward/backward <span class="No-Break">filled values.</span></li>
+				<li><strong class="source-inline">downcast</strong>: A dictionary of <strong class="source-inline">item-&gt;dtype</strong> that specifies the type of data for <span class="No-Break">each item.</span></li>
+			</ul>
+			<h2 id="_idParaDest-88"><a id="_idTextAnchor091"></a>There’s more…</h2>
+			<p>Sometimes, simple forward-filling or back-filling techniques may not suffice, especially in more complex scenarios, such as generating implied volatility surfaces for derivatives pricing. In these cases, we need a more sophisticated method of dealing with missing data. The pandas <strong class="source-inline">interpolate</strong> method uses various interpolation techniques to fill missing values, including linear, polynomial, time, and spatial interpolations. The choice of interpolation method can be adapted based on the characteristics of the data, allowing for more accurate handling of missing values in complex structures such as implied <span class="No-Break">volatility surfaces.</span></p>
+			<p>Here’s an example of using linear interpolation to fill in the missing values in <span class="No-Break">the DataFrame:</span></p>
+			<pre class="source-code">
+calendar_prices.interpolate(method="linear")</pre>			<p>Here’s an example of using cubic spline interpolation to fill in the missing values in <span class="No-Break">the DataFrame:</span></p>
+			<pre class="source-code">
+calendar_prices.interpolate(method="cubicspline")</pre>			<p>In both cases, the result is a DataFrame with <span class="No-Break">filled values.</span></p>
+			<h2 id="_idParaDest-89"><a id="_idTextAnchor092"></a>See also</h2>
+			<p>For more about the <strong class="source-inline">fillna</strong> method <a id="_idIndexMarker185"></a>and interpolation, take a look at the <span class="No-Break">following documentation:</span></p>
+			<ul>
+				<li>Documentation on the pandas <strong class="source-inline">fillna</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.fillna.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.fillna.html</span></a></li>
+				<li>Documentation<a id="_idIndexMarker186"></a> on the <a id="_idIndexMarker187"></a>pandas <strong class="source-inline">interpolate</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.interpolate.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.interpolate.html</span></a></li>
+				<li>More on <span class="No-Break">interpolation: </span><span class="No-Break">https://en.wikipedia.org/wiki/Interpolation</span></li>
+			</ul>
+			<h1 id="_idParaDest-90"><a id="_idTextAnchor093"></a>Applying custom functions to analyze time series data</h1>
+			<p>Custom functions let us<a id="_idIndexMarker188"></a> apply transformations and computations to data beyond the standard pandas methods. This flexibility becomes important when dealing with unique or complex analytical tasks. The <strong class="source-inline">apply</strong> function accepts a custom or built-in<a id="_idIndexMarker189"></a> function as an argument and applies this function across the DataFrame or Series, returning an output containing <span class="No-Break">the results.</span></p>
+			<p class="callout-heading">Important</p>
+			<p class="callout">The <strong class="source-inline">apply</strong> function is notoriously slow since it operates on every row or column in a loop. Use this with caution when dealing with <span class="No-Break">large DataFrames!</span></p>
+			<h2 id="_idParaDest-91"><a id="_idTextAnchor094"></a>Getting ready…</h2>
+			<p>We assume that you’ve followed the instructions from the previous recipes and have a DataFrame called <strong class="source-inline">df</strong> with a <strong class="source-inline">DatetimeIndex</strong> object as <span class="No-Break">the index.</span></p>
+			<h2 id="_idParaDest-92"><a id="_idTextAnchor095"></a>How to do it…</h2>
+			<p>We’ll use the range as our custom function for <span class="No-Break">this recipe:</span></p>
+			<ol>
+				<li>Determine the range (high price minus low price) of the stock prices using an anonymous <span class="No-Break">lambda</span><span class="No-Break"><a id="_idIndexMarker190"></a></span><span class="No-Break"> function:</span><pre class="source-code">
+df.apply(lambda x: x["high"] - x["low"], axis=1)</pre></li>				<li>Apply a user-defined<a id="_idIndexMarker191"></a> function that does the <span class="No-Break">same thing:</span><pre class="source-code">
+def fcn(row):
+    return row["high"] - row["low"]
+df.apply(fcn, axis=1)</pre><p class="list-inset">The result in both cases is a Series with the high minus <span class="No-Break">low price:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer069" class="IMG---Figure">
+					<img src="image/B21323_02_30.jpg" alt="Figure 2.30: Series with the range of AAPL stock" width="244" height="234"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.30: Series with the range of AAPL stock</p>
+			<ol>
+				<li value="3">Test the validity of the data by flagging where the closing price is less than the low price or greater than<a id="_idIndexMarker192"></a> the <span class="No-Break">high price:</span><pre class="source-code">
+df["valid"] = df.apply(
+    lambda x: x["low"] &lt;= x["close"] &lt;= x["high"], axis=1)
+df[df.valid == False]</pre><p class="list-inset">The result is an empty DataFrame since no values <span class="No-Break">were invalid:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer070" class="IMG---Figure">
+					<img src="image/B21323_02_31.jpg" alt="Figure 2.31: Empty DataFrame showing now records where the closing price is outside the high and low of the day" width="570" height="66"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.31: Empty DataFrame showing now records where the closing price is outside the high and low of the day</p>
+			<h2 id="_idParaDest-93"><a id="_idTextAnchor096"></a>How it works…</h2>
+			<p>The pandas <strong class="source-inline">apply</strong> function <a id="_idIndexMarker193"></a>can accept an anonymous lambda function or a user-defined function. The code for computing the range of stock prices using a lambda is equivalent to the code using a user-defined function. We pass a 1 to the axis argument to apply the calculation along <span class="No-Break">each row.</span></p>
+			<p>You can expand the use of the <strong class="source-inline">apply</strong> function with its <span class="No-Break">other arguments:</span></p>
+			<ul>
+				<li><strong class="source-inline">func</strong>: The function to <a id="_idIndexMarker194"></a>apply to each row or column of <span class="No-Break">the DataFrame</span></li>
+				<li><strong class="source-inline">axis</strong>: Whether to apply the function to each row (<strong class="source-inline">0</strong> or <strong class="source-inline">index</strong>) or column (<strong class="source-inline">1</strong> <span class="No-Break">or </span><span class="No-Break"><strong class="source-inline">columns</strong></span><span class="No-Break">)</span></li>
+				<li><strong class="source-inline">broadcast</strong>: Whether to broadcast the output of the function back onto <span class="No-Break">the DataFrame</span></li>
+				<li><strong class="source-inline">raw</strong>: If <strong class="source-inline">True</strong>, the function receives arrays instead of Series objects <span class="No-Break">or DataFrames</span></li>
+				<li><strong class="source-inline">reduce</strong>: If <strong class="source-inline">True</strong>, try to apply <span class="No-Break">reduction procedures</span></li>
+				<li><strong class="source-inline">result_type</strong>: Controls the type of output: <strong class="source-inline">expand</strong>, <strong class="source-inline">reduce</strong>, <strong class="source-inline">broadcast</strong>, <span class="No-Break">or </span><span class="No-Break"><strong class="source-inline">None</strong></span></li>
+				<li><strong class="source-inline">args</strong>: Additional positional arguments to pass <span class="No-Break">to </span><span class="No-Break"><strong class="source-inline">func</strong></span></li>
+			</ul>
+			<h2 id="_idParaDest-94"><a id="_idTextAnchor097"></a>There’s more…</h2>
+			<p>The function that’s passed to the <strong class="source-inline">apply</strong> method may accept additional arguments. Let’s say we’re interested in calculating the price range between two columns but we want to ignore the price ranges that are below a certain threshold. Our user-defined function needs to accept the <a id="_idIndexMarker195"></a>two columns for which we compute the range and the <span class="No-Break">threshold value.</span></p>
+			<p>First, we’ll define the function that calculates the price range. This function will take four arguments: a row from the DataFrame, a <strong class="source-inline">high</strong> column, a <strong class="source-inline">low</strong> column, and a threshold for the <span class="No-Break">minimum range:</span></p>
+			<pre class="source-code">
+def calculate_range(row, high_col, low_col, threshold):
+    range = row[high_col] - row[low_col]
+    return range if range &gt; threshold else np.nan</pre>			<p class="callout-heading">Important note</p>
+			<p class="callout">When the pandas <strong class="source-inline">apply</strong> function is<a id="_idIndexMarker196"></a> invoked with <strong class="source-inline">axis=1</strong>, it applies the specified function to each row of the DataFrame. Each row is treated as a pandas Series object, with the index of the Series being the column names of the DataFrame. This Series object, representing the entire row, is passed as an argument to the function <span class="No-Break">you’ve defined.</span></p>
+			<p>This function computes the<a id="_idIndexMarker197"></a> difference between the high and low prices. If this difference is greater than the threshold, it returns the difference; otherwise, it <span class="No-Break">returns </span><span class="No-Break"><strong class="source-inline">nan</strong></span><span class="No-Break">.</span></p>
+			<p>Next, we can use the <strong class="source-inline">apply</strong> method to apply this function to the DataFrame. The <strong class="source-inline">args</strong> parameter of <strong class="source-inline">apply</strong> allows us to pass extra arguments to <span class="No-Break">the function:</span></p>
+			<pre class="source-code">
+threshold = 1.5
+df["range"] = df.apply(
+    calculate_range,
+    args=("high", "low", threshold),
+    axis=1
+)
+df.range</pre>			<p>The result of this operation is a new column in the DataFrame that contains the computed price range if it’s <a id="_idIndexMarker198"></a>above the threshold, or <span class="No-Break"><strong class="source-inline">nan</strong></span><span class="No-Break"> otherwise:</span></p>
+			<div>
+				<div id="_idContainer071" class="IMG---Figure">
+					<img src="image/B21323_02_32.jpg" alt="Figure 2.32: Series with NaN values where the difference between the high and low price does not exceed a threshold" width="354" height="236"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 2.32: Series with NaN values where the difference between the high and low price does not exceed a threshold</p>
+			<h2 id="_idParaDest-95"><a id="_idTextAnchor098"></a>See also</h2>
+			<p>See the following <a id="_idIndexMarker199"></a>documentation for more<a id="_idIndexMarker200"></a> on the <strong class="source-inline">apply</strong> <span class="No-Break">method: </span><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pct_change.html"><span class="No-Break">https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pct_change.html</span></a><span class="No-Break">.</span></p>
+		</div>
+	</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer238">
+			<h1 id="_idParaDest-350" class="chapter-number"><a id="_idTextAnchor360"></a>12</h1>
+			<h1 id="_idParaDest-351"><a id="_idTextAnchor361"></a>Deploy Strategies to a Live Environment</h1>
+			<p><a id="_idTextAnchor362"></a>In <a href="B21323_10.xhtml#_idTextAnchor282"><span class="No-Break"><em class="italic">Chapter 10</em></span></a>, <em class="italic">Set up the Interactive Brokers Python API</em>, and <a href="B21323_11.xhtml#_idTextAnchor327"><span class="No-Break"><em class="italic">Chapter 11</em></span></a>, <em class="italic">Manage Orders, Positions, and Portfolios with the IB API</em>, we set the stage to begin deploying algorithmic trading strategies into a live (or paper trading) environment. Before we get there, we need two more critical pieces of the algorithmic trading puzzle: risk and performance metrics and more sophisticated order strategies that allow us to build and rebalance asset portfolios. For risk and performance metrics, we will introduce the <strong class="bold">Empyrical Reloaded</strong> library, which <a id="_idIndexMarker855"></a>generates statistics based on portfolio returns. <strong class="source-inline">empyrical-reloaded</strong> is the library that provides the performance and risk analytics<a id="_idIndexMarker856"></a> behind <strong class="bold">Pyfolio Reloaded</strong>, which we learned about in <a href="B21323_09.xhtml#_idTextAnchor250"><span class="No-Break"><em class="italic">Chapter 9</em></span></a>, <em class="italic">Assess Backtest Risk and Performance Metrics with Pyfolio</em>. In this chapter, we’ll use <strong class="source-inline">empyrical-reloaded</strong> to calculate key performance indicators such as the Sharpe ratio, Sortino ratio, and the maximum drawdown, among others, using real-time portfolio return data. To allow us to compute real-time return data while executing trades or other code in our trading app, we’ll learn how to run code asynchronously on <span class="No-Break">a thread.</span></p>
+			<p>In addition to calculating risk and performance metrics, we will finalize our position management code by introducing methods to submit orders based on a target number of contracts, monetary value, or percentage allocation. This extended functionality unlocks portfolio-based strategies as opposed to only single-asset strategies. Finally, we will introduce three algorithmic trading strategies that you can deploy right away: a monthly factor-based strategy using the <strong class="source-inline">zipline-reloaded</strong> pipeline API that we learned about in <a href="B21323_07.xhtml#_idTextAnchor207"><span class="No-Break"><em class="italic">Chapter 7</em></span></a>, <em class="italic">Event-Based Backtesting FactorPortfolios with Zipline Reloaded</em>, an options combo strategy, and an intraday multi-asset mean-reversion strategy. These strategies take advantage of the code we’ve built throughout <span class="No-Break">this book.</span></p>
+			<p>This chapter contains the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Calculating real-time key performance and <span class="No-Break">risk indicators</span></li>
+				<li>Sending orders based on <span class="No-Break">portfolio targets</span></li>
+				<li>Deploying a monthly factor <span class="No-Break">portfolio strategy</span></li>
+				<li>Deploying an options <span class="No-Break">combo strategy</span></li>
+				<li>Deploying an intraday multi-asset mean <span class="No-Break">reversion strategy</span></li>
+			</ul>
+			<h1 id="_idParaDest-352"><a id="_idTextAnchor363"></a>Calculating real-time key performance and risk indicators</h1>
+			<p>Real-time<a id="_idIndexMarker857"></a> performance and risk metrics are important for maintaining robust trading strategies. They allow us to compare real-life performance to the performance of our backtests. They provide immediate feedback on the effectiveness of our trading algorithms and let us make adjustments in response to market volatility or unexpected events. By continuously monitoring risk metrics such as drawdowns, volatility, and value at risk, we can effectively manage exposure and mitigate potential losses. Most professional algorithmic traders spend their time analyzing and explaining deviations from the performance that they expect in their backtests to the performance that they observe during live trading. This recipe will introduce the tools we need to do <span class="No-Break">the same.</span></p>
+			<h2 id="_idParaDest-353"><a id="_idTextAnchor364"></a>Getting ready</h2>
+			<p>We’ll use <strong class="source-inline">empyrical-reloaded</strong> to compute performance and risk statistics. To install it, <span class="No-Break">use </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install empyrical-reloaded</pre>			<p>At the top of <strong class="source-inline">app.py</strong>, import <span class="No-Break"><strong class="source-inline">Empyrical Reloaded</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+import empyrical as ep</pre>			<p>To calculate real-time performance and risk indicators, we need periodic portfolio returns. Unfortunately, the IB API does not provide a way to retrieve portfolio returns, so we’ll need to build our own method. We’ll do this by periodically requesting account PnL and then using it to compute returns. To allow the rest of our trading app to run independently of the PnL calculations, we’ll run the method on its <span class="No-Break">own thread.</span></p>
+			<p>Add a new instance variable to <strong class="source-inline">wrapper.py</strong>, which we’ll use to capture account PnL. At the end of the <strong class="source-inline">__init__</strong> method in the <strong class="source-inline">IBWrapper</strong> class, add <span class="No-Break">the following:</span></p>
+			<pre class="source-code">
+self.portfolio_returns = None</pre>			<p>Add a method to <strong class="source-inline">client.py</strong> that continuously requests account PnL from the <strong class="source-inline">get_pnl</strong> method we built in <a href="B21323_09.xhtml#_idTextAnchor250"><span class="No-Break"><em class="italic">Chapter 9</em></span></a><span class="No-Break">:</span></p>
+			<pre class="source-code">
+def get_streaming_pnl(self, request_id, interval=60,
+    pnl_type="unrealized_pnl"):
+        interval = max(interval, 5) - 2
+        while True:
+            pnl = self.get_pnl(request_id=request_id)
+            yield {"date": pd.Timestamp.now(),
+                "pnl": pnl[request_id].get(pnl_type)}
+        time.sleep(interval)</pre>			<p>The method first<a id="_idIndexMarker858"></a> ensures that the interval between data retrievals is at least three seconds. This accounts for the three-second update time from IB and the two-second wait time in <strong class="source-inline">get_pnl</strong>. In an infinite loop, it retrieves the PnL data and then yields a dictionary containing the current timestamp and the specified type of PnL before pausing for the defined <span class="No-Break">interval duration.</span></p>
+			<p>Add a method to stream portfolio PnL and compute the <span class="No-Break">associated returns:</span></p>
+			<pre class="source-code">
+def get_streaming_returns(self, request_id, interval,
+    pnl_type):
+        returns = pd.Series(dtype=float)
+        for snapshot in self.get_streaming_pnl(
+            request_id=request_id,
+            interval=interval,
+            pnl_type=pnl_type
+        ):
+            returns.loc[snapshot["date"]] = snapshot["pnl"]
+            if len(returns) &gt; 1:
+                self.portfolio_returns = (
+                    returns
+                    .pct_change()
+                    .dropna()
+                )</pre>			<p>The <strong class="source-inline">get_streaming_returns</strong> method calculates the periodic PnL. It initializes a pandas Series to store PnL values, then iterates over PnL data snapshots obtained from <strong class="source-inline">get_streaming_pnl</strong>, adding each PnL value to the <strong class="source-inline">returns</strong> Series indexed by the snapshot’s timestamp. If the Series has more than one entry, it calculates the percentage change in PnL, updating the <strong class="source-inline">portfolio_returns</strong> attribute with these calculated returns after dropping the <span class="No-Break"><strong class="source-inline">NaN</strong></span><span class="No-Break"> values.</span></p>
+			<p>In <strong class="source-inline">wrapper.py</strong>, add<a id="_idIndexMarker859"></a> the following instance variable at the end of the <span class="No-Break"><strong class="source-inline">__init__</strong></span><span class="No-Break"> method:</span></p>
+			<pre class="source-code">
+self.portfolio_returns = None</pre>			<p>In <strong class="source-inline">app.py</strong>, update the <strong class="source-inline">__init__</strong> method so it resembles <span class="No-Break">the following:</span></p>
+			<pre class="source-code">
+def __init__(self, ip, port, client_id, account,
+    interval=5):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.account = account
+        self.create_table()
+        self.connect(ip, port, client_id)
+        threading.Thread(
+            target=self.run, daemon=True).start()
+        time.sleep(2)
+        threading.Thread(
+            target=self.get_streaming_returns,
+            args=(99, interval, "unrealized_pnl"),
+            daemon=True
+        ).start()</pre>			<p>Upon instantiation of our <strong class="source-inline">IBApp</strong> class, we start two separate threads: one to continuously run the main event loop of the API client and another to stream unrealized PnL returns every five seconds, both beginning their execution after a two-second pause to ensure that the connection is established. This allows us to continue to access the periodic portfolio returns while executing <span class="No-Break">other code.</span></p>
+			<h2 id="_idParaDest-354"><a id="_idTextAnchor365"></a>How to do it…</h2>
+			<p>We’ll implement six methods (decorated as properties) to compute performance and risk metrics in<a id="_idIndexMarker860"></a> our <strong class="source-inline">IBApp</strong> class using <strong class="source-inline">empyrical-reloaded</strong>. You should add these methods after the <strong class="source-inline">stream_to_sql</strong> method we added in <a href="B21323_11.xhtml#_idTextAnchor327"><span class="No-Break"><em class="italic">Chapter 11</em></span></a>, <em class="italic">Manage Orders, Positions, and Portfolios with the </em><span class="No-Break"><em class="italic">IB API</em></span><span class="No-Break">.</span></p>
+			<ol>
+				<li>Add a method to compute <span class="No-Break">cumulative returns:</span><pre class="source-code">
+@property
+def cumulative_returns(self):
+    return ep.cum_returns(self.portfolio_returns, 1)</pre></li>				<li>Add a method to compute the <span class="No-Break">maximum drawdown:</span><pre class="source-code">
+@property
+def max_drawdown(self):
+    return ep.max_drawdown(self.portfolio_returns)</pre></li>				<li>Add a method to compute the volatility <span class="No-Break">of returns:</span><pre class="source-code">
+@property
+def volatility(self):
+    return self.portfolio_returns.std(ddof=1)</pre></li>				<li>Add a method to compute the <span class="No-Break">Omega ratio:</span><pre class="source-code">
+@property
+def omega_ratio(self):
+    return ep.omega_ratio(self.portfolio_returns,
+        annualization=1)</pre></li>				<li>Add a method to compute the <span class="No-Break">Sharpe ratio:</span><pre class="source-code">
+@property
+def sharpe_ratio(self):
+    return self.portfolio_returns.mean() / self.portfolio_returns.std(ddof=1)</pre></li>				<li>Add a method to compute the percentage and dollar conditional value <span class="No-Break">at risk:</span><pre class="source-code">
+@property
+def cvar(self):
+    net_liquidation = self.get_account_values(
+        "NetLiquidation")[0]
+    cvar_ = ep.conditional_value_at_risk(
+        self.portfolio_returns)
+    return (
+        cvar_,
+        cvar_ * net_liquidation
+    )</pre></li>			</ol>
+			<h2 id="_idParaDest-355"><a id="_idTextAnchor366"></a>How it works…</h2>
+			<p>We’ll cover<a id="_idIndexMarker861"></a> the details of each method in detail in the <span class="No-Break">following sub-sections.</span></p>
+			<h3>Cumulative returns</h3>
+			<p>To get the <a id="_idIndexMarker862"></a>cumulative<a id="_idIndexMarker863"></a> returns of our portfolio, we add the following in the <strong class="source-inline">app.py</strong> file after defining our <span class="No-Break">trading app:</span></p>
+			<pre class="source-code">
+app.cumulative_returns</pre>			<p>The <strong class="source-inline">cumulative_returns</strong> method computes the cumulative returns of our portfolio returns. The first argument, <strong class="source-inline">returns</strong>, is a pandas Series representing the periodic returns of our portfolio. The second argument, <strong class="source-inline">1</strong>, specifies the starting value for the cumulative returns calculation. This function effectively calculates the compounded return at each point in time, assuming that the initial investment value is <strong class="source-inline">1</strong>. We can use this method to generate the following intraday equity curve by plotting the data from the <span class="No-Break">resulting Series.</span></p>
+			<div>
+				<div id="_idContainer224" class="IMG---Figure">
+					<img src="image/B21323_12_01.jpg" alt="Figure 12.1: An intraday equity curve computed every five seconds based on cumulative returns" width="562" height="422"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.1: An intraday equity curve computed every five seconds based on cumulative returns</p>
+			<h3>Max drawdown</h3>
+			<p>To get the max <a id="_idIndexMarker864"></a>drawdown <a id="_idIndexMarker865"></a>of our portfolio, we add the following in the <strong class="source-inline">app.py</strong> file after defining our <span class="No-Break">trading app:</span></p>
+			<pre class="source-code">
+app.max_drawdown</pre>			<p>The <strong class="source-inline">max_drawdown</strong> method computes the maximum drawdown of our portfolio. The maximum drawdown is calculated by determining the largest decrease in value from a portfolio’s peak to its lowest point before it reaches a new peak. It’s typically expressed as a negative percentage. This metric is crucial in risk management and performance evaluation in algorithmic trading, as it provides insight into the potential downside risk of an <a id="_idIndexMarker866"></a><span class="No-Break">investment </span><span class="No-Break"><a id="_idIndexMarker867"></a></span><span class="No-Break">strategy.</span></p>
+			<h3>Volatility</h3>
+			<p>To get the<a id="_idIndexMarker868"></a> volatility <a id="_idIndexMarker869"></a>of our portfolio, we add the following in the <strong class="source-inline">app.py</strong> file after defining our <span class="No-Break">trading app:</span></p>
+			<pre class="source-code">
+app.volatility</pre>			<p>The <strong class="source-inline">volatility</strong> method calculates the sample standard deviation of portfolio returns. This measure provides insight into the volatility or risk associated with the portfolio over the time period covered by the data. By setting <strong class="source-inline">ddof</strong> to <strong class="source-inline">1</strong>, the calculation adjusts for bias in the standard deviation estimate, making it more accurate for a sample (such as a subset of returns over a specific period) rather than the entire population <span class="No-Break">of returns.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">We don’t use the <strong class="source-inline">empyrical-reloaded</strong> method in this example because it assumes daily returns. When we compute volatility using <strong class="source-inline">empyrical-reloaded</strong>, it annualizes the volatility metric, which is not appropriate for <span class="No-Break">intraday values.</span></p>
+			<h3>Omega ratio</h3>
+			<p>To get the<a id="_idIndexMarker870"></a> Omega<a id="_idIndexMarker871"></a> ratio of our portfolio, we add the following in the <strong class="source-inline">app.py</strong> file after defining our <span class="No-Break">trading app:</span></p>
+			<pre class="source-code">
+app.omega_ratio</pre>			<p>The <strong class="source-inline">omega_ratio</strong> method calculates the Omega ratio for our portfolio returns. The Omega ratio is a risk-adjusted return measure of an investment asset, portfolio, or strategy, comparing the probability of achieving a threshold return level to the probability of falling below it. It’s calculated by dividing the sum of excess returns above a threshold (<strong class="source-inline">0</strong> in our case) by the absolute value of the sum of returns below that threshold, where excess returns are annualized if an <strong class="source-inline">annualization</strong> factor is provided (which it is not in our case). In trading, this ratio is particularly useful as it provides a more comprehensive view of the risk-reward tradeoff than traditional measures such as<a id="_idIndexMarker872"></a> the Sharpe ratio, especially in portfolios with non-normal <a id="_idIndexMarker873"></a><span class="No-Break">return distributions.</span></p>
+			<h3>Sharpe ratio</h3>
+			<p>To get the<a id="_idIndexMarker874"></a> Sharpe <a id="_idIndexMarker875"></a>ratio of our portfolio, we add the following in the <strong class="source-inline">app.py</strong> file after defining our <span class="No-Break">trading app:</span></p>
+			<pre class="source-code">
+app.sharpe_ratio</pre>			<p>The <strong class="source-inline">sharpe_ratio</strong> method computes the Sharpe ratio for our portfolio returns. Typically, the <strong class="source-inline">sharpe_ratio</strong> method is computed by first calculating the difference between the returns of the portfolio and the risk-free rate. This excess return is then annualized by multiplying it by the square root of the <strong class="source-inline">annualization</strong> parameter. The annualized excess return is then divided by the standard deviation of the portfolio’s returns, which is a measure of the portfolio’s risk. Since we are using intraday returns, we won’t use <strong class="source-inline">empyrical-reloaded</strong> because it assumes <span class="No-Break">daily returns.</span></p>
+			<h3>Conditional value at risk</h3>
+			<p>To get the conditional <a id="_idIndexMarker876"></a>value at risk of our portfolio, we<a id="_idIndexMarker877"></a> add the following in the <strong class="source-inline">app.py</strong> file after defining our <span class="No-Break">trading app:</span></p>
+			<pre class="source-code">
+app.cvar</pre>			<p>The<strong class="bold"> Conditional Value at Risk</strong> (<strong class="bold">CVaR</strong>), also known as the <strong class="bold">Expected Shortfall</strong> (<strong class="bold">ES</strong>), is a risk <a id="_idIndexMarker878"></a>assessment metric that estimates the expected loss in our portfolio under extreme market conditions, focusing on the tail end of the distribution of potential losses. The method first retrieves the <strong class="source-inline">NetLiquidation</strong> value of the account, which represents the total value of the portfolio if all positions were liquidated at current market prices. It then calculates the CVaR of the account’s returns using <strong class="source-inline">empyrical-reloaded</strong>’s <strong class="source-inline">conditional_value_at_risk</strong> function, which computes CVaR as the average of the worst-performing returns (those in the tail of the distribution) below a 5% percentile. The method returns two values: the CVaR as a percentage and the CVaR in terms of the actual monetary value, calculated by multiplying the CVaR percentage by the portfolio’s <a id="_idIndexMarker879"></a>net <span class="No-Break">liquidation value.</span></p>
+			<h2 id="_idParaDest-356"><a id="_idTextAnchor367"></a>There’s more…</h2>
+			<p>There are more than 40 risk and performance metrics available in <strong class="source-inline">Empyrcal Reloaded</strong>, including rolling metrics and those that compare portfolio returns to a benchmark. Here are a few more you <span class="No-Break">can explore:</span></p>
+			<ul>
+				<li><strong class="source-inline">calmar_ratio</strong>: Ratio of annualized return over maximum drawdown, assessing returns relative to <span class="No-Break">downside risks</span></li>
+				<li><strong class="source-inline">downside_risk</strong>: Calculates the risk of negative returns, aiding in understanding a strategy’s <span class="No-Break">downside volatility</span></li>
+				<li><strong class="source-inline">sortino_ratio</strong>: Similar to Sharpe, but this focuses only on downside risk and is useful for strategies with <span class="No-Break">asymmetric risk</span></li>
+				<li><strong class="source-inline">stability_of_timeseries</strong>: Measures consistency of returns; important for assessing strategy reliability <span class="No-Break">over time</span></li>
+				<li><strong class="source-inline">tail_ratio</strong>: Compares the right (positive) versus left (negative) tail of a distribution, indicating extreme <span class="No-Break">outcome frequency</span></li>
+				<li><strong class="source-inline">value_at_risk</strong>: Estimates the maximum potential loss over a specified time frame and is crucial for <span class="No-Break">risk assessment</span></li>
+				<li><strong class="source-inline">excess_sharpe</strong>: Calculates the difference in Sharpe ratio relative to a benchmark; useful for <span class="No-Break">strategy comparison</span></li>
+			</ul>
+			<h2 id="_idParaDest-357"><a id="_idTextAnchor368"></a>See also</h2>
+			<p>To learn more about <strong class="source-inline">empyrical-reloaded</strong>, check out the documentation <span class="No-Break">here: </span><a href="https://empyrical.ml4trading.io/"><span class="No-Break">https://empyrical.ml4trading.io/</span></a></p>
+			<h1 id="_idParaDest-358"><a id="_idTextAnchor369"></a>Sending orders based on portfolio targets</h1>
+			<p>We now have the<a id="_idIndexMarker880"></a> components of our trading app built to add flexibility to the way we submit orders. By combining real-time position data and portfolio net liquidation value, we can build more sophisticated order techniques. For example, now that we can access current positions, we’re able to dynamically adjust our positions to align with quantity or value targets. Similarly, with live net liquidation value, we can calculate order sizes as a percentage of the portfolio. Building orders based on portfolio percentage targets unlocks advanced portfolio and risk management capabilities. This integration results in a more responsive trading system that is capable of adapting to market changes swiftly and executing orders that are consistently in tune with our overall risk management and investment objectives. In this recipe, we’ll implement methods to submit orders based on target values, quantities, and <span class="No-Break">percentage allocations.</span></p>
+			<h2 id="_idParaDest-359"><a id="_idTextAnchor370"></a>Getting ready</h2>
+			<p>We will assume that you’ve created the <strong class="source-inline">client.py</strong> and <strong class="source-inline">app.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If you have not, do <span class="No-Break">it now.</span></p>
+			<p>We’ll start by adding a default market data request ID to the <strong class="source-inline">utils.py</strong> file. Since we cancel market data requests immediately after requesting the data, we can use the <span class="No-Break">same ID.</span></p>
+			<p>Open <strong class="source-inline">utils.py</strong> and add the following code after the <span class="No-Break"><strong class="source-inline">TABLE_BAR_PROPERTIES</strong></span><span class="No-Break"> list:</span></p>
+			<pre class="source-code">
+DEFAULT_MARKET_DATA_ID = 55</pre>			<h2 id="_idParaDest-360"><a id="_idTextAnchor371"></a>How to do it…</h2>
+			<p>We’ll create five separate order methods and three associated helper methods. The order methods will generate the number of contracts to order so that we can achieve the desired portfolio allocation. The helper methods will do the work of calculating the quantities. Add all of the following code under the <strong class="source-inline">send_order</strong> method in the <strong class="source-inline">IBClient</strong> class in the <span class="No-Break"><strong class="source-inline">client.py</strong></span><span class="No-Break"> file.</span></p>
+			<ol>
+				<li>Add the method that computes the quantity and places an order for a fixed amount <span class="No-Break">of money:</span><pre class="source-code">
+def order_value(self, contract, order_type, value, **kwargs):
+    quantity = self._calculate_order_value_quantity(
+        contract, value)
+    order = order_type(quantity=quantity, **kwargs)
+    return self.send_order(contract, order)</pre></li>				<li>Add the method to place an order to adjust a position to the target number <span class="No-Break">of contracts:</span><pre class="source-code">
+def order_target_quantity(self, contract, order_type,
+    target, **kwargs):
+        quantity=self._calculate_order_target_quantity(contract,            target)
+        order = order_type(
+            action=SELL if quantity &lt; 0 else BUY,
+            quantity=abs(quantity),
+            **kwargs
+        )
+        return self.send_order(contract, order)</pre></li>				<li>Add the helper <a id="_idIndexMarker881"></a>method that loops through the positions and computes the target number of contracts <span class="No-Break">to order:</span><pre class="source-code">
+def _calculate_order_target_quantity(self, contract,
+    target):
+        positions = self.get_positions()
+        if contract.symbol in positions.keys():
+            current_position = positions[
+                contract.symbol]["position"]
+            target -= current_position
+        return int(target)</pre></li>				<li>Add the method to order the specified asset according to the percent of the current <span class="No-Break">portfolio value:</span><pre class="source-code">
+def order_percent(self, contract, order_type, percent,
+    **kwargs):
+        quantity = self._calculate_order_percent_quantity(
+            contract, percent)
+        order = order_type(quantity=quantity,
+            **kwargs)
+        return self.send_order(contract, order)</pre></li>				<li>Add the associated helper function that computes the percentage of the portfolio based <a id="_idIndexMarker882"></a>on the net liquidation value and the number of contracts <span class="No-Break">to order:</span><pre class="source-code">
+def _calculate_order_percent_quantity(self, contract, percent):
+    net_liquidation_value = self.get_account_values(
+        key="NetLiquidation")[0]
+    value = net_liquidation_value * percent
+    return self._calculate_order_value_quantity(contract, value)</pre></li>				<li>Add the method to adjust a position to a target dollar value. If the position doesn’t already exist, the code sends a new order. If the position exists, the code sends an order for the difference between the target value and the current <span class="No-Break">position value:</span><pre class="source-code">
+def order_target_value(self, contract, order_type,
+    target, **kwargs):
+    target_quantity = self._calculate_order_value_quantity(
+        contract, target)
+    quantity = self._calculate_order_target_quantity(contract,
+        target_quantity)
+    order = order_type(
+        action=SELL if quantity &lt; 0 else BUY,
+        quantity=abs(quantity),
+        **kwargs
+    )
+    return self.send_order(contract, order)</pre></li>				<li>Add the associated <span class="No-Break">helper method:</span><pre class="source-code">
+def _calculate_order_value_quantity(self, contract,
+    value):
+        last_price = self.get_market_data(
+            request_id=DEFAULT_MARKET_DATA_ID,
+                contract=contract, tick_type=4)
+        multiplier = contract.multiplier if contract.multiplier
+            != "" else 1
+        return int(value / (last_price * multiplier))</pre></li>				<li>Add the method <a id="_idIndexMarker883"></a>to send an order to update a position to a percent of the portfolio value. If the position doesn’t already exist, the code sends a new order. If the position exists, the code sends an order for the difference between the target percent and the current <span class="No-Break">portfolio percent:</span><pre class="source-code">
+def order_target_percent(self, contract, order_type,
+    target, **kwargs):
+    quantity = self._calculate_order_target_percent_quantity(
+        contract, target)
+    order = order_type(
+        action=SELL if quantity &lt; 0 else BUY,
+        quantity=abs(quantity),
+        **kwargs
+    )
+    return self.send_order(contract, order)</pre></li>				<li>Add the associated <span class="No-Break">helper method:</span><pre class="source-code">
+def _calculate_order_target_percent_quantity(self,
+    contract, target):
+    target_quantity = self._calculate_order_percent_quantity(
+        contract, target)
+    return self._calculate_order_target_quantity(
+        contract, target_quantity)</pre></li>			</ol>
+			<h2 id="_idParaDest-361"><a id="_idTextAnchor372"></a>How it works…</h2>
+			<p>Our order <a id="_idIndexMarker884"></a>methods take two required arguments and various keyword arguments based on the order type that’s passed. The two required arguments are the contract to trade and the order type to use. The keyword arguments are additional arguments to be passed to <span class="No-Break">the order.</span></p>
+			<h3>Ordering for a fixed amount of money with order_value</h3>
+			<p>The <strong class="source-inline">order_value</strong> method<a id="_idIndexMarker885"></a> places an order for a specific monetary value rather than a specified quantity of contracts. It calculates the quantity of the asset to be ordered by calling the <strong class="source-inline">_calculate_order_value_quantity</strong> method, which determines the quantity based on the current market price of the asset and its multiplier. This calculation divides the specified dollar value by the product of the asset’s last market price and its multiplier (defaulting to <strong class="source-inline">1</strong> if none <span class="No-Break">are specified).</span></p>
+			<p>The method then creates an order of the given <strong class="source-inline">order_type</strong> object with the calculated quantity, along<a id="_idIndexMarker886"></a> with any additional parameters passed via <strong class="source-inline">**kwargs</strong>. Finally, it places the order by invoking <strong class="source-inline">send_order</strong> with the contract and <span class="No-Break">the order.</span></p>
+			<h3>Ordering to adjust a position to the target number of shares with order_target_quantity</h3>
+			<p>The <strong class="source-inline">order_target_quantity</strong> method <a id="_idIndexMarker887"></a>adjusts a position to a specified target quantity of contracts. It calculates the quantity by determining the difference between the target quantity and the current position size using the <strong class="source-inline">_calculate_order_target_quantity</strong> method. If the contract already has an existing position, this method adjusts the position to the target by calculating the difference. If no position exists, it treats the target as the total quantity for a <span class="No-Break">new order.</span></p>
+			<p>The method then creates an order of the specified <strong class="source-inline">order_type</strong> object, setting the action to <strong class="source-inline">BUY</strong> or <strong class="source-inline">SELL</strong> based on whether the calculated quantity is positive or negative. It uses the absolute value of this quantity. Finally, it places the order by calling <strong class="source-inline">send_order</strong> with the contract and <span class="No-Break">the order.</span></p>
+			<h3>Ordering to a given percent of current portfolio value with order_percent</h3>
+			<p>The <strong class="source-inline">order_percent</strong> method <a id="_idIndexMarker888"></a>uses the <strong class="source-inline">_calculate_order_percent_quantity</strong> helper method, which multiplies the portfolio’s net liquidation value by the specified percentage, then converts this value into the appropriate quantity of the asset using <strong class="source-inline">_calculate_order_value_quantity</strong>. </p>
+			<p>The method then creates an order of the specified <strong class="source-inline">order_type</strong> object with this calculated quantity (and any additional parameters passed via <strong class="source-inline">**kwargs</strong>). Finally, it places the order by calling <strong class="source-inline">send_order</strong> with the contract and the newly <span class="No-Break">created order.</span></p>
+			<h3>Ordering to adjust a position to a target value with order_target_value</h3>
+			<p>The <strong class="source-inline">order_target_value</strong> method<a id="_idIndexMarker889"></a> adjusts a position to a specified target monetary value for a contract. It first calculates the target quantity of contracts needed to reach the target value using the <strong class="source-inline">_calculate_order_value_quantity</strong> method, which determines the quantity based on the current market price and the contract’s multiplier. Then, it calculates the actual quantity to order, taking into account the current position, by using the <strong class="source-inline">_calculate_order_target_quantity</strong> method. This method computes the difference between the target quantity and the current position, treating it as a new order if no position exists or as an adjustment if a position <span class="No-Break">already exists.</span></p>
+			<p>The method then creates an order of the specified <strong class="source-inline">order_type</strong> object, setting the action to <strong class="source-inline">BUY</strong> or <strong class="source-inline">SELL</strong> based on whether the calculated quantity is positive or negative, and uses the absolute value of this quantity. Finally, the method places the order by calling <strong class="source-inline">send_order</strong> with the contract and <span class="No-Break">the order.</span></p>
+			<h3>Ordering to adjust a position to a target percent of the current portfolio value with order_target_percent</h3>
+			<p>The <strong class="source-inline">order_target_percent</strong> method <a id="_idIndexMarker890"></a>adjusts a position so that it represents a specific target percentage of the current portfolio value. This method first calculates the target quantity of the asset needed to achieve the desired portfolio percentage using the <strong class="source-inline">_calculate_order_target_percent_quantity</strong> method. This calculation takes the current value of the portfolio and the target percentage into account, adjusting the position size accordingly. If the position in the specified contract already exists, the method calculates the difference between the current and target percentages and adjusts the position size to match <span class="No-Break">the target.</span></p>
+			<p>The method then creates an order of the specified <strong class="source-inline">order_type</strong> object, determining whether to buy or sell based on whether the calculated quantity is positive or negative, and sets the quantity to the absolute value of the calculated amount. Finally, the method places the order by calling <strong class="source-inline">send_order</strong> with the contract and <span class="No-Break">the order.</span></p>
+			<h2 id="_idParaDest-362"><a id="_idTextAnchor373"></a>There’s more…</h2>
+			<p>The following examples show how to use the new <span class="No-Break">order methods.</span></p>
+			<ol>
+				<li>In <strong class="source-inline">app.py</strong>, add the following imports at the top of <span class="No-Break">the file:</span><pre class="source-code">
+from order import market, limit, BUY, SELL</pre></li>				<li>In the main section of the file under the instantiation of the trading app, define an <span class="No-Break">AAPL contract:</span><pre class="source-code">
+aapl = stock("AAPL", "SMART", "USD")</pre></li>				<li>Submit a <strong class="source-inline">market</strong> order to buy $1,000 worth <span class="No-Break">of AAPL:</span><pre class="source-code">
+app.order_value(aapl, market, 1000, action=BUY)</pre></li>				<li>Submit a <strong class="source-inline">market</strong> order to adjust the portfolio to be short five shares <span class="No-Break">of AAPL:</span><pre class="source-code">
+app.order_target_quantity(aapl, market, -5)</pre></li>				<li>Submit a <strong class="source-inline">limit</strong> order for AAPL for an equivalent of 10% of the net liquidation value of <span class="No-Break">the portfolio:</span><pre class="source-code">
+app.order_percent(aapl, limit, 0.1, action=BUY,
+    limit_price=185.0)</pre></li>				<li>Submit a <strong class="source-inline">stop loss</strong> order to adjust the portfolio to $3,000 worth <span class="No-Break">of AAPL:</span><pre class="source-code">
+app.order_target_value(aapl, stop, 3000,
+    stop_price=180.0)</pre></li>				<li>Submit a <strong class="source-inline">market</strong> order to adjust the portfolio so that 50% of the net liquidation value is allocated <span class="No-Break">to AAPL:</span><pre class="source-code">
+app.order_target_percent(aapl, market, 0.5)</pre></li>			</ol>
+			<h2 id="_idParaDest-363"><a id="_idTextAnchor374"></a>See also</h2>
+			<p>The logic to compute the target values and percentages is based on the <strong class="source-inline">zipline-reloaded</strong> implementation for backtesting. You can review the API reference for details <span class="No-Break">at </span><a href="https://zipline.ml4trading.io/api-reference.html"><span class="No-Break">https://zipline.ml4trading.io/api-reference.html</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-364"><a id="_idTextAnchor375"></a>Deploying a monthly factor portfolio strategy</h1>
+			<p>We’ll now integrate the <a id="_idIndexMarker891"></a>momentum factor we built in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for Stock Portfolios</em>, into our trading app. The app is designed to download and process premium U.S. equities data encompassing a comprehensive universe of approximately 20,000 stocks. The advantage of using the premium data is that it lets us build factor portfolios that include the entire universe of <span class="No-Break">U.S.-traded equities.</span></p>
+			<p>The trading app is designed to be run on a periodic rebalancing schedule after market hours, typically monthly. Each time it runs, it acquires the latest price data for the entire stock universe. It then computes the momentum factor for these stocks. Based on this computation, the app identifies the top stocks exhibiting the strongest momentum and the bottom stocks showing the weakest momentum. The trading strategy involves going long on the top stocks and short on the <span class="No-Break">bottom stocks.</span></p>
+			<p>Our trading app can execute orders that align with a specific target percentage allocation for each stock in the portfolio. This feature simplifies the process of maintaining the desired portfolio balance, requiring only a single line of code to buy or sell shares as needed. This approach lets us rebalance the portfolio so it consistently reflects the target portfolio adjusted for the computed momentum factor.Top <span class="No-Break">of Form</span></p>
+			<p>Bottom <span class="No-Break">of Form</span></p>
+			<h2 id="_idParaDest-365"><a id="_idTextAnchor376"></a>Getting ready</h2>
+			<p>In <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a><em class="italic">, Build Alpha Factors for Stock Portfolios</em>, we explained how to set up an account with Nasdaq Data Link. For this recipe, we’ll rely on a paid subscription to <strong class="bold">QuoteMedia’s End of Day US Stock Prices</strong>. If you decide against the paid subscription, you can use the free data described in <a href="B21323_07.xhtml#_idTextAnchor207"><span class="No-Break"><em class="italic">Chapter 7</em></span></a>, <em class="italic">Event-Based Backtesting Factor Portfolios with Zipline Reloaded</em>. QuoteMedia offers end-of-day prices, dividends, adjustments, and splits for U.S. publicly traded stocks with price history dating back to 1996. The product covers all stocks with a primary listing on NASDAQ, AMEX, NYSE, and ARCA. You can find the page to subscribe at <a href="https://data.nasdaq.com/databases/EOD/data">https://data.nasdaq.com/databases/EOD/data</a>. Once you are subscribed, you’ll be able to use the data through the same API key we set up in <a href="B21323_01.xhtml#_idTextAnchor013"><span class="No-Break"><em class="italic">Chapter 1</em></span></a>, <em class="italic">Acquire Free Financial Market Data with Cutting-edge </em><span class="No-Break"><em class="italic">Python Libraries</em></span><span class="No-Break">.</span></p>
+			<p>To ingest the data to build our factor portfolio, we’ll need to set up some custom files. Please visit the following URL to get <span class="No-Break">the instructions:</span></p>
+			<p><span class="No-Break">https://pyquantnews.com/ingest-premium-market-data-with-zipline-reloaded/</span></p>
+			<p>After you have set up the custom extensions that we have linked, create a file named <strong class="source-inline">.env</strong> in the same directory as your <strong class="source-inline">app.py</strong> file. In this file, add the <span class="No-Break">following line:</span></p>
+			<pre class="console">
+DATALINK_API_KEY=&lt;YOUR-API-KEY&gt;</pre>			<p>Replace <strong class="source-inline">&lt;YOUR-API-KEY&gt;</strong> with your Nasdaq Data Link API key, which you acquired in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a><em class="italic">, Build Alpha Factors for </em><span class="No-Break"><em class="italic">Stock Portfolios</em></span><span class="No-Break">.</span></p>
+			<h2 id="_idParaDest-366"><a id="_idTextAnchor377"></a>How to do it…</h2>
+			<p>We’ll integrate<a id="_idIndexMarker892"></a> the code we built in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for Stock Portfolios</em> into our <span class="No-Break">trading app.</span></p>
+			<ol>
+				<li>In <strong class="source-inline">app.py</strong>, add the following imports to the top of the file and reorder them to adhere to <span class="No-Break">PEP8 specifications:</span><pre class="source-code">
+import os
+import sqlite3
+import threading
+import time
+import empyrical as ep
+import exchange_calendars as xcals
+import numpy as np
+import pandas as pd
+from dotenv import load_dotenv
+from zipline.data import bundles
+from zipline.data.bundles.core import load
+from zipline.pipeline import Pipeline
+from zipline.pipeline.data import USEquityPricing
+from zipline.pipeline.engine import SimplePipelineEngine
+from zipline.pipeline.factors import CustomFactor, Returns
+from zipline.pipeline.loaders import USEquityPricingLoader
+from zipline.utils.run_algo import load_extensions
+from client import IBClient
+from contract import stock
+from order import market
+from wrapper import IBWrapper
+load_dotenv()</pre></li>				<li>Below our <strong class="source-inline">IBApp</strong> class, add the custom momentum factor that <strong class="source-inline">zipline-reloaded</strong> uses to<a id="_idIndexMarker893"></a> compute the factor value for each asset in <span class="No-Break">our universe:</span><pre class="source-code">
+class MomentumFactor(CustomFactor):
+    inputs = [USEquityPricing.close, Returns(window_length=126)]
+    window_length = 252
+    def compute(self, today, assets, out, prices,
+        returns):
+            out[:] = (
+                (prices[-21] - prices[-252]) / prices[-252]
+                - (prices[-1] - prices[-21]) / prices[-21]
+            ) / np.nanstd(returns, axis=0)</pre></li>				<li>Now add a function that creates and returns a <strong class="source-inline">zipline-reloaded</strong> pipeline. The pipeline is responsible for creating a DataFrame with the data that we’ll use to select which assets <span class="No-Break">to trade:</span><pre class="source-code">
+def make_pipeline():
+    momentum = MomentumFactor()
+    return Pipeline(
+        columns={
+            "factor": momentum,
+            "longs": momentum.top(top_n),
+            "shorts": momentum.bottom(top_n),
+            "rank": momentum.rank(ascending=False),
+        },
+    )</pre></li>				<li>Now, we’ll add<a id="_idIndexMarker894"></a> the code to generate the weights required to rebalance our portfolio. You’ll need to add all of the following code in the main section of the app under the <strong class="source-inline">app = IBApp("127.0.0.1", 7497, client_id=11, account="DU*******")</strong> line. Start with creating a session calendar based on the <strong class="bold">New York Stock Exchange</strong> to set the lookback time for computing the momentum. The <strong class="source-inline">top_n</strong> variable determines how many long and short positions we want in <span class="No-Break">our portfolio:</span><pre class="source-code">
+top_n = 10
+xnys = xcals.get_calendar("XNYS")
+today = pd.Timestamp.today().strftime("%Y-%m-%d")
+start_date = xnys.session_offset(today,
+    count=-252).strftime("%Y-%m-%d")</pre></li>				<li>Add the code to load the extension file that we created in the <em class="italic">Getting ready</em> section of this recipe. After the extension file has been loaded, we can invoke the code to ingest our data bundle using the premium data subscription. Finally, we will load the data bundle into memory so it’s ready <span class="No-Break">to use:</span><pre class="source-code">
+load_extensions(True, [], False, os.environ)
+bundles.ingest("quotemedia")
+bundle_data = load("quotemedia", os.environ, None)</pre><p class="list-inset">The ingestion can take around 30 minutes once run, so be patient. You should see output resembling<a id="_idIndexMarker895"></a> the following once the bundling <span class="No-Break">process begins:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer225" class="IMG---Figure">
+					<img src="image/B21323_12_02.jpg" alt="Figure 12.2: The data ingestion process output to the console" width="1189" height="79"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.2: The data ingestion process output to the console</p>
+			<ol>
+				<li value="6">Add the code that creates the U.S. equity pricing loader, which aligns the price data to U.S. <span class="No-Break">exchange calendars:</span><pre class="source-code">
+pipeline_loader = USEquityPricingLoader(
+    bundle_data.equity_daily_bar_reader,
+    bundle_data.adjustment_reader,
+    fx_reader=None
+)</pre></li>				<li>Create the engine that brings the pipeline loader and the bundled <span class="No-Break">data together:</span><pre class="source-code">
+engine = SimplePipelineEngine(
+    get_loader=lambda col: pipeline_loader,
+    asset_finder=bundle_data.asset_finder
+)</pre></li>				<li>Add the code that runs the pipeline and generates <span class="No-Break">the output:</span><pre class="source-code">
+results = engine.run_pipeline(
+    make_pipeline(),
+    start_date,
+    today
+)</pre></li>				<li>Clean up the resulting DataFrame by removing records with no factor data, adding names<a id="_idIndexMarker896"></a> to the MultiIndexes, and sorting the values first by date, then by <span class="No-Break">factor value:</span><pre class="source-code">
+results.dropna(subset="factor", inplace=True)
+results.index.names = ["date", "symbol"]
+results.sort_values(by=["date", "factor"],
+    inplace=True)</pre><p class="list-inset">The result is a MultiIndex DataFrame including the raw factor value, boolean values indicating a short or long position, and details on how the stock’s factor value is ranked among the universe. The last date in the DataFrame should reflect the last trading day which will allow us to use the results to rebalance <span class="No-Break">our portfolio:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer226" class="IMG---Figure">
+					<img src="image/B21323_12_03.jpg" alt="Figure 12.3: A MultiIndex DataFrame with factor information and trading indicators" width="524" height="394"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.3: A MultiIndex DataFrame with factor information and trading indicators</p>
+			<ol>
+				<li value="10">Use the <strong class="source-inline">query</strong> method <a id="_idIndexMarker897"></a>on the <strong class="source-inline">results</strong> MultiIndex DataFrame to select the long and short positions that will make up <span class="No-Break">our portfolio:</span><pre class="source-code">
+longs = results.xs(today, level=0).query(
+    "longs == True")
+shorts = results.xs(today, level=0).query(
+    "shorts == True")</pre></li>				<li>Create a simple equal-weight to determine how to allocate the assets in <span class="No-Break">our portfolio:</span><pre class="source-code">
+weight = 1 / top_n / 2</pre></li>				<li>Add the code to loop through each of the <strong class="source-inline">longs</strong> and <strong class="source-inline">shorts</strong> DataFrames and order a target percent of each asset based on <span class="No-Break">the weight:</span><pre class="source-code">
+for row in pd.concat([longs, shorts]).itertuples():
+    side = 1 if row.longs else -1
+    symbol = row.Index.symbol
+    contract = stock(symbol, "SMART", "USD")
+    app.order_target_percent(contract, market,
+        side * weight)</pre></li>			</ol>
+			<h2 id="_idParaDest-367"><a id="_idTextAnchor378"></a>How it works…</h2>
+			<p>The mechanics of the <strong class="source-inline">zipline-reloaded</strong> pipeline API are covered extensively in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for Stock Portfolios</em>. The contribution of this chapter is to isolate the stocks that we want to go long and short, generate a simple weighting scheme, and send the orders for the <span class="No-Break">target percentage.</span></p>
+			<p>The <strong class="source-inline">longs</strong> and <strong class="source-inline">shorts</strong> variables are derived from a <strong class="source-inline">results</strong> DataFrame. For a specific date, the <strong class="source-inline">xs</strong> method extracts a subset of the DataFrame at a <strong class="source-inline">date</strong> level, and the <strong class="source-inline">query</strong> method filters this subset to include only rows where <strong class="source-inline">longs</strong> or <strong class="source-inline">shorts</strong> are <span class="No-Break"><strong class="source-inline">True</strong></span><span class="No-Break">, respectively.</span></p>
+			<p>The <strong class="source-inline">weight</strong> variable is calculated as the inverse of twice the number of top stocks (<strong class="source-inline">top_n</strong>) to be traded, creating an equally distributed allocation among all <span class="No-Break">the stocks.</span></p>
+			<p>The <strong class="source-inline">for</strong> loop iterates over each row of the concatenated <strong class="source-inline">longs</strong> and <strong class="source-inline">shorts</strong> DataFrames. For each row, it determines the side of the trade: <strong class="source-inline">1</strong> for long positions and <strong class="source-inline">-1</strong> for short positions. The symbol of the stock is extracted from the <span class="No-Break">row’s index.</span></p>
+			<p>For each stock symbol, a <strong class="source-inline">contract</strong> object is created using the <strong class="source-inline">stock</strong> function, which specifies the stock symbol, the exchange, and the currency. Finally, the <strong class="source-inline">order_target_percent</strong> method is called for each stock, setting the target percentage of the portfolio to be allocated to this stock. The percentage is calculated by multiplying the <a id="_idIndexMarker898"></a>integer <strong class="source-inline">side</strong> by the <strong class="source-inline">weight</strong> float, effectively scaling the allocation based on whether the position is long <span class="No-Break">or short.</span></p>
+			<h2 id="_idParaDest-368"><a id="_idTextAnchor379"></a>There’s more…</h2>
+			<p>You may want to include a screen while building the universe for which to compute momentum and rank. One way to do that is to filter stocks based on their daily average dollar volume, which helps us focus on more liquid and potentially less volatile assets. We can use the <strong class="source-inline">AverageDollarVolume</strong> class, which includes only those stocks that exceed a specified threshold in daily average <span class="No-Break">dollar volume.</span></p>
+			<p>To do it, import <span class="No-Break">the class:</span></p>
+			<pre class="source-code">
+from zipline.pipeline.factors import AverageDollarVolume</pre>			<p>Then update the <strong class="source-inline">make_pipeline</strong> function to resemble <span class="No-Break">the following:</span></p>
+			<pre class="source-code">
+def make_pipeline():
+    momentum = MomentumFactor()
+    dollar_volume = AverageDollarVolume(window_length=21)
+    return Pipeline(
+        columns={
+            "factor": momentum,
+            "longs": momentum.top(top_n),
+            "shorts": momentum.bottom(top_n),
+            "rank": momentum.rank(ascending=False),
+        },
+        screen=dollar_volume.top(100)
+    )</pre>			<p>The screen will apply the filter after it computes the momentum value and ranks the stocks. That means that even though we asked for the <strong class="source-inline">top_n</strong> number of assets to include in the pipeline, we may end up with fewer than <strong class="source-inline">top_n</strong> if they are screened out <span class="No-Break">after ranking.</span></p>
+			<h2 id="_idParaDest-369"><a id="_idTextAnchor380"></a>See also</h2>
+			<p>Learn how to use the <a id="_idIndexMarker899"></a>Pipeline API in a <strong class="source-inline">zipline-reloaded</strong> backtest <span class="No-Break">at </span><a href="https://www.pyquantnews.com/the-pyquant-newsletter/backtest-a-custom-momentum-strategy-with-zipline"><span class="No-Break">https://www.pyquantnews.com/the-pyquant-newsletter/backtest-a-custom-momentum-strategy-with-zipline</span></a><span class="No-Break">.</span></p>
+			<h1 id="_idParaDest-370"><a id="_idTextAnchor381"></a>Deploying an options combo strategy</h1>
+			<p>Options can provide<a id="_idIndexMarker900"></a> algorithmic traders with the ability to express market views that go beyond the linear profit and loss potential of stock trading. Unlike stocks, whose profit or loss is directly tied to the movement of the price on a dollar-for-dollar basis, options are non-linear instruments whose value is affected by multiple dimensions such as the price of the underlying asset, time to expiration, volatility, and interest rates. This multidimensionality allows for strategies that can profit from a range <span class="No-Break">of outcomes.</span></p>
+			<p>A straddle strategy includes buying a call and a put option with the same strike prices and expiration dates. This lets traders speculate on the asset’s volatility instead of predicting the market’s directional movement. This approach makes money for the trader when the underlying asset experiences substantial movement in <span class="No-Break">any direction.</span></p>
+			<p>Premium collection strategies such as a short iron condor involve selling both a call and a put spread with the goal of earning the premium from the options sold. This is predicated on the belief that the underlying asset’s price will remain within a specific range, leading to the options expiring worthless and the trader keeping the <span class="No-Break">premium collected.</span></p>
+			<p>In this recipe, you’ll learn how to model options <a id="_idIndexMarker901"></a>trades in <strong class="bold">Trader Workstation</strong> (<strong class="bold">TWS</strong>) and submit the orders using Python through the <span class="No-Break">IB API.</span></p>
+			<h2 id="_idParaDest-371"><a id="_idTextAnchor382"></a>Getting ready</h2>
+			<p>We need to add two functions to our <strong class="source-inline">contract.py</strong> file. Open it and add the following code at the end of <span class="No-Break">the file:</span></p>
+			<pre class="source-code">
+def combo_leg(contract_details, ratio, action):
+    leg = ComboLeg()
+    leg.conId = contract_details.contract.conId
+    leg.ratio = ratio
+    leg.action = action
+    leg.exchange = contract_details.contract.exchange
+    return leg
+def spread(legs):
+    contract = Contract()
+    contract.symbol = "USD"
+    contract.secType = "BAG"
+    contract.currency = "USD"
+    contract.exchange = "SMART"
+    contract.comboLegs = legs
+    return contract</pre>			<p>These two functions allow us to create the legs of a combo order and use those legs to construct a single <span class="No-Break">tradeable instrument.</span></p>
+			<p>Note that in the <strong class="source-inline">combo_leg</strong> method, we<a id="_idIndexMarker902"></a> need to pass in a contract’s <strong class="source-inline">conId</strong> string. The <strong class="source-inline">conId</strong> string is a unique identifier maintained by IB. To get the <strong class="source-inline">conId</strong> string, we have to send a request to IB to get the details of that contract maintained by IB. To do that, we use an<a id="_idIndexMarker903"></a> IB method called <strong class="source-inline">reqContractDetails</strong>. In the <strong class="source-inline">client.py</strong> file, add the following method directly under the <strong class="source-inline">__init__</strong> method in the <span class="No-Break"><strong class="source-inline">IBClient</strong></span><span class="No-Break"> class:</span></p>
+			<pre class="source-code">
+def resolve_contract(self, contract,
+    request_id=DEFAULT_CONTRACT_ID):
+        self.reqContractDetails(reqId=request_id,
+             contract=contract)
+        time.sleep(2)
+        self.contractDetailsEnd(reqId=request_id)
+        return self.resolved_contract</pre>			<p>This method takes a contract object, requests the details from IB, and returns <span class="No-Break">its details.</span></p>
+			<p>Let’s see how <span class="No-Break">it works.</span></p>
+			<h2 id="_idParaDest-372"><a id="_idTextAnchor383"></a>How to do it…</h2>
+			<p>We’ll construct an options position<a id="_idIndexMarker904"></a> called a <strong class="bold">strangle</strong>, which will let us bet on an increase in the volatility of the underlying. The following code should be added under the creation of the app under the <strong class="source-inline">if __name__ == "__main__":</strong> line <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break">.</span></p>
+			<ol>
+				<li>Add the code to create a long call option contract on TSLA expiring in March 2024 with a strike price <span class="No-Break">of $260:</span><pre class="source-code">
+long_call_contract = option("TSLA", "SMART", "202403",
+    260, "CALL")
+long_call = app.resolve_contract(long_call_contract)</pre></li>				<li>Add the code to create a long put option contract on TSLA expiring on the same date with the <a id="_idIndexMarker905"></a>same <span class="No-Break">strike price:</span><pre class="source-code">
+long_put_contract = option("TSLA", "SMART", "202404",
+    260, "PUT")
+long_put = app.resolve_contract(long_put_contract)</pre></li>				<li>Convert each resolved contract into a leg of our <span class="No-Break">spread contract:</span><pre class="source-code">
+leg_1 = combo_leg(long_call, 1, BUY)
+leg_2 = combo_leg(long_put, 1, BUY)</pre></li>				<li>Pass a list of the legs to the spread function to put the legs together into a single <span class="No-Break">tradeable instrument:</span><pre class="source-code">
+long_strangle = spread([leg_1, leg_2])</pre></li>				<li>Create a market order object and send the order to the <span class="No-Break">IB API:</span><pre class="source-code">
+order = market(BUY, 1)
+app.send_order(long_strangle, order)</pre></li>			</ol>
+			<h2 id="_idParaDest-373"><a id="_idTextAnchor384"></a>How it works…</h2>
+			<p>The <strong class="source-inline">combo_leg</strong> function<a id="_idIndexMarker906"></a> takes three parameters: <strong class="source-inline">contract_details</strong>, <strong class="source-inline">ratio</strong>, and <strong class="source-inline">action</strong>. It creates an instance of <strong class="source-inline">ComboLeg</strong> and sets <strong class="source-inline">conId</strong>, <strong class="source-inline">ratio</strong>, <strong class="source-inline">action</strong>, and <strong class="source-inline">exchange</strong>. The fully defined <strong class="source-inline">ComboLeg</strong> object is then returned. The <strong class="source-inline">spread</strong> function takes a list of <strong class="source-inline">ComboLeg</strong> objects created by the <strong class="source-inline">combo_leg</strong> function. The function creates an instance of <strong class="source-inline">Contract</strong>, sets its <strong class="source-inline">symbol</strong> to <strong class="source-inline">USD</strong>, <strong class="source-inline">type</strong> to <strong class="source-inline">BAG</strong> (which stands for a <strong class="bold">bag</strong> or<a id="_idIndexMarker907"></a> combination of contracts), <strong class="source-inline">currency</strong> to <strong class="source-inline">USD</strong>, and <strong class="source-inline">exchange</strong> to <strong class="source-inline">SMART</strong>. It then assigns the <strong class="source-inline">legs</strong> parameter to the <strong class="source-inline">comboLegs</strong> attribute of the contract. The complete <strong class="source-inline">Contract</strong> object is <span class="No-Break">then returned.</span></p>
+			<p>In this example, we constructed a long straddle. A long options straddle is a market-neutral strategy whereby we purchase both a call option and a put option on the same underlying asset with the same strike price and expiration date. Straddles allow us to bet on volatility rather than the direction of the price movement. The position profits if the underlying asset moves up or down, allowing the trader to exercise one of the options for a profit that exceeds the total cost of <span class="No-Break">both premiums.</span></p>
+			<p>We can model <a id="_idIndexMarker908"></a>options trades in TWS. To get started, click the plus sign to the right of the tabs at the bottom of TWS. Click <strong class="bold">Browse</strong> on the right side of the popup to browse predefined layouts. Click <strong class="bold">Options</strong> on the left side, then select <strong class="bold">Add Layout</strong> on the <strong class="bold">Options Trading</strong> card in the top left. Once this has been added, load your favorite underlying. In the <strong class="bold">Options Chains</strong> window, toggle <span class="No-Break"><strong class="bold">Strategy Builder</strong></span><span class="No-Break">.</span></p>
+			<p>For example, using the Strategy Builder, we can construct <span class="No-Break">our straddle.</span></p>
+			<div>
+				<div id="_idContainer227" class="IMG---Figure">
+					<img src="image/B21323_12_04.jpg" alt="Figure 12.4: A long straddle modeled using the Strategy Builder in TWS" width="1047" height="118"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.4: A long straddle modeled using the Strategy Builder in TWS</p>
+			<p>By clicking<a id="_idIndexMarker909"></a> the <strong class="bold">Profile</strong> button just under the <strong class="bold">Strategy Builder</strong> window, we can get more details about the strategy including the payoff charts as shown in the <span class="No-Break">following screenshot:</span></p>
+			<div>
+				<div id="_idContainer228" class="IMG---Figure">
+					<img src="image/B21323_12_05.jpg" alt="Figure 12.5: A long straddle profile in TWS" width="1071" height="837"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.5: A long straddle profile in TWS</p>
+			<p>After running <a id="_idIndexMarker910"></a>our app, the legs of the trade will be grouped <a id="_idIndexMarker911"></a>together in the orders pane <span class="No-Break">as follows:</span></p>
+			<div>
+				<div id="_idContainer229" class="IMG---Figure">
+					<img src="image/B21323_12_06.jpg" alt="Figure 12.6: Long straddle legs grouped together in the orders pane in TWS" width="979" height="99"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.6: Long straddle legs grouped together in the orders pane in TWS</p>
+			<h2 id="_idParaDest-374"><a id="_idTextAnchor385"></a>There’s more…</h2>
+			<p>Let’s model another, more complex strategy called an iron condor. We’ll describe a short iron condor. A short iron condor is executed by selling a put option at a lower out-of-the-money strike, purchasing another put with an even lower strike, selling a call option at a higher out-of-the-money strike, and then buying another call with an even higher strike. Typically, all options have the same expiration date. The position is constructed in such a way that we collect the premium from the options sold. The bet is that the underlying asset’s price will remain between the inner strikes of the options sold and the options expire worthless. This strategy allows traders to bet on low volatility in the underlying asset’s price, aiming to profit from a range-bound market within the span of the options’ <span class="No-Break">expiration period.</span></p>
+			<p>This strategy is beneficial in a low-volatility environment, where large movements are not expected. It’s a limited-risk strategy, as the long options of the spreads act as insurance against substantial adverse moves in the asset’s price. The profitability is capped to the premiums received, while losses are limited to the difference between the strikes less the net <span class="No-Break">premium collected.</span></p>
+			<p>We can model <a id="_idIndexMarker912"></a>options trades in TWS. For example, using the Strategy Builder, we can construct our straddle as <span class="No-Break">shown here:</span></p>
+			<div>
+				<div id="_idContainer230" class="IMG---Figure">
+					<img src="image/B21323_12_07.jpg" alt="Figure 12.7: A short iron condor modeled using the Strategy Builder in TWS" width="1190" height="188"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.7: A short iron condor modeled using the Strategy Builder in TWS</p>
+			<p>By clicking<a id="_idIndexMarker913"></a> the <strong class="bold">Profile</strong> button just under the <strong class="bold">Strategy Builder</strong> window, we can get more details about the strategy, including the <span class="No-Break">payoff charts.</span></p>
+			<div>
+				<div id="_idContainer231" class="IMG---Figure">
+					<img src="image/B21323_12_08.jpg" alt="Figure 12.8: A short icon condor profile in TWS" width="1086" height="852"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.8: A short icon condor profile in TWS</p>
+			<p>After running our<a id="_idIndexMarker914"></a> app, the legs of the trade will be grouped together in the <span class="No-Break"><strong class="bold">Orders</strong></span><span class="No-Break"> pane.</span></p>
+			<div>
+				<div id="_idContainer232" class="IMG---Figure">
+					<img src="image/B21323_12_09.jpg" alt="Figure 12.9: Short iron condor legs grouped together in the orders pane in TWS" width="984" height="165"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.9: Short iron condor legs grouped together in the orders pane in TWS</p>
+			<h2 id="_idParaDest-375"><a id="_idTextAnchor386"></a>See also</h2>
+			<p>To learn more about options trading, you can check out the Options Industry Council’s website at <a href="https://www.optionseducation.org/">https://www.optionseducation.org/</a>. A great desk reference is one of the most comprehensive guides to options trading on the market: <em class="italic">Options as a Strategic Investment</em>, which can be found on <span class="No-Break">Amazon: </span><a href="https://amzn.to/3GQRspX%0D"><span class="No-Break">https://amzn.to/3GQRspX</span></a></p>
+			<p>For more information on options spread orders using the IB API, see the <span class="No-Break">documentation: </span><a href="https://interactivebrokers.github.io/tws-api/spread_contracts.html#bag_opt%0D"><span class="No-Break">https://interactivebrokers.github.io/tws-api/spread_contracts.html#bag_opt</span></a></p>
+			<h1 id="_idParaDest-376"><a id="_idTextAnchor387"></a>Deploying an intraday multi-asset mean reversion strategy</h1>
+			<p>In this recipe, we <a id="_idIndexMarker915"></a>introduce a relative value strategy that uses the crack spread to identify opportunities to buy relatively cheap refiner stocks. The crack spread is a trading strategy in the energy sector that captures the price differential between crude oil and its refined products, most commonly gasoline and heating oil. Our strategy will use a 1:2:3 combination of one<a id="_idIndexMarker916"></a> contract of <strong class="bold">Heating Oil</strong> (<strong class="bold">HO</strong>) futures, two contracts of <strong class="bold">NYMEX RBOB Gasoline Index</strong> (<strong class="bold">RB</strong>) futures, and<a id="_idIndexMarker917"></a> short<a id="_idIndexMarker918"></a> three <strong class="bold">Light Sweet Crude Oil</strong> (<span class="No-Break"><strong class="bold">CL</strong></span><span class="No-Break">) futures.</span></p>
+			<p>When trading the crack spread against a refiner stock, we are comparing the profitability of refining operations to the market’s valuation of a specific refining company. Refiner stocks should theoretically benefit from a widening crack spread, as their margins improve when the price difference between crude and its products increases. The economic rationale behind our strategy is straightforward: refiners purchase crude oil and sell its refined products. When the spread between the two widens, the refiner’s profit margin expands. Consequently, refiner stocks should move in tandem with crack spreads. Other factors such as operational efficiency, regulatory changes, and broader market sentiment can cause the relationship to break down, which we can take <span class="No-Break">advantage of.</span></p>
+			<p>In this recipe, we’ll build a strategy that identifies times when the crack spread widens substantially but a refiner’s stock hasn’t reacted proportionally. We’ll use the opportunity to <a id="_idIndexMarker919"></a>go long <strong class="bold">Philips 66</strong> (<strong class="bold">PSX</strong>), expecting the stock to catch up to the increased profitability suggested by the <span class="No-Break">crack spread.</span></p>
+			<h2 id="_idParaDest-377"><a id="_idTextAnchor388"></a>Getting ready</h2>
+			<p>We assume that you’ve created the <strong class="source-inline">app.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If you have not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-378"><a id="_idTextAnchor389"></a>How to do it…</h2>
+			<p>We’ll add the code required to connect to TWS, define the contracts for our strategy, check for trading signals every 60 seconds, and execute trades accordingly. Start by opening <strong class="source-inline">app.py</strong> and replacing any code under the <strong class="source-inline">if __name__ == "__main__":</strong> line with <span class="No-Break">the following.</span></p>
+			<ol>
+				<li>Create the<a id="_idIndexMarker920"></a> connection to our trading app, replacing <strong class="source-inline">DU*******</strong> with your <span class="No-Break">account number:</span><pre class="source-code">
+app = IBApp("127.0.0.1", 7497, client_id=11,
+    account="DU*******")</pre></li>				<li>Define the refiner stock that we’ll trade (in this case, PSX) and the futures contracts that make up the <span class="No-Break">crack spread:</span><pre class="source-code">
+psx = stock("PSX", "SMART", "USD")
+ho = future("HO", "NYMEX", "202403")
+rb = future("RB", "NYMEX", "202403")
+cl = future("CL", "NYMEX", "202403")</pre></li>				<li>Set up a window of time to compute a rolling z-score that we’ll use as our trading signal along with the number of standard deviations that trigger <span class="No-Break">a trade:</span><pre class="source-code">
+window = 60
+thresh = 2</pre></li>				<li>We’ll now set up an infinite loop that will continuously run throughout the trading day. The rest of the code should be under a <span class="No-Break"><strong class="source-inline">while</strong></span><span class="No-Break"> statement:</span><pre class="source-code">
+while True:</pre></li>				<li>Download the historical data for the four contracts that we just defined. In our example, we’ll get one-minute bars over the last week. This will give us flexibility in case we want to extend our <span class="No-Break">lookback window:</span><pre class="source-code">
+data = app.get_historical_data_for_many(
+    request_id=99,
+    contracts=[psx, ho, rb, cl],
+    duration="1 W",
+    bar_size="1 min",
+).dropna()</pre></li>				<li>Compute the 1:2:3 crack spread and add the data to a new column in our DataFrame that contains the <span class="No-Break">price data:</span><pre class="source-code">
+data["crack_spread"] = data.HO + 2 * data.RB - 3 * data.CL</pre></li>				<li>To normalize the value of the crack spread and the refiner, compute the rolling 60-period <a id="_idIndexMarker921"></a>rank of the last value as a percentage of the <span class="No-Break">preceding values:</span><pre class="source-code">
+data["crack_spread_rank"] = data.crack_spread.rolling(
+    window).rank(pct=True)
+data["refiner_rank"] = data.PSX.rolling(window).rank(pct=True)</pre></li>				<li>Compute the difference between the crack spread’s 60-period rank and the refiner’s <span class="No-Break">60-period rank:</span><pre class="source-code">
+data["rank_spread"] = data.refiner_rank - data.crack_spread_rank</pre></li>				<li>Compute the rolling 60-period z-score of the difference between the crack spread’s rank and the refiner’s rank and take the last value as the <span class="No-Break">trading signal:</span><pre class="source-code">
+roll = data.rank_spread.rolling(window)
+zscore = ((
+    data.rank_spread - roll.mean()) / roll.std())
+signal = zscore[-1]</pre></li>				<li>Enter a market order to buy 10 shares of PSX if the current signal is less than the threshold and we do not currently hold a position in PSX. Set the target percent of PSX to 0% if our signal exceeds <strong class="source-inline">0</strong> and we do not currently hold a position <span class="No-Break">in PSX:</span><pre class="source-code">
+holding = psx.symbol in app.positions.keys()
+if signal &lt;= -thresh and not holding:
+    order = market(BUY, 10)
+    app.send_order(psx, order)
+elif signal &gt;= 0 and holding:
+    app.order_target_percent(psx, market, 0)</pre></li>				<li>Enter a market order to sell 10 shares of PSX if the current signal is greater than the threshold<a id="_idIndexMarker922"></a> and we do not currently hold a position in PSX. Set the target percent of PSX to 0% if our signal goes below <strong class="source-inline">0</strong> and we do not currently hold a position <span class="No-Break">in PSX:</span><pre class="source-code">
+if signal &gt;= thresh and not holding:
+    order = market(SELL, 10)
+    app.send_order(psx, order)
+elif signal &lt;= 0 and holding:
+    app.order_target_percent(psx, market, 0)</pre></li>				<li>Finally, wait for 60 seconds before running the <span class="No-Break">process again:</span><pre class="source-code">
+time.sleep(60)</pre><p class="list-inset">The final result should resemble the following <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break">:</span></p><pre class="source-code">if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=11,
+        account="DU7129120")
+    psx = stock("PSX", "SMART", "USD")
+    ho = future("HO", "NYMEX", "202403")
+    rb = future("RB", "NYMEX", "202403")
+    cl = future("CL", "NYMEX", "202403")
+    window = 60
+    thresh = 2
+    while True:
+        data = app.get_historical_data_for_many(
+            request_id=99,
+            contracts=[psx, ho, rb, cl],
+            duration="1 W",
+            bar_size="1 min",        ).dropna()
+        data["crack_spread"] = data.HO + 2 * data.RB - 3 * data.
+        CL
+        data["crack_spread_rank"] = data.crack_spread.rolling(
+            window).rank(pct=True)
+        data["refiner_rank"] = data.PSX.rolling(
+            window).rank(pct=True)
+        data["rank_spread"] = data.refiner_rank - data.crack_
+        spread_rank
+        roll = data.rank_spread.rolling(window)
+        zscore = ((data.rank_spread - roll.mean()) / roll.std())
+        signal = zscore[-1]
+        holding = psx.symbol in app.positions.keys()
+        if signal &lt;= -thresh and not holding:
+            order = market(BUY, 10)
+            app.send_order(psx, order)
+        elif signal &gt;= 0 and holding:
+            app.order_target_percent(psx, market, 0)
+        if signal &gt;= thresh and not holding:
+            order = market(SELL, 10)
+            app.send_order(psx, order)
+        elif signal &lt;= 0 and holding:
+            app.order_target_percent(psx, market, 0)
+        time.sleep(60)
+    app.disconnect()</pre></li>			</ol>
+			<h2 id="_idParaDest-379"><a id="_idTextAnchor390"></a>How it works…</h2>
+			<p>We covered connecting to TWS, defining contract objects, downloading historical data, manipulating data in pandas DataFrames, and submitting orders in previous chapters. Here, we’ll focus on how the trading strategy <span class="No-Break">works conceptually.</span></p>
+			<p>To run this <a id="_idIndexMarker923"></a>strategy, we would need to start it at the beginning of the trading day. The algorithm operates in a continuous loop, fetching historical data for the contracts with a one-week duration and a one-minute bar size. For each loop, we calculate the crack spread, which is then ranked over a rolling window along with the rank of PSX stock’s performance. The difference between these ranks is used to generate a trading signal. This signal is a z-score, calculated over a rolling window, indicating how many standard deviations the current rank spread is from its <span class="No-Break">rolling mean.</span></p>
+			<p>We use the <strong class="source-inline">get_historical_data_for_many</strong> method that we created in <a href="B21323_10.xhtml#_idTextAnchor282"><span class="No-Break"><em class="italic">Chapter 10</em></span></a>, <em class="italic">Set up the Interactive Brokers Python API</em>. This method returns a DataFrame with the open, high, low, and closing prices for the PSX equity contract and HO, RB, and CL <span class="No-Break">futures contracts.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">As of the time of writing this, the March 2024 contract was the most active contract. You may need to adjust the expiration of the contracts used during your own implementation of <span class="No-Break">this strategy.</span></p>
+			<p>The result of acquiring the data is the following <span class="No-Break">pandas DataFrame.</span></p>
+			<div>
+				<div id="_idContainer233" class="IMG---Figure">
+					<img src="image/B21323_12_10.jpg" alt="Figure 12.10: A pandas DataFrame with historical market data" width="465" height="300"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.10: A pandas DataFrame with historical market data</p>
+			<p>Now that we <a id="_idIndexMarker924"></a>have the price data, we’re able to compute the crack spread using the same data manipulation techniques that we learned in <a href="B21323_02.xhtml#_idTextAnchor040"><span class="No-Break"><em class="italic">Chapter 2</em></span></a>, <em class="italic">Analyze and Transform Financial Market Data with pandas</em>. The result of computing the crack spread is a time series that resembles the <span class="No-Break">following chart.</span></p>
+			<div>
+				<div id="_idContainer234" class="IMG---Figure">
+					<img src="image/B21323_12_11.jpg" alt="Figure 12.11: A 1:2:3 crack spread plotted over a single trading day" width="640" height="480"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.11: A 1:2:3 crack spread plotted over a single trading day</p>
+			<p>The prices of equities <a id="_idIndexMarker925"></a>do not go negative, so we need a way to compare the relative value of the crack spread to the refiner that we’re trading against. One way to do this is to determine the percent rank of the current price relative to the preceding prices. We use that technique for both the crack spread and the refiner stock. The result of these rolling percentile ranks is two time series that resemble the <span class="No-Break">following chart.</span></p>
+			<div>
+				<div id="_idContainer235" class="IMG---Figure">
+					<img src="image/B21323_12_12.jpg" alt="Figure 12.12: The evolution of the price rank of PSX and the crack spread relative to their 60-period windows" width="624" height="443"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.12: The evolution of the price rank of PSX and the crack spread relative to their 60-period windows</p>
+			<p>Now that the refiner and crack spread prices have been normalized, we can compare them by taking the difference between the two. The result of this difference is a time series that resembles <a id="_idIndexMarker926"></a>the <span class="No-Break">following chart.</span></p>
+			<div>
+				<div id="_idContainer236" class="IMG---Figure">
+					<img src="image/B21323_12_13.jpg" alt="Figure 12.13: The difference between the crack spread’s rank and the refiner’s rank" width="618" height="448"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.13: The difference between the crack spread’s rank and the refiner’s rank</p>
+			<p>We can see some mean reverting behavior, which we can more concisely capture through a z-score. Computing the z-score creates a time series that resembles the <span class="No-Break">following chart.</span></p>
+			<div>
+				<div id="_idContainer237" class="IMG---Figure">
+					<img src="image/B21323_12_14.jpg" alt="Figure 12.14: A rolling z-score of the differences between the crack spread’s rank and the refiner’s rank" width="585" height="439"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 12.14: A rolling z-score of the differences between the crack spread’s rank and the refiner’s rank</p>
+			<p>Trading decisions are made based on this z-score. If the signal is below a negative threshold and PSX is not already held, we enter a buy order. If the signal is non-negative and PSX is held, the position is liquidated to <strong class="source-inline">0</strong>. Conversely, if the signal exceeds a positive threshold and PSX is not held, we enter a <strong class="source-inline">sell</strong> order. If the signal is negative and PSX is held, the<a id="_idIndexMarker927"></a> position is again liquidated. The script pauses for 60 seconds at the end of each loop iteration. This process repeats until we <span class="No-Break">stop execution.</span></p>
+			<h2 id="_idParaDest-380"><a id="_idTextAnchor391"></a>There’s more…</h2>
+			<p>In this strategy, we use the crack spread as a relative value indicator. We assume that the relative value of the refiner and the crack spread will oscillate around a mean, which we can exploit. We can also create a spread order and trade the crack spread itself. The crack spread is a type of intercommodity spread <span class="No-Break">by IB.</span></p>
+			<p>Intercommodity spreads for futures contracts are constructed using combo legs and combo orders, which allows us to simultaneously trade multiple futures contracts as a single entity. This approach is particularly relevant for strategies such as crack spreads, whereby the profit is derived from the price differences between related commodities such as crude oil and its refined products. When building these spreads, each leg of the combo order represents a different futures contract, and it’s crucial to specify the <strong class="bold">local symbol</strong> accurately for each contract. The local symbol is a unique identifier for futures contracts that includes information about the underlying asset, expiration date, and other <span class="No-Break">contract specifics.</span></p>
+			<p>IB currently does not support intercommodity spreads for crack spread strategies, which prevents us from directly implementing this particular strategy on their platform. IB does support intercommodity spreads between CL and RB, as well as between RB and HO. We could technically construct a crack spread using a combination of these two intercommodity spreads but the complexity involved makes it easier to just trade the <span class="No-Break">refiner stock.</span></p>
+			<h2 id="_idParaDest-381"><a id="_idTextAnchor392"></a>See also</h2>
+			<p>To learn more about the intuition behind our trade, you can read about the crack spread <span class="No-Break">at </span><a href="https://www.investopedia.com/terms/c/crackspread.asp"><span class="No-Break">https://www.investopedia.com/terms/c/crackspread.asp</span></a><span class="No-Break">.</span></p>
+			<p>You can read more about building combo legs and futures spread contracts using the IB API <span class="No-Break">at </span><a href="https://interactivebrokers.github.io/tws-api/spread_contracts.html#bag_fut"><span class="No-Break">https://interactivebrokers.github.io/tws-api/spread_contracts.html#bag_fut</span></a><span class="No-Break">.</span></p>
+		</div>
+	</div>
+</div>
+</body>
+</html>

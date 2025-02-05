@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer021">
+			<h1 id="_idParaDest-14" class="chapter-number"><a id="_idTextAnchor013"></a>1</h1>
+			<h1 id="_idParaDest-15"><a id="_idTextAnchor014"></a>Acquire Free Financial Market Data with Cutting-Edge Python Libraries</h1>
+			<p>A May 2017 Economist cover declared data to be the world’s most valuable resource. It’s none truer than in algorithmic trading. As algorithmic traders, it’s our job to acquire and make sense of billions of rows of market data for use in trading algorithms. In this context, it’s crucial to gather high-quality, reliable data that can adequately support trading algorithms and market research. Luckily for us, it’s possible to acquire high-quality data for free (or <span class="No-Break">nearly free).</span></p>
+			<p>This chapter offers recipes for a series of different Python libraries—including the cutting-edge OpenBB Platform—to acquire free financial market data using Python. One of the primary challenges most non-professional traders face is getting all the data required for analysis together in one place. The OpenBB Platform addresses this issue. We’ll dive into acquiring data for a variety of assets, including stocks, options, futures (both continuous and individual contracts), and <span class="No-Break">Fama-French factors.</span></p>
+			<p>One crucial point to remember is that data can vary across different sources. For instance, prices from two sources might differ due to distinct data sourcing methods or different adjustment methods for corporate actions. Some of the libraries we’ll cover might download data for the same asset from the same source. However, libraries vary in how they return that data based on options that help you preprocess the data in preparation <span class="No-Break">for research.</span></p>
+			<p>Lastly, while we’ll focus heavily on mainstream financial data in this chapter, financial data is not limited to prices. The concept of “alternative data,” which includes non-traditional data sources such as satellite images, web traffic data, or customer reviews, can be an important source of information for developing trading strategies. The Python tools to acquire and process this type of data are outside the scope of this book. We’ve intentionally left out the methods of acquiring and processing this type of data since it’s covered in other resources dedicated to <span class="No-Break">the topic.</span></p>
+			<p>In this chapter, we’ll cover the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Working with stock market data with the <span class="No-Break">OpenBB Platform</span></li>
+				<li>Fetching historic futures data with the <span class="No-Break">OpenBB Platform</span></li>
+				<li>Navigating options market data with the <span class="No-Break">OpenBB Platform</span></li>
+				<li>Harnessing factor data <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">pandas_datareader</strong></span></li>
+			</ul>
+			<h1 id="_idParaDest-16"><a id="_idTextAnchor015"></a>Technical requirements</h1>
+			<p>This book relies on the Anaconda distribution of Python. We’ll use Jupyter Notebook and Python script files to write the code. Unless specified otherwise, all the code can be written in <span class="No-Break">Jupyter Notebooks.</span></p>
+			<p>Download and install the Anaconda distribution of Python. You can do this by going to <a href="https://www.anaconda.com/download">https://www.anaconda.com/download</a>. Depending on your operating system, the instructions for downloading and installing will vary. Please refer to the Anaconda documentation for <span class="No-Break">detailed instructions.</span></p>
+			<p>Anaconda ships with a package manager called <strong class="source-inline">conda</strong>. Package managers make it easy to install, remove, and update Python packages. There’s a great cheat sheet for the <strong class="source-inline">conda</strong> package manager that you can download <span class="No-Break">from </span><a href="https://docs.conda.io/projects/conda/en/4.6.0/_downloads/52a95608c49671267e40c689e0bc00ca/conda-cheatsheet.pdf"><span class="No-Break">https://docs.conda.io/projects/conda/en/4.6.0/_downloads/52a95608c49671267e40c689e0bc00ca/conda-cheatsheet.pdf</span></a><span class="No-Break">.</span></p>
+			<p>Once you’ve installed the Anaconda distribution, open your Terminal on Mac or Linux or the Anaconda Prompt on Windows. If you’re a Windows user, make sure to use the Command Prompt instead of the Powershell prompt. Then follow <span class="No-Break">these steps:</span></p>
+			<ol>
+				<li>Update the <strong class="source-inline">conda</strong> <span class="No-Break">package manager:</span><pre class="source-code">
+<strong class="bold">conda update -n base conda -y</strong></pre></li>				<li>Create a <span class="No-Break">virtual environment:</span><pre class="source-code">
+<strong class="bold">conda create -n my-quant-stack python=3.10 -y</strong></pre></li>				<li>After the installation process is complete, activate <span class="No-Break">the environment:</span><pre class="source-code">
+<strong class="bold">conda activate my-quant-stack</strong></pre></li>				<li>Install Jupyter Notebook using the package manager that ships with <span class="No-Break">Python, </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span><pre class="source-code">
+<strong class="bold">pip install notebook matplotlib</strong></pre></li>			</ol>
+			<p>This will set up a virtual environment using Python 3.10 and install <span class="No-Break">Jupyter Notebook.</span></p>
+			<p>This chapter will use Two Python libraries to acquire financial market data: the OpenBB Platform and <strong class="source-inline">pandas_datareader</strong>. The good news is that installing the OpenBB Platform installs many of the libraries you will need to acquire financial market data, including <strong class="source-inline">pandas_datareader</strong>. As such, there is no need to install the <span class="No-Break">libraries separately.</span></p>
+			<p>Install the OpenBB Platform with all extensions and providers (both officially supported and community-maintained ones) <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">pip</strong></span><span class="No-Break">:</span></p>
+			<pre class="console">
+pip install openbb[all]</pre>			<p>This is the easiest way to set up the OpenBB Platform for <span class="No-Break">this book.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">In a macOS zsh Terminal shell, add quotation marks around the library <span class="No-Break">name: </span><span class="No-Break"><strong class="source-inline">"openbb[all]"</strong></span></p>
+			<p>To install a <span class="No-Break">single extension:</span></p>
+			<pre class="console">
+pip install openbb[charting]
+pip install openbb[ta]</pre>			<p>Or install a <span class="No-Break">single provider:</span></p>
+			<pre class="console">
+pip install openbb[yfinance]</pre>			<p>To install the Nightly distribution (this installs all extras <span class="No-Break">by default):</span></p>
+			<pre class="console">
+pip install openbb-nightly</pre>			<p class="callout-heading">Important note</p>
+			<p class="callout">At the time of writing, installing the OpenBB Platform using <strong class="source-inline">pip</strong> isn’t compatible with environments such as Google Colab and Kaggle since they come with preinstalled packages that can conflict with the ones used with the OpenBB Platform. If you run into trouble installing the OpenBB Platform, please check the online documentation for the most <span class="No-Break">up-to-date instructions.</span></p>
+			<h1 id="_idParaDest-17"><a id="_idTextAnchor016"></a><a id="_idTextAnchor017"></a>Working with stock market data with the OpenBB Platform</h1>
+			<p>You may remember the <strong class="bold">meme stock</strong> hysteria that<a id="_idIndexMarker000"></a> sent GameStop’s stock up 1,744% in January 2021. One of the good things that came from that episode was the GameStonk terminal, now rebranded as OpenBB. OpenBB<a id="_idIndexMarker001"></a> is the most popular open-source finance projects on GitHub for good reason: it provides a single interface to access hundreds of data feeds from one place in a standard way. OpenBB has a<a id="_idIndexMarker002"></a> command-line interface that is great for manual investment research. But when it’s time to get data into Python, you want the OpenBB Platform. This recipe will guide you through the process of using the OpenBB Platform to fetch stock <span class="No-Break">market data.</span></p>
+			<h2 id="_idParaDest-18"><a id="_idTextAnchor018"></a>Getting ready…</h2>
+			<p>By now, you should have the OpenBB Platform installed in your virtual environment. If not, go back to the beginning of this chapter and get it set up. The OpenBB Platform is free to use and offers a web-based UI to manage your configuration files, store API keys, and get code walkthroughs and examples. Sign up for a free Hub account at https://my.openbb.co/login. The popular course, <em class="italic">Getting Started with Python for Quant Finance</em>, uses OpenBB exclusively for all the code. Check out <a href="https://www.pyquantnews.com/getting-started-with-python-for-quant-finance">https://www.pyquantnews.com/getting-started-with-python-for-quant-finance</a> for information on how <span class="No-Break">to join.</span></p>
+			<h2 id="_idParaDest-19"><a id="_idTextAnchor019"></a>How to do it…</h2>
+			<p>Using the OpenBB Platform involves <span class="No-Break">one import:</span></p>
+			<ol>
+				<li>Import the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Use the <strong class="source-inline">historical</strong> method to <a id="_idIndexMarker003"></a>download price data for the <span class="No-Break">SPY ETF:</span><pre class="source-code">
+data = obb.equity.price.historical("SPY", provider="yfinance")</pre></li>				<li>Inspect the <span class="No-Break">resulting</span><span class="No-Break"><a id="_idIndexMarker004"></a></span><span class="No-Break"> DataFrame:</span><pre class="source-code">
+print(data)</pre><p class="list-inset">Running the preceding code generates a pandas DataFrame and prints the data to <span class="No-Break">the screen:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer007" class="IMG---Figure">
+					<img src="image/B21323_01_1.jpg" alt="Figure 1.1: Historic price data for SPY" width="778" height="406"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.1: Historic price data for SPY</p>
+			<h2 id="_idParaDest-20"><a id="_idTextAnchor020"></a>How it works…</h2>
+			<p>The OpenBB Platform follows an easy-to-understand namespace convention. All the methods for acquiring stock price data are <a id="_idIndexMarker005"></a>methods <span class="No-Break">on </span><span class="No-Break"><strong class="source-inline">openbb.equity</strong></span><span class="No-Break">.</span></p>
+			<p>The <strong class="source-inline">historical</strong> method accepts a<a id="_idIndexMarker006"></a> ticker symbol and returns the open, high, low, close, adjusted close, volume, dividend, and split adjustments in a pandas DataFrame. The additional parameters you can specify are <span class="No-Break">as follows:</span></p>
+			<ul>
+				<li><strong class="source-inline">start_date</strong>: Start date to get data <span class="No-Break">from with</span></li>
+				<li><strong class="source-inline">interval</strong>: Interval (in minutes) to get data—that is, 1, 5, 15, 30, 60, <span class="No-Break">or 1,440</span></li>
+				<li><strong class="source-inline">end_date</strong>: End date to get data <span class="No-Break">from with</span></li>
+				<li><strong class="source-inline">provider</strong>: Source of <span class="No-Break">data extracted</span></li>
+			</ul>
+			<h2 id="_idParaDest-21"><a id="_idTextAnchor021"></a>There’s more…</h2>
+			<p>An important benefit of using the OpenBB Platform is choosing your data source. By default, the OpenBB Platform will attempt to download data from free sources such as Yahoo! Finance. In most OpenBB Platform calls, you can indicate a different source. To use a source that requires an API key (either free or paid), you can configure it in the <span class="No-Break">OpenBB Hub.</span></p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">Check out the OpenBB Platform documentation for <a id="_idIndexMarker007"></a>the latest <span class="No-Break">functionality: </span><a href="https://docs.openbb.co"><span class="No-Break">https://docs.openbb.co.</span></a></p>
+			<p>Let’s look at some more of the functions of the <span class="No-Break">OpenBB Platform.</span></p>
+			<h3>Comparison of fundamental data</h3>
+			<p>Not only can the OpenBB Platform download fundamental data in an organized and usable way, but it can also concatenate it in a single Pandas DataFrame for <span class="No-Break">further analysis.</span></p>
+			<p>We can use the following code to see the balance sheet metrics from <strong class="source-inline">AAPL</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">MSFT</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+obb.equity.fundamental.metrics(
+    "AAPL,MSFT",
+    provider="yfinance"
+)</pre>			<p>The output of the preceding snippet is a pandas DataFrame with fundamental data for each ticker that <span class="No-Break">was passed:</span></p>
+			<div>
+				<div id="_idContainer008" class="IMG---Figure">
+					<img src="image/B21323_01_2.jpg" alt="Figure 1.2: Balance sheet data for MSFT and AAPL" width="448" height="1119"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.2: Balance sheet data for MSFT and AAPL</p>
+			<h3>Building stock screeners</h3>
+			<p>One of the most powerful features of <a id="_idIndexMarker008"></a>the OpenBB Platform is the custom stock<a id="_idIndexMarker009"></a> screener. It uses the <strong class="bold">Finviz</strong> stock screener under the hood and surfaces metrics across a range of stocks based on either pre-built or custom criteria. See the documentation for more on how to use the OpenBB screener <span class="No-Break">functions (</span><a href="https://docs.openbb.co/platform/reference/equity/screener"><span class="No-Break">https://docs.openbb.co/platform/reference/equity/screener</span></a><span class="No-Break">):</span></p>
+			<ol>
+				<li>Create an overview screener based on a list of stocks using the <span class="No-Break">default view:</span><pre class="source-code">
+obb.equity.compare.groups(
+    group="industry",
+    metric="valuation",
+    provider="finviz"
+)</pre><p class="list-inset">The output of the preceding snippet is the following <span class="No-Break">pandas DataFrame:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer009" class="IMG---Figure">
+					<img src="image/B21323_01_3.jpg" alt="Figure 1.3: Results of a comparison screener between F, GE, and TSLA" width="1204" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.3: Results of a comparison screener between F, GE, and TSLA</p>
+			<ol>
+				<li value="2">Create a screener that returns the top gainers from the technology sector based on <span class="No-Break">a preset:</span><pre class="source-code">
+obb.equity.compare.groups(
+    group="technology",
+    metric="performance",
+    provider="finviz"
+)</pre><p class="list-inset">The output of the preceding snippet is the following <span class="No-Break">pandas DataFrame:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer010" class="IMG---Figure">
+					<img src="image/B21323_01_4.jpg" alt="Figure 1.4: Results of a screener showing the day’s top-gaining stocks" width="1478" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.4: Results of a screener showing the day’s top-gaining stocks</p>
+			<ol>
+				<li value="3">Create a screener that presents an overview grouped <span class="No-Break">by sector:</span><pre class="source-code">
+obb.equity.compare.groups(
+    group="sector",
+    metric="overview",
+    provider="finviz"
+)</pre><p class="list-inset">The output of the preceding snippet is the following <span class="No-Break">pandas DataFrame:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer011" class="IMG---Figure">
+					<img src="image/B21323_01_5.jpg" alt="Figure 1.5: Results of a screener grouped by sector" width="1012" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.5: Results of a screener grouped by sector</p>
+			<h2 id="_idParaDest-22"><a id="_idTextAnchor022"></a>See also</h2>
+			<p>For more on OpenBB and the <strong class="bold">Finviz</strong> stock screener, check out the <span class="No-Break">following resources:</span></p>
+			<ul>
+				<li>The OpenBB Platform documentation, which contains details on dozens of functions to acquire stock market data for <span class="No-Break">free: </span><a href="https://docs.openbb.co/platform/reference/equity"><span class="No-Break">https://docs.openbb.co/platform/reference/equity</span></a></li>
+				<li>The <strong class="bold">Finviz</strong> home page, which<a id="_idIndexMarker010"></a> includes free access to the web-based <span class="No-Break">screener </span><a href="https://finviz.com/?a=2548677%20"><span class="No-Break">https://finviz.com/?a=2548677</span></a></li>
+				<li>The top-selling cohort-based<a id="_idIndexMarker011"></a> course to help beginners get up and running with Python for quant finance, algorithmic trading, and data <span class="No-Break">analysis: </span><a href="https://www.pyquantnews.com/getting-started-with-python-for-quant-finance"><span class="No-Break">https://www.pyquantnews.com/getting-started-with-python-for-quant-finance</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-23"><a id="_idTextAnchor023"></a>Fetching historic futures data with the OpenBB Platform</h1>
+			<p>Traders use continuous futures data for backtesting trading strategies. Futures traders use the roll from one contract to another as a potential opportunity for profit. Some traders simply pick a date before <a id="_idIndexMarker012"></a>expiration to roll to the next contract, while others use sophisticated techniques involving open interest. This <strong class="bold">basis trade</strong> is persistently one of the most popular trading strategies for futures traders. These traders want <a id="_idIndexMarker013"></a>control over the data that’s used to compute the basis<a id="_idIndexMarker014"></a> trade, so acquiring individual contract data is important. This recipe will guide you through the process of using the OpenBB Platform to fetch individual futures <span class="No-Break">contract data.</span></p>
+			<h2 id="_idParaDest-24"><a id="_idTextAnchor024"></a>Getting ready…</h2>
+			<p>By now, you should have the OpenBB Platform installed in your virtual environment. If not, go back to the beginning of this chapter and get it <span class="No-Break">set up.</span></p>
+			<h2 id="_idParaDest-25"><a id="_idTextAnchor025"></a>How to do it…</h2>
+			<p>We’ll use the futures functionality in the OpenBB Platform to download individual futures data <span class="No-Break">for free:</span></p>
+			<ol>
+				<li>Import pandas and the <span class="No-Break">OpenBB Platform:</span><pre class="source-code">
+import pandas as pd
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Download the <a id="_idIndexMarker015"></a>current futures curve for the<a id="_idIndexMarker016"></a> VIX futures contract from the <strong class="bold">Chicago Board Options </strong><span class="No-Break"><strong class="bold">Exchange</strong></span><span class="No-Break"> (</span><span class="No-Break"><strong class="bold">CBOE</strong></span><span class="No-Break">):</span><pre class="source-code">
+data = obb.derivatives.futures.curve(symbol="VX")</pre></li>				<li>Inspect the <span class="No-Break">resulting DataFrame:</span><pre class="source-code">
+print(data)</pre><p class="list-inset">Running the preceding code generates the futures curve for the VIX <span class="No-Break">futures contract:</span></p></li>			</ol>
+			<p class="IMG---Figure"> </p>
+			<div>
+				<div id="_idContainer012" class="IMG---Figure">
+					<img src="image/B21323_01_6.jpg" alt="Figure 1.6: Settlement prices for the forward Eurodollar futures contracts" width="254" height="375"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.6: Settlement prices for the forward Eurodollar futures contracts</p>
+			<ol>
+				<li value="4">Update the DataFrame index to the expiration dates and plot the <span class="No-Break">settlement prices:</span><pre class="source-code">
+data.index = pd.to_datetime(data.expiration)
+data.plot()</pre><p class="list-inset">By running the <a id="_idIndexMarker017"></a>proceeding code, we plot the VIX <span class="No-Break">futures curve:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer013" class="IMG---Figure">
+					<img src="image/B21323_01_7.jpg" alt="Figure 1.7: VIX futures curve" width="544" height="422"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.7: VIX futures curve</p>
+			<h2 id="_idParaDest-26"><a id="_idTextAnchor026"></a>There’s more…</h2>
+			<p>You can use the <strong class="source-inline">obb.derivatives.futures.historical</strong> method to get historical data for an individual expiration. Stitching<a id="_idIndexMarker018"></a> together data across a range of years can provide insight into the market’s expectation of supply and <a id="_idIndexMarker019"></a>demand of the <span class="No-Break">underlying commodity:</span></p>
+			<ol>
+				<li>First, create a list containing the year and month expirations you’re <span class="No-Break">interested in:</span><pre class="source-code">
+expirations = [
+    "2024-12",
+    "2025-12",
+    "2026-12",
+    "2027-12",
+    "2028-12",
+    "2029-12",
+    "2030-12",
+]</pre></li>				<li>The preceding code creates <a id="_idIndexMarker020"></a>a Python list of expiration years and dates in string format. Now, loop through each of the <a id="_idIndexMarker021"></a>expirations to download <span class="No-Break">the data:</span><pre class="source-code">
+contracts = []
+for expiration in expirations:
+    df = (
+        obb
+        .derivatives
+        .futures
+        .historical(
+            symbol="CL",
+            expiration=expiration,
+            start_date="2020-01-01",
+            end_date="2022-12-31"
+        )
+    ).rename(columns={
+        "close": expiration
+    })
+    contracts.append(df[expiration])</pre></li>				<li>For each of the contracts, use the OpenBB Platform to download historical futures data for the CL contract between January 1, 2020, and 31 December 31, 2022. Using the pandas <strong class="source-inline">rename</strong> method, change the column name from <strong class="source-inline">"close"</strong> to the expiration date. Finally, append the newly created pandas DataFrame to a list <span class="No-Break">of DataFrames:</span><pre class="source-code">
+historical = (
+    pd
+    .DataFrame(contracts)
+    .transpose()
+    .dropna()
+)</pre></li>				<li>Concatenate the DataFrames together, swap the columns and rows using the <strong class="source-inline">transpose</strong> method, and<a id="_idIndexMarker022"></a> drop any records <a id="_idIndexMarker023"></a>with no data using the <strong class="source-inline">dropna</strong> method. Inspect the <span class="No-Break">resulting DataFrame:</span><pre class="source-code">
+print(historical)</pre><p class="list-inset">By printing the DataFrame, we will see the historical <span class="No-Break">settlement prices:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer014" class="IMG---Figure">
+					<img src="image/B21323_01_8.jpg" alt="Figure 1.8: Historic settlement prices for the December CL futures contract" width="650" height="406"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.8: Historic settlement prices for the December CL futures contract</p>
+			<p class="list-inset">The result is the historical <a id="_idIndexMarker024"></a>data between January 2020 and December 2022 for each of the December expirations <a id="_idIndexMarker025"></a>between 2023 <span class="No-Break">and 2030:</span></p>
+			<ol>
+				<li value="5">To visualize the market’s expectation of the future supply and demand of the December contract, you can plot the <span class="No-Break">last price:</span><pre class="source-code">
+historical.iloc[-1].plot()</pre><p class="list-inset">Here's <span class="No-Break">the output:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer015" class="IMG---Figure">
+					<img src="image/B21323_01_9.jpg" alt="Figure 1.9: Futures curve for the December CL contract" width="678" height="487"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.9: Futures curve for the December CL contract</p>
+			<h2 id="_idParaDest-27"><a id="_idTextAnchor027"></a>See also</h2>
+			<p>For more on the OpenBB <a id="_idIndexMarker026"></a>Platform futures functionality, you <a id="_idIndexMarker027"></a>can browse the <span class="No-Break">following documentation:</span></p>
+			<ul>
+				<li>Documentation on the<a id="_idIndexMarker028"></a> OpenBB Platform’s futures <strong class="source-inline">curve</strong> <span class="No-Break">method: </span><a href="https://docs.openbb.co/platform/reference/derivatives/futures/curve%0D"><span class="No-Break">https://docs.openbb.co/platform/reference/derivatives/futures/curve</span></a></li>
+				<li>Documentation on the OpenBB Platform’s historical <strong class="source-inline">curve</strong> <span class="No-Break">metho</span><span class="No-Break">d: </span><a href="https://docs.openbb.co/platform/reference/derivatives/futures/historical"><span class="No-Break">https://docs.openbb.co/platform/reference/derivatives/futures/historical</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-28"><a id="_idTextAnchor028"></a>Navigating options market data with the OpenBB Platform</h1>
+			<p>Options are exchange-listed derivative contracts that convey the right (but not the obligation) to buy or sell the underlying stock at a certain price on or before a certain expiration date. Options are among the most <a id="_idIndexMarker029"></a>versatile financial instruments in the market. They allow traders to define their risk profiles before entering trades and <a id="_idIndexMarker030"></a>express market views not only on the direction of the underlying but the volatility. While options offer a high degree of flexibility for trading, this feature complicates data collection for research <span class="No-Break">and backtesting.</span></p>
+			<p>A single underlying stock can have an array of options contracts with different combinations of strike prices and expiration dates. Collecting and manipulating this data is a challenge. The combination of options contracts for all strikes and expiration dates is commonly referred to as an options chain. There<a id="_idIndexMarker031"></a> can be thousands of individual options contracts at a given time for a single underlying stock. Not only does the number of individual contracts pose a challenge, but getting price data has historically been expensive. With the introduction of the OpenBB Platform, it is now only a few lines of Python code to download options chains into a pandas DataFrame. This recipe will walk you through acquiring options data using the <span class="No-Break">OpenBB Platform.</span></p>
+			<h2 id="_idParaDest-29"><a id="_idTextAnchor029"></a>Getting ready…</h2>
+			<p>By now, you should have the OpenBB Platform installed in your virtual environment. If not, go back to the beginning of this chapter and get it <span class="No-Break">set up.</span></p>
+			<h2 id="_idParaDest-30"><a id="_idTextAnchor030"></a>How to do it…</h2>
+			<p>Similar to how we used the OpenBB Platform for futures data, we can use it for options <span class="No-Break">data too:</span></p>
+			<ol>
+				<li>Import the OpenBB Platform and Matplotlib <span class="No-Break">for visualization:</span><pre class="source-code">
+from openbb import obb
+obb.user.preferences.output_type = "dataframe"</pre></li>				<li>Use the <strong class="source-inline">chains</strong> method to download the entire <span class="No-Break">options chain:</span><pre class="source-code">
+chains = obb.derivatives.options.chains(symbol="SPY")</pre></li>				<li>Inspect the <span class="No-Break">resulting</span><span class="No-Break"><a id="_idIndexMarker032"></a></span><span class="No-Break"> DataFrame:</span><pre class="source-code">
+chains.info()</pre><p class="list-inset">By running the preceding <a id="_idIndexMarker033"></a>code, we’ll see the details of the options <span class="No-Break">chains data:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer016" class="IMG---Figure">
+					<img src="image/B21323_01_10.jpg" alt="Figure 1.10: Preview of the data downloaded for the SPY options chains" width="440" height="540"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.10: Preview of the data downloaded for the SPY options chains</p>
+			<p>Note that there are 8,518 options contracts for the <strong class="bold">SPY Exchange Traded Fund</strong> (<strong class="bold">ETF</strong>) that can be downloaded from CBOE (<span class="No-Break">for free).</span></p>
+			<h2 id="_idParaDest-31"><a id="_idTextAnchor031"></a>How it works…</h2>
+			<p>The <strong class="source-inline">obb.derivatives.options.chains</strong> method downloads the entire options chain and stores it in a pandas<a id="_idIndexMarker034"></a> DataFrame. The <strong class="source-inline">obb.derivatives.options.chains</strong> has an additional <span class="No-Break">optional parameter:</span></p>
+			<ul>
+				<li><strong class="source-inline">provider</strong>: The source from<a id="_idIndexMarker035"></a> which the data should be downloaded. The default is CBOE. You can also select Tradier, Intrinio, or TMX. Note that for Tradier, Intrinio, and TMX, you need to provide your API key, which can be configured in the <span class="No-Break">OpenBB Hub.</span></li>
+			</ul>
+			<h2 id="_idParaDest-32"><a id="_idTextAnchor032"></a>There’s more…</h2>
+			<p>You can use the OpenBB Platform to<a id="_idIndexMarker036"></a> download historical options data for a single contract. To do this, you need the <span class="No-Break">option symbol.</span></p>
+			<p>We’ll use the <strong class="source-inline">obb.equity.price.historical</strong> method to get the historical options data for an SPY call option with a strike price of $550 expiring on December <span class="No-Break">20, 2024:</span></p>
+			<pre class="source-code">
+data = obb.equity.price.historical(
+    symbol="SPY241220C00550000",
+    provider="yfinance"
+)[["close", "volume"]]</pre>			<p>The result is a pandas DataFrame with the closing price and volume of the <span class="No-Break">options contract.</span></p>
+			<div>
+				<div id="_idContainer017" class="IMG---Figure">
+					<img src="image/B21323_01_11.jpg" alt="Figure 1.11: Closing prices and volume of the SPY options contract" width="232" height="406"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.11: Closing prices and volume of the SPY options contract</p>
+			<h3>Options Greeks</h3>
+			<p><strong class="bold">Options Greeks</strong> measure how<a id="_idIndexMarker037"></a> options prices change given a change in one of the inputs to an options pricing model. For example, <strong class="bold">delta</strong> measures how an options price <a id="_idIndexMarker038"></a>changes given a change in the underlying <span class="No-Break">stock price.</span></p>
+			<p>Using <strong class="source-inline">obb.derivatives.options.chains</strong>, the OpenBB Platform returns the most used Greeks including Delta, Gamma, Theta, Vega, <span class="No-Break">and Rho.</span></p>
+			<h2 id="_idParaDest-33"><a id="_idTextAnchor033"></a>See also</h2>
+			<p>Options are a fascinating and deep topic that is rich with opportunities for trading. You can learn more about options, volatility, and how to analyze both via the <span class="No-Break">OpenBB Platform:</span></p>
+			<ul>
+				<li>Free articles, code, and other resources for options <span class="No-Break">trading: </span><a href="https://pyquantnews.com/free-python-resources/options-trading-with-python/%0D"><span class="No-Break">https://pyquantnews.com/free-python-resources/options-trading-with-python/</span></a></li>
+				<li>Learn more about financial options if you’re unfamiliar with <span class="No-Break">them: </span><a href="https://en.wikipedia.org/wiki/Option_(finance)"><span class="No-Break">https://en.wikipedia.org/wiki/Option_(finance)</span></a></li>
+				<li>Documentation on the OpenBB Platform’s options <span class="No-Break">methods: </span><a href="https://docs.openbb.co/platform/reference/derivatives/options%0D"><span class="No-Break">https://docs.openbb.co/platform/reference/derivatives/options</span></a></li>
+			</ul>
+			<h1 id="_idParaDest-34"><a id="_idTextAnchor034"></a>Harnessing factor data using pandas_datareader</h1>
+			<p>Diversification is great until the entire market declines in value. That’s because the overall market influences all assets. Factors can offset some of these risks by targeting drivers of return not influenced by the market. Common factors are size (large-cap versus small-cap) and style (value versus growth). If you think small-cap stocks will outperform large-cap stocks, then you might want exposure to small-cap stocks. If you think value stocks will outperform growth stocks, then you might want exposure to value stocks. In either case, you want to measure the risk contribution of the factor. Eugene Fama and Kenneth French built the Fama-French three-factor model in 1992. The three Fama-French factors are constructed using six value-weight portfolios formed on capitalization <span class="No-Break">and book-to-market.</span></p>
+			<p>The three factors are <span class="No-Break">as follows:</span></p>
+			<ul>
+				<li><strong class="bold">Small Minus Big</strong>, which represents<a id="_idIndexMarker039"></a> the differential between the average returns of three small-cap portfolios and three <span class="No-Break">large-cap portfolios.</span></li>
+				<li><strong class="bold">High Minus Low</strong>, which quantifies<a id="_idIndexMarker040"></a> the difference in average returns between two value-oriented portfolios and two <span class="No-Break">growth-oriented portfolios.</span></li>
+				<li><strong class="bold">Rm-Rf</strong>, which denotes the <a id="_idIndexMarker041"></a>market’s excess return over the <span class="No-Break">risk-free rate.</span></li>
+			</ul>
+			<p>We’ll explore how to measure and isolate alpha in <a href="B21323_05.xhtml#_idTextAnchor155"><span class="No-Break"><em class="italic">Chapter 5</em></span></a>, <em class="italic">Build Alpha Factors for Stock Portfolios</em>. This recipe will guide you through the process of using <strong class="source-inline">pandas_datareader</strong> to fetch historic factor data for use in <span class="No-Break">your analysis.</span></p>
+			<h2 id="_idParaDest-35"><a id="_idTextAnchor035"></a>Getting ready…</h2>
+			<p>By now, you should have the <a id="_idIndexMarker042"></a>OpenBB Platform installed in your virtual environment. If not, go back to the beginning of this chapter and get it set up. By installing the OpenBB Platform, <strong class="source-inline">pandas_datareader</strong> will be installed and ready <span class="No-Break">to use.</span></p>
+			<h2 id="_idParaDest-36"><a id="_idTextAnchor036"></a>How to do it…</h2>
+			<p>Using the <strong class="source-inline">pandas_datareader</strong> library, we have access to dozens of investment <span class="No-Break">research factors:</span></p>
+			<ol>
+				<li><span class="No-Break">Import </span><span class="No-Break"><strong class="source-inline">pandas_datareader</strong></span><span class="No-Break">:</span><pre class="source-code">
+import pandas_datareader as pdr</pre></li>				<li>Download the monthly factor data starting in <span class="No-Break">January 2000:</span><pre class="source-code">
+factors = pdr.get_data_famafrench("F-F_Research_Data_Factors")</pre></li>				<li>Get a description of the research <span class="No-Break">data factors:</span><pre class="source-code">
+print(factors[“DESCR”])</pre><p class="list-inset">The result is an explanation of the data included in <span class="No-Break">the DataFrame:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer018" class="IMG---Figure">
+					<img src="image/B21323_01_12.jpg" alt="Figure 1.12: Preview of the description that is downloaded with factor data" width="981" height="149"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.12: Preview of the description that is downloaded with factor data</p>
+			<ol>
+				<li value="4">Inspect the monthly <span class="No-Break">factor data:</span><pre class="source-code">
+print(factors[0].head())</pre><p class="list-inset">By running the preceding<a id="_idIndexMarker043"></a> code, we get a DataFrame containing monthly <span class="No-Break">factor data:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer019" class="IMG---Figure">
+					<img src="image/B21323_01_13.jpg" alt="Figure 1.13: Preview of the monthly data downloaded from the Fama-French Data Library" width="264" height="208"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.13: Preview of the monthly data downloaded from the Fama-French Data Library</p>
+			<ol>
+				<li value="5">Inspect the annual <span class="No-Break">factor data:</span><pre class="source-code">
+print(factors[1].head())</pre><p class="list-inset">By running the preceding code, we get a DataFrame containing annual <span class="No-Break">factor data:</span></p></li>			</ol>
+			<div>
+				<div id="_idContainer020" class="IMG---Figure">
+					<img src="image/B21323_01_14.jpg" alt="Figure 1.14: Preview of the annual data downloaded from the Fama-French Data Library" width="254" height="208"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 1.14: Preview of the annual data downloaded from the Fama-French Data Library</p>
+			<h2 id="_idParaDest-37"><a id="_idTextAnchor037"></a>How it works…</h2>
+			<p>Under the hood, <strong class="source-inline">pandas_datareader</strong> fetches data from the Fama-French Data Library by downloading a compressed CSV file, uncompressing it, and creating a <span class="No-Break">pandas DataFrame.</span></p>
+			<p>There are 297 different<a id="_idIndexMarker044"></a> datasets with different factor data available from the Fama-French Data Library. Here are some popular versions of the Fama-French 3-factor model for <span class="No-Break">different regions:</span></p>
+			<ul>
+				<li><span class="No-Break"><strong class="source-inline">Developed_3_Factors</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">Developed_ex_US_3_Factors</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">Europe_3_Factors</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">Japan_3_Factors</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">Asia_Pacific_ex_Japan_3_Factors</strong></span></li>
+			</ul>
+			<p>You can use these in the <strong class="source-inline">get_data_famafrench</strong> method, just <span class="No-Break">like </span><span class="No-Break"><strong class="source-inline">F-F_Research_Data_Factors</strong></span><span class="No-Break">.</span></p>
+			<p>Some datasets return a dictionary with more than one DataFrame representing data for different time frames, portfolio weighting methodologies, and aggregate statistics. Data for these portfolios can be accessed using numerical keys. For example, the <strong class="source-inline">5_Industry_Portfolios</strong> dataset returns eight DataFrames in the dictionary. The first can be accessed using the <strong class="source-inline">0</strong> key, the second using the <strong class="source-inline">1</strong> key, and so on. Each dictionary includes a description <a id="_idIndexMarker045"></a>of the dataset, which can be accessed using the <span class="No-Break"><strong class="source-inline">DESCR</strong></span><span class="No-Break"> key.</span></p>
+			<h2 id="_idParaDest-38"><a id="_idTextAnchor038"></a>There’s more…</h2>
+			<p><strong class="source-inline">pandas_datareader</strong> can be used to access data from many remote online sources. These include Tiingo, IEX, Alpha Vantage, FRED, Eurostat, and many more. Review the full list of data sources on the documentation <span class="No-Break">page: </span><a href="https://pandas-datareader.readthedocs.io/en/latest/remote_data.html"><span class="No-Break">https://pandas-datareader.readthedocs.io/en/latest/remote_data.html</span></a><span class="No-Break">.</span></p>
+			<h2 id="_idParaDest-39"><a id="_idTextAnchor039"></a>See also</h2>
+			<p>For more details on the factors available in the investment factor research library, take a look at the following resources. For another example of using the Fama-French 3-factor model, see the resources on the PyQuant <span class="No-Break">News website:</span></p>
+			<ul>
+				<li>Documentation for all the Fama-French factor <span class="No-Break">data: </span><a href="https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html%0D"><span class="No-Break">https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html</span></a></li>
+				<li>Details on the Fama-French 3-factor <span class="No-Break">model: </span><a href="https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/Data_Library/f-f_factors.html"><span class="No-Break">https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/Data_Library/f-f_factors.html</span></a></li>
+				<li>Code walkthrough for using the Fama-French 3-factor <span class="No-Break">model: </span><a href="https://www.pyquantnews.com/past-pyquant-newsletter-issues"><span class="No-Break">https://www.pyquantnews.com/past-pyquant-newsletter-issues</span></a></li>
+			</ul>
+		</div>
+	</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,932 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xml:lang="en"
+lang="en"
+xmlns="http://www.w3.org/1999/xhtml"
+xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+<title>Python for Algorithmic Trading Cookbook</title>
+<link rel="stylesheet" type="text/css" href="override_v1.css"/>
+<link rel="stylesheet" type="text/css" href="css/explorer-css-sk.css"/>
+</head>
+<body>
+<div id="book-content">
+<div id="sbo-rt-content"><div id="_idContainer213">
+			<h1 id="_idParaDest-274" class="chapter-number"><a id="_idTextAnchor282"></a>10</h1>
+			<h1 id="_idParaDest-275"><a id="_idTextAnchor283"></a>Set Up the Interactive Brokers Python API</h1>
+			<p><a id="_idTextAnchor284"></a>In <em class="italic">Chapters 1</em> through <em class="italic">9</em>, we learned the foundational tools and techniques of algorithmic trading. Now, we’ll put this into <a id="_idIndexMarker722"></a>practice using Python with the <strong class="bold">Interactive Brokers</strong> (<strong class="bold">IB</strong>) API and <strong class="bold">Trader Workstation</strong> (<strong class="bold">TWS</strong>). TWS is an advanced trading platform that is used by a wide range of traders, both professional and<a id="_idIndexMarker723"></a> retail. You may consider alternatives to IB that offer API access. Some other brokers include Alpaca, Think Or Swim, Tasty Trade, and Tradier. When opening an account, make sure to consider market access, account type, commissions, and other factors when selecting a broker. Different brokers and account types may have different costs <span class="No-Break">and restrictions.</span></p>
+			<p>TWS is known for its suite of trading tools and features that really enhance the trading experience. TWS is equipped with robust risk management tools so traders can effectively manage and mitigate potential trading risks. IB has unparalleled global market access with the ability to trade across a vast array of financial instruments in 135 markets spanning 33 countries. This feature is useful for traders who want to diversify their portfolios on a <span class="No-Break">global scale.</span></p>
+			<p>Further, the paper trading functionality of TWS is an invaluable tool for both novice and experienced traders. It provides a risk-free environment for testing and refining trading strategies using real-time market conditions. This feature is instrumental in helping algorithmic traders develop and hone their algorithms without putting their money at risk. Finally, TWS’s API integration is a significant advantage since it exposes all the features of TWS through an API that is accessible with Python. The IB API is especially useful for algorithmic traders since it lets them automate their trading strategies. We will take advantage of the paper trading account and IB API in the next <span class="No-Break">three chapters.</span></p>
+			<p>In this chapter, we present the <span class="No-Break">following recipes:</span></p>
+			<ul>
+				<li>Building an algorithmic <span class="No-Break">trading app</span></li>
+				<li>Creating a <strong class="source-inline">Contract</strong> object with the <span class="No-Break">IB API</span></li>
+				<li>Creating an <strong class="source-inline">Order</strong> object with the <span class="No-Break">IB API</span></li>
+				<li>Fetching historical <span class="No-Break">market data</span></li>
+				<li>Getting a market <span class="No-Break">data snapshot</span></li>
+				<li>Streaming live <span class="No-Break">tick data</span></li>
+				<li>Storing live tick data in a local <span class="No-Break">SQL database</span></li>
+			</ul>
+			<h1 id="_idParaDest-276"><a id="_idTextAnchor285"></a>Building an algorithmic trading app</h1>
+			<p>When using the IB API, there’s a lot of code that can be reused across different trading apps. Connecting to TWS, generating orders, and downloading data are done the same way despite the trading strategy. That’s why it’s a best practice to get the reusable code out of the way first. But before we can start building our algorithmic trading app, we need to install TWS and the <span class="No-Break">IB API.</span></p>
+			<p>We’ll begin with three important<a id="_idIndexMarker724"></a> topics when using the <span class="No-Break">IB API:</span></p>
+			<ul>
+				<li>The first is the architecture of the IB API, which operates on an asynchronous model. In this model, operations are not executed in a linear, blocking manner. Instead, actions are initiated by requests, and responses to these requests are handled <span class="No-Break">via callbacks.</span></li>
+				<li>The second concept is inheritance, which is common across all computer programming languages. Inheritance is where a new child class acquires the properties and methods of another, parent, class. Our trading app will inherit functionality from two parent classes provided by the IB API (<strong class="source-inline">EClient</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">EWrapper</strong></span><span class="No-Break">).</span></li>
+				<li>The third concept is overriding where a child class provides the specific implementation for a method that is defined in a <span class="No-Break">parent class.</span></li>
+			</ul>
+			<p>We’ll learn more about how these three concepts function in the <em class="italic">How it works</em> section of <span class="No-Break">this recipe.</span></p>
+			<p>As we learned in the introduction of this chapter, TWS is IB’s trading platform. While running, TWS acts as a server and exposes ports to which the IB API connects. It’s through this connection that the IB API operates. In this chapter, we’ll install TWS, the IB API, and start building the reusable parts of our algorithmic <span class="No-Break">trading app.</span></p>
+			<h2 id="_idParaDest-277"><a id="_idTextAnchor286"></a>Getting ready…</h2>
+			<p>Before we install the IB API, we need TWS installed on our local computer. You can download TWS for your computer from the IB website (<a href="https://www.interactivebrokers.com/en/trading/tws.php#tws-software">https://www.interactivebrokers.com/en/trading/tws.php#tws-software</a>). It’s available for Windows, Mac, <span class="No-Break">and Linux.</span></p>
+			<p>Once it is installed, you<a id="_idIndexMarker725"></a> can <span class="No-Break">start TWS.</span></p>
+			<p>If you have an account, log in. If not, then you can use the Demo account option on the <span class="No-Break">login screen.</span></p>
+			<p>We need to change some settings to allow our Python app to connect to TWS. Navigate to <strong class="bold">Trader Workstation Configuration</strong> under <strong class="bold">Edit</strong> –&gt; <strong class="bold">Global Configuration</strong> –&gt; <strong class="bold">API</strong> –&gt; <strong class="bold">Settings</strong>. You should a screen that looks <span class="No-Break">like this:</span></p>
+			<div>
+				<div id="_idContainer201" class="IMG---Figure">
+					<img src="image/B21323_10_01.jpg" alt="Figure 10.1: Global configuration settings" width="1440" height="1064"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.1: Global configuration settings</p>
+			<p>Make sure to check <strong class="bold">Enable ActiveX and Socket Clients</strong>. Check <strong class="bold">Read-Only API</strong> if you want extra protection against sending orders to IB. Lastly, check <strong class="bold">Allow connections from localhost only</strong> <span class="No-Break">for security.</span></p>
+			<p>Make note of the <strong class="bold">Socket port</strong>, which <a id="_idIndexMarker726"></a>you’ll need to connect through Python. Depending on whether you logged in with a live or paper trading account, it’s either <strong class="source-inline">7497</strong> <span class="No-Break">or </span><span class="No-Break"><strong class="source-inline">7496</strong></span><span class="No-Break">.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">To work with the IB API live, you need an IBKR Pro account (not IBRK Lite). If you don’t want (or can’t) set up an IB account, you can use the free demo account. In the free demo account, you will be unable to download or stream <span class="No-Break">market data.</span></p>
+			<p>Near the top-right corner of TWS, you should see a green button that says <strong class="bold">DATA</strong>. By clicking on it, you will see the data farms you’re connected to. Note the empty section near the bottom titled <strong class="bold">API Connections (listening on *:7497)</strong>. Having this section means you’ve correctly enabled <span class="No-Break">API connections.</span></p>
+			<div>
+				<div id="_idContainer202" class="IMG---Figure">
+					<img src="image/B21323_10_02.jpg" alt="Figure 10.2: Data connections screen showing empty API connections" width="851" height="1143"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.2: Data connections screen showing empty API connections</p>
+			<p>Once we have TWS set up, you <a id="_idIndexMarker727"></a>can install the IB API. Download the Python API from the Interactive Brokers GitHub page here: http://interactivebrokers.github.io/. Follow the instructions on the download page to download and install the latest stable version of the API for your <span class="No-Break">operating system.</span></p>
+			<p>Once you have the IB API set up, create a<a id="_idIndexMarker728"></a> new directory called <strong class="source-inline">trading-app</strong>. Inside, create the following Python <span class="No-Break">script files:</span></p>
+			<ul>
+				<li><span class="No-Break"><strong class="source-inline">__init__.py</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">app.py</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">client.py</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">wrapper.py</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">contract.py</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">order.py</strong></span></li>
+				<li><span class="No-Break"><strong class="source-inline">utils.py</strong></span></li>
+			</ul>
+			<h2 id="_idParaDest-278"><a id="_idTextAnchor287"></a>How to do it…</h2>
+			<p>We’ll start by setting up the code we need to connect to TWS through the <span class="No-Break">IB API.</span></p>
+			<ol>
+				<li>Add the following code to the <strong class="source-inline">client.py</strong> file, which imports a base class from the IB API and implements a custom class we’ll use to build our <span class="No-Break">trading app:</span><pre class="source-code">
+from ibapi.client import EClient
+class IBClient(EClient):
+    def __init__(self, wrapper):
+        EClient.__init__(self, wrapper)</pre></li>				<li>Add the following code to the <strong class="source-inline">wrapper.py</strong> file, which imports a base class from the IB API and implements a custom class we’ll use to build our <span class="No-Break">trading app:</span><pre class="source-code">
+from ibapi.wrapper import EWrapper
+class IBWrapper(EWrapper):
+    def __init__(self):
+        EWrapper.__init__(self)</pre></li>				<li>Add the following code to the <strong class="source-inline">app.py</strong> file, which implements a custom class that we’ll develop into<a id="_idIndexMarker729"></a> our <span class="No-Break">trading app:</span><pre class="source-code">
+import threading
+import time
+from wrapper import IBWrapper
+from client import IBClient
+class IBApp(IBWrapper, IBClient):
+    def __init__(self, ip, port, client_id):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.connect(ip, port, client_id)
+        thread = threading.Thread(target=self.run, daemon=True)
+        thread.start()
+        time.sleep(2)
+if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=10)
+    time.sleep(30)
+    app.disconnect()</pre></li>			</ol>
+			<h2 id="_idParaDest-279"><a id="_idTextAnchor288"></a>How it works…</h2>
+			<p>The architecture of the IB API operates on an asynchronous model, which is fundamental to understanding its interaction and data flow mechanisms. In this model, operations are not executed in a linear, blocking manner. Instead, actions are initiated by requests, and responses to these requests are handled via callbacks, making the system highly efficient <span class="No-Break">and responsive.</span></p>
+			<h3>Request-callback pattern</h3>
+			<p>When we interact with the IB API, we typically start by sending a request for an action, such as retrieving market data or placing an order. This request is made through an instance of <strong class="source-inline">EClient</strong>, a component of the API responsible for initiating communication with the IB servers. The <strong class="source-inline">EClient</strong> sends the <a id="_idIndexMarker730"></a>request and then continues with other tasks, rather than waiting for a response. This non-blocking pattern<a id="_idIndexMarker731"></a> gets around the <strong class="bold">Global Interpreter Lock</strong> (<strong class="bold">GIL</strong>) of Python and exemplifies the asynchronous nature of <span class="No-Break">the architecture.</span></p>
+			<p>The responses to these requests are not received directly by the <strong class="source-inline">EClient</strong>. Instead, they are handled by another component called <strong class="source-inline">EWrapper</strong>. <strong class="source-inline">EWrapper</strong> is essentially a set of callback functions that are triggered when responses or data from the IB server are received. For instance, when market data is requested, <strong class="source-inline">EWrapper</strong> will have a specific method that gets called when that market data arrives. The user implements these methods in <strong class="source-inline">EWrapper</strong> to define how the data or responses should <span class="No-Break">be processed.</span></p>
+			<p>This separation of concerns, where <strong class="source-inline">EClient</strong> handles sending requests and <strong class="source-inline">EWrapper</strong> handles receiving responses, allows for a more organized and manageable code structure. It also enables the handling of multiple simultaneous data streams and requests efficiently. The asynchronous model ensures that the application remains responsive and can process incoming data or events as they occur, which is crucial for real-time trading applications where timely response to market changes <span class="No-Break">is critical.</span></p>
+			<h3>Inheritance and overriding</h3>
+			<p><strong class="source-inline">EWrapper</strong> is an interface class that defines a set of callback methods, which are intended to be overridden by our custom <a id="_idIndexMarker732"></a>class that inherits from <strong class="source-inline">EWrapper</strong>. This inheritance allows us to define specific behaviors for each callback method, tailoring the response to various events, such as receiving market data or order updates. Similarly, <strong class="source-inline">EClient</strong> can be extended, or its methods overridden to customize the way requests to the IB server are made, providing flexibility and control over the interaction with the <span class="No-Break">trading system.</span></p>
+			<h3>Our trading app class</h3>
+			<p>Our main trading app is a custom class<a id="_idIndexMarker733"></a> that inherits our custom <strong class="source-inline">IBWrapper</strong> and <strong class="source-inline">IBClient</strong> classes (which in turn inherits the IB API’s <strong class="source-inline">EWrapper</strong> and <strong class="source-inline">EClient</strong> classes). This class is designed to initialize and manage our connection to the <span class="No-Break">IB API.</span></p>
+			<p>In the <strong class="source-inline">__init__</strong> method of <strong class="source-inline">IBApp</strong>, we initialize <strong class="source-inline">IBWrapper</strong> and <strong class="source-inline">IBClient</strong>, using <strong class="source-inline">IBWrapper.__init__(self)</strong> and <strong class="source-inline">IBClient.__init__(self, wrapper=self)</strong>. This sets up the environment and properties inherited from these parent classes. The <strong class="source-inline">IBClient</strong> initialization specifically requires a reference to an <strong class="source-inline">IBWrapper</strong> instance, which is provided by <span class="No-Break">passing </span><span class="No-Break"><strong class="source-inline">self</strong></span><span class="No-Break">.</span></p>
+			<p>Next, we call the <strong class="source-inline">connect</strong> method with the parameters <strong class="source-inline">ip</strong>, <strong class="source-inline">port</strong>, and <strong class="source-inline">client_id</strong>. This method is inherited from <strong class="source-inline">IBClient</strong> and is used to establish a connection to TWS. After we connect, a new thread is created and started using Python’s <strong class="source-inline">threading</strong> module. This thread runs the <strong class="source-inline">run</strong> method in a daemon mode, which means it runs in the background and will <a id="_idIndexMarker734"></a>automatically terminate when the main program exits. The <strong class="source-inline">run</strong> method is responsible for processing incoming messages and events from the IB API. Running this in a separate thread allows the <strong class="source-inline">IBApp</strong> to handle API messages asynchronously without blocking the main execution flow of <span class="No-Break">the application.</span></p>
+			<h2 id="_idParaDest-280"><a id="_idTextAnchor289"></a>There’s more…</h2>
+			<p>Now that we have the base code established, we can test <span class="No-Break">our connection.</span></p>
+			<p>Using your terminal, run the <span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break"> script:</span></p>
+			<pre class="console">
+python app.py</pre>			<p>You will see a series of error messages<a id="_idIndexMarker735"></a> printed on the screen. Don’t worry, these are not actually errors. They are just messages indicating you’ve successfully connected to the IB <span class="No-Break">data farms.</span></p>
+			<div>
+				<div id="_idContainer203" class="IMG---Figure">
+					<img src="image/B21323_10_03.jpg" alt="Figure 10.3: Output from the IB API showing we successfully connected" width="471" height="200"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.3: Output from the IB API showing we successfully connected</p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">Error code <strong class="source-inline">-1</strong> is not actually an error. These are messages indicating successful connections to the IB <span class="No-Break">data farms.</span></p>
+			<p>Also note in the TWS data <a id="_idIndexMarker736"></a>connection screen, we now have a peer IP connected to TWS. That’s the Python trading app <span class="No-Break">we built!</span></p>
+			<div>
+				<div id="_idContainer204" class="IMG---Figure">
+					<img src="image/B21323_10_04.jpg" alt="Figure 10.4: TWS data connection screen showing our Python trading app connected to TWS" width="880" height="1252"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.4: TWS data connection screen showing our Python trading app connected to TWS</p>
+			<h2 id="_idParaDest-281"><a id="_idTextAnchor290"></a>See also</h2>
+			<p>The IB API has <span class="No-Break">extensive </span><span class="No-Break"><a id="_idIndexMarker737"></a></span><span class="No-Break">documentation:</span></p>
+			<ul>
+				<li>Documentation for the initial setup: <a href="https://interactivebrokers.github.io/tws-api/initial_setup.html">https://interactivebrokers.github.io/tws-api/initial_setup.html</a> </li>
+				<li>Documentation about the <strong class="source-inline">EClient</strong> and <strong class="source-inline">EWrapper</strong> classes: <a href="https://interactivebrokers.github.io/tws-api/client_wrapper.html">https://interactivebrokers.github.io/tws-api/client_wrapper.html</a> </li>
+				<li>Documentation about connectivity: <a href="https://interactivebrokers.github.io/tws-api/connection.html">https://interactivebrokers.github.io/tws-api/connection.html</a> </li>
+			</ul>
+			<h1 id="_idParaDest-282"><a id="_idTextAnchor291"></a>Creating a Contract object with the IB API</h1>
+			<p>When requesting market data or generating orders, we do it using the IB <strong class="source-inline">Contract</strong> object. An IB <strong class="source-inline">Contract</strong> contains all the information required for IB to correctly identify the instrument in question. Using one class, we<a id="_idIndexMarker738"></a> can represent a broad spectrum of financial instruments, including stocks, options, futures, and more. In this recipe, we’ll create an <span class="No-Break">IB </span><span class="No-Break"><strong class="source-inline">Contract</strong></span><span class="No-Break">.</span></p>
+			<p>The <strong class="source-inline">Contract</strong> class is used to <a id="_idIndexMarker739"></a>define the specifications of a financial instrument that we might want to trade or query. The class has all the necessary details that uniquely identify a financial instrument across various asset classes, such as stocks, options, futures, forex, bonds, <span class="No-Break">and more.</span></p>
+			<p>A key attribute of the <strong class="source-inline">Contract</strong> class is <strong class="source-inline">conId</strong> (contract ID), which is a unique identifier assigned by IB to each financial instrument. However, in many cases, we do not need to specify this ID directly. Instead, we typically provide other descriptive attributes that the IB system uses to uniquely identify the contract. These attributes typically include <span class="No-Break">the following:</span></p>
+			<ul>
+				<li><strong class="source-inline">symbol</strong>: The ticker symbol of <span class="No-Break">the asset</span></li>
+				<li><strong class="source-inline">secType</strong>: Specifying the security type (e.g., <strong class="source-inline">STK</strong> for stock, <strong class="source-inline">OPT</strong> for option, or <strong class="source-inline">FUT</strong> <span class="No-Break">for future)</span></li>
+				<li><strong class="source-inline">expiry</strong>: The expiration date for <span class="No-Break">derivative instruments</span></li>
+				<li><strong class="source-inline">strike</strong>: The strike price <span class="No-Break">for options</span></li>
+				<li><strong class="source-inline">right</strong>: Indicating the option type (call <span class="No-Break">or put)</span></li>
+				<li><strong class="source-inline">multiplier</strong>: Defining the leverage or <span class="No-Break">contract size</span></li>
+				<li><strong class="source-inline">exchange</strong>: The primary exchange where the asset <span class="No-Break">is traded</span></li>
+			</ul>
+			<p>For more complex instruments, additional attributes may be specified, such as <strong class="source-inline">currency</strong> for assets that trade in<a id="_idIndexMarker740"></a> multiple currencies or on international markets. The <strong class="source-inline">lastTradeDateOrContractMonth</strong> attribute is used for futures and options to specify the contract month. For options and futures, <strong class="source-inline">includeExpired</strong> can be <a id="_idIndexMarker741"></a>set to indicate whether expired contracts should be considered. The <strong class="source-inline">localSymbol</strong> and <strong class="source-inline">primaryExchange</strong> attributes can provide more specific contract details, especially for instruments where the standard symbol may not <span class="No-Break">be unique.</span></p>
+			<p>In this recipe, we’ll create custom functions for a future, stock, and <span class="No-Break">option contract.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">All financial instruments are considered contracts by IB. This might come as a surprise when considering stocks <span class="No-Break">or FX.</span></p>
+			<h2 id="_idParaDest-283"><a id="_idTextAnchor292"></a>Getting ready…</h2>
+			<p>We assume you’ve created the <strong class="source-inline">contract.py</strong> file in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-284"><a id="_idTextAnchor293"></a>How to do it…</h2>
+			<p>We’ll create custom functions that create instances of different types of contracts, set the properties as relevant to the type of financial instrument, and <span class="No-Break">return it:</span></p>
+			<p>Add the following code to the <span class="No-Break"><strong class="source-inline">contract.py</strong></span><span class="No-Break"> file:</span></p>
+			<pre class="source-code">
+from ibapi.contract import Contract
+def future(symbol, exchange, contract_month):
+    contract = Contract()
+    contract.symbol = symbol
+    contract.exchange = exchange
+    contract.lastTradeDateOrContractMonth = contract_month
+    contract.secType = "FUT"
+    return contract
+def stock(symbol, exchange, currency):
+    contract = Contract()
+    contract.symbol = symbol
+    contract.exchange = exchange
+    contract.currency = currency
+    contract.secType = "STK"
+    return contract
+def option(symbol,exchange,contract_month,strike,right):
+    contract = Contract()
+    contract.symbol = symbol
+    contract.exchange = exchange
+    contract.lastTradeDateOrContractMonth = contract_month
+    contract.strike = strike
+    contract.right = right
+    contract.secType = "OPT"
+    return contract</pre>			<h2 id="_idParaDest-285"><a id="_idTextAnchor294"></a>How it works…</h2>
+			<p>The functions<a id="_idIndexMarker742"></a> are designed to<a id="_idIndexMarker743"></a> encapsulate the common patterns when creating contracts. The <strong class="source-inline">future</strong> function creates a <strong class="source-inline">Contract</strong> object representing a futures contract. The function takes three parameters: <strong class="source-inline">symbol</strong>, <strong class="source-inline">exchange</strong>, and <strong class="source-inline">contract_month</strong>, which are required to set up the contract. When called, the function creates an instance of the <strong class="source-inline">Contract</strong> class, which is a core component of the IB API for defining financial instruments. This instance, stored in the variable <strong class="source-inline">contract</strong>, is then configured with specific properties: the <strong class="source-inline">symbol</strong> of the futures contract, the <strong class="source-inline">exchange</strong> where it is traded, and the <strong class="source-inline">lastTradeDateOrContractMonth</strong>, which defines the expiration date. Additionally, the security type is set to <strong class="source-inline">FUT</strong>, explicitly marking the contract as a futures contract. The <strong class="source-inline">stock</strong> and <strong class="source-inline">option</strong> functions<a id="_idIndexMarker744"></a> follow the <span class="No-Break">same pattern.</span></p>
+			<h2 id="_idParaDest-286"><a id="_idTextAnchor295"></a>There’s more…</h2>
+			<p>Now that we’ve defined our <a id="_idIndexMarker745"></a>contract functions, let’s use them. Open <strong class="source-inline">app.py</strong> and add a new import directly under the <span class="No-Break">contract import:</span></p>
+			<pre class="source-code">
+from contract import stock, future, option</pre>			<p>Then right under the instantiation of the app, add <span class="No-Break">the following:</span></p>
+			<pre class="source-code">
+aapl = stock("AAPL", "SMART", "USD")
+gbl = future("GBL", "EUREX", "202403")
+pltr = option("PLTR", "BOX", "20240315", 20, "C")</pre>			<p class="list-inset">The result of the changes is the following code in the <span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break"> file:</span></p>
+			<pre class="source-code">
+import threading
+import time
+from wrapper import IBWrapper
+from client import IBClient
+from contract import stock, future, option
+class IBApp(IBWrapper, IBClient):
+    def __init__(self, ip, port, client_id):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.connect(ip, port, client_id)
+        thread = threading.Thread(target=self.run,
+            daemon=True)
+        thread.start()
+        time.sleep(2)
+if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=10)
+    aapl = stock("AAPL", "SMART", "USD")
+    gbl = future("GBL", "EUREX", "202403")
+    pltr = option("PLTR", "BOX", "20240315", 20, "C")
+    time.sleep(30)
+    app.disconnect()</pre>			<p>Running this code will create <a id="_idIndexMarker746"></a>a stock, future, and option contract, wait for 30 seconds, and <span class="No-Break">then disconnect.</span></p>
+			<h2 id="_idParaDest-287"><a id="_idTextAnchor296"></a>See also</h2>
+			<p>All financial instruments are <a id="_idIndexMarker747"></a>considered contracts by the IB API. This includes stocks, ETFs, bonds, options, and futures. To read more about the Contract objects, see this <span class="No-Break">URL: </span><a href="https://interactivebrokers.github.io/tws-api/contracts.html%0D"><span class="No-Break">https://interactivebrokers.github.io/tws-api/contracts.html</span></a></p>
+			<h1 id="_idParaDest-288"><a id="_idTextAnchor297"></a>Creating an Order object with the IB API</h1>
+			<p>Similar to how a <strong class="source-inline">Contract</strong> object encapsulates all <a id="_idIndexMarker748"></a>the information IB needs for financial instruments, <strong class="source-inline">Order</strong> objects contain all the information required for IB to correctly place <a id="_idIndexMarker749"></a>orders in the market. IB is famous for having dozens of order types, from simple market orders to advanced algorithms that slowly execute trades based on time or volume conditions. Key attributes of the <strong class="source-inline">Order</strong> class include <span class="No-Break">the following:</span></p>
+			<ul>
+				<li><strong class="source-inline">orderId</strong>: A unique identifier for the order, typically assigned by <span class="No-Break">the client</span></li>
+				<li><strong class="source-inline">action</strong>: Specifies the action type of the order, such as <strong class="source-inline">BUY</strong> <span class="No-Break">or </span><span class="No-Break"><strong class="source-inline">SELL</strong></span></li>
+				<li><strong class="source-inline">totalQuantity</strong>: The amount of the asset to be bought <span class="No-Break">or sold</span></li>
+				<li><strong class="source-inline">orderType</strong>: Defines the type <a id="_idIndexMarker750"></a>of order, such as <strong class="source-inline">LMT</strong> for limit orders or <strong class="source-inline">MKT</strong> for <span class="No-Break">market orders</span></li>
+				<li><strong class="source-inline">lmtPrice</strong>: The limit price for <span class="No-Break">limit orders</span></li>
+				<li><strong class="source-inline">auxPrice</strong>: Used for stop or stop-limit orders to specify the <span class="No-Break">stop price</span></li>
+				<li><strong class="source-inline">tif</strong>: <em class="italic">Time in force</em>, determining how long the order <span class="No-Break">remains active</span></li>
+				<li><strong class="source-inline">outsideRTH</strong>: A boolean indicating <a id="_idIndexMarker751"></a>whether the order can be executed outside regular <span class="No-Break">trading hours</span></li>
+				<li><strong class="source-inline">account</strong>: Specifies the account the order should be <span class="No-Break">executed from</span></li>
+			</ul>
+			<p>Additional attributes can be set to further customize the order. These include attributes for advanced order types and conditions, such as <strong class="source-inline">stopPrice</strong> for stop orders, <strong class="source-inline">trailStopPrice</strong> for trailing stop orders, and various attributes for conditional orders. The <strong class="source-inline">Order</strong> class also supports attributes for specifying commission, margin, and other <span class="No-Break">trade-related parameters.</span></p>
+			<h2 id="_idParaDest-289"><a id="_idTextAnchor298"></a>Getting ready…</h2>
+			<p>We assume you’ve created the <strong class="source-inline">order.py</strong> file in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-290"><a id="_idTextAnchor299"></a>How to do it…</h2>
+			<p>We’ll create custom functions that create instances of different types of contracts, set the properties relevant to the type of financial instrument, and <span class="No-Break">return it.</span></p>
+			<p>Add the following code to the <strong class="source-inline">order.py</strong> file, which implements custom functions to create and return <strong class="source-inline">Order</strong> objects using the <span class="No-Break">IB API:</span></p>
+			<pre class="source-code">
+from ibapi.order import Order
+BUY = "BUY"
+SELL = "SELL"
+def market(action, quantity):
+    order = Order()
+    order.action = action
+    order.orderType = "MKT"
+    order.totalQuantity = quantity
+    return order
+def limit(action, quantity, limit_price):
+    order = Order()
+    order.action = action
+    order.orderType = "LMT"
+    order.totalQuantity = quantity
+    order.lmtPrice = limit_price
+    return order
+def stop(action, quantity, stop_price):
+    order = Order()
+    order.action = action
+    order.orderType = "STP"
+    order.auxPrice = stop_price
+    order.totalQuantity = quantity
+    return order</pre>			<h2 id="_idParaDest-291"><a id="_idTextAnchor300"></a>How it works…</h2>
+			<p>A market order is executed immediately at the current market price. It prioritizes speed of execution over price, meaning it will be filled quickly but not necessarily at a specific price point. Market orders are commonly used in situations where the certainty of execution is more important <a id="_idIndexMarker752"></a>than the exact price of the trade. We can define a <a id="_idIndexMarker753"></a>market order object using the IB API by first instantiating an <strong class="source-inline">Order</strong> object, then assigning either <strong class="source-inline">BUY</strong> or <strong class="source-inline">SELL</strong> to the <strong class="source-inline">action</strong> property, the quantity desired to the <strong class="source-inline">totalQuantity</strong> property, and <strong class="source-inline">MKT</strong> to the <span class="No-Break"><strong class="source-inline">orderType</strong></span><span class="No-Break"> property.</span></p>
+			<p>In similar fashion, we can create a limit order by specifying <strong class="source-inline">LMT</strong> as the <strong class="source-inline">orderType</strong> and a limit price as the <strong class="source-inline">lmtPrice</strong>. A limit order allows traders to specify the maximum price they are willing to pay when buying or the minimum price they are willing to accept when selling. Unlike market orders, limit orders provide price control but do not guarantee execution, as they will only be filled if the market price meets or is better than the <span class="No-Break">limit price.</span></p>
+			<p>A stop loss order limits the loss on a position by automatically executing an order when the price reaches a specified stop price. We create a stop loss order by setting <strong class="source-inline">orderType</strong> to <strong class="source-inline">STP</strong> and setting <strong class="source-inline">auxPrice</strong> to the desired <span class="No-Break">stop price.</span></p>
+			<h2 id="_idParaDest-292"><a id="_idTextAnchor301"></a>There’s more…</h2>
+			<p>Now that we’ve defined our order functions, let’s use them. Open <strong class="source-inline">app.py</strong> and add a new import directly under the <span class="No-Break">contract import:</span></p>
+			<pre class="source-code">
+from order import limit, BUY</pre>			<p>Then right under the creation of our contracts, add <span class="No-Break">the following:</span></p>
+			<pre class="source-code">
+limit_order = limit(BUY, 100, 190.00)</pre>			<p>The result of the changes is the following code in the <span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break"> file:</span></p>
+			<pre class="source-code">
+import threading
+import time
+from wrapper import IBWrapper
+from client import IBClient
+from contract import stock, future, option
+from order import limit, BUY
+class IBApp(IBWrapper, IBClient):
+    def __init__(self, ip, port, client_id):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.connect(ip, port, client_id)
+        thread = threading.Thread(target=self.run,
+            daemon=True)
+        thread.start()
+        setattr(self, "thread", thread)
+if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=10)
+    aapl = stock("AAPL", "SMART", "USD")
+    gbl = future("GBL", "EUREX", "202403")
+    pltr = option("PLTR", "BOX", "20240315", 20, "C")
+    limit_order = limit(BUY, 100, 190.00)
+    time.sleep(30)
+    app.disconnect()</pre>			<p>Running this code will create <a id="_idIndexMarker754"></a>a limit order object, wait for 30 seconds, and<a id="_idIndexMarker755"></a> then disconnect. We’ll look at how to submit orders in <a href="B21323_11.xhtml#_idTextAnchor327"><span class="No-Break"><em class="italic">Chapter 11</em></span></a><em class="italic">, Manage Orders, Positions, and Portfolios with the </em><span class="No-Break"><em class="italic">IB API</em></span><span class="No-Break">.</span></p>
+			<h2 id="_idParaDest-293"><a id="_idTextAnchor302"></a>See also</h2>
+			<p>To read more about the <strong class="source-inline">Order</strong> object and the available order types, check the documentation <span class="No-Break">here: </span><a href="https://interactivebrokers.github.io/tws-api/available_orders.html%0D"><span class="No-Break">https://interactivebrokers.github.io/tws-api/available_orders.html</span></a></p>
+			<h1 id="_idParaDest-294"><a id="_idTextAnchor303"></a>Fetching historical market data</h1>
+			<p>Requesting historical market data<a id="_idIndexMarker756"></a> using the IB API is an asynchronous process, emphasizing non-blocking, event-driven data retrieval. To kick off the process, we send a request for historical data by invoking the <strong class="source-inline">reqHistoricalData</strong> method, specifying parameters such as the financial instrument’s identifier, the duration for which data is needed, the bar size, and the type of data required. Once the request is made, the IB API processes it and begins sending back the data. However, instead of waiting for all data to be received before continuing with other tasks, the API employs a callback mechanism, specifically the <strong class="source-inline">historicalData</strong> method. This method is called asynchronously for each piece of data received from IB. Each invocation of <strong class="source-inline">historicalData</strong> provides a snapshot of market data for a specific time interval, which we can then process or store. In this recipe, we’ll set up the code to request and receive historical <span class="No-Break">market data.</span></p>
+			<h2 id="_idParaDest-295"><a id="_idTextAnchor304"></a>Getting ready…</h2>
+			<p>We assume you’ve created the <strong class="source-inline">app.py</strong>, <strong class="source-inline">client.py</strong>, and <strong class="source-inline">wrapper.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-296"><a id="_idTextAnchor305"></a>How to do it…</h2>
+			<p>We’ll update <strong class="source-inline">app.py</strong>, <strong class="source-inline">client.py</strong>, and <strong class="source-inline">wrapper.py</strong> to request historic <span class="No-Break">market data.</span></p>
+			<ol>
+				<li>Open <strong class="source-inline">client.py</strong> and add the following imports to the top of <span class="No-Break">the file:</span><pre class="source-code">
+import time
+import pandas as pd</pre></li>				<li>Create a <strong class="source-inline">list</strong> as a constant after the imports. The strings in this list represent the columns of the DataFrame that we will populate with historical <span class="No-Break">market data:</span><pre class="source-code">
+TRADE_BAR_PROPERTIES = ["time", "open", "high", "low",
+    "close", "volume"]</pre></li>				<li>Inside the <strong class="source-inline">IBClient</strong> class<a id="_idIndexMarker757"></a> in the <strong class="source-inline">client.py</strong> file, add the <span class="No-Break">following method:</span><pre class="source-code">
+def get_historical_data(self, request_id, contract, duration, bar_size):
+    self.reqHistoricalData(
+        reqId=request_id,
+        contract=contract,
+        endDateTime="",
+        durationStr=duration,
+        barSizeSetting=bar_size,
+        whatToShow="MIDPOINT",
+        useRTH=1,
+        formatDate=1,
+        keepUpToDate=False,
+        chartOptions=[],
+    )
+    time.sleep(5)
+    bar_sizes = ["day", "D", "week", "W", "month"]
+    if any(x in bar_size for x in bar_sizes):
+        fmt = "%Y%m%d"
+    else:
+        fmt = "%Y%m%d %H:%M:%S %Z"
+    data = self.historical_data[request_id]
+    df = pd.DataFrame(data, columns=TRADE_BAR_PROPERTIES)
+    df.set_index(pd.to_datetime(df.time, format=fmt),
+        inplace=True)
+    df.drop("time", axis=1, inplace=True)
+    df["symbol"] = contract.symbol
+    df.request_id = request_id
+    return df</pre></li>				<li>Create a method that allows <a id="_idIndexMarker758"></a>users to request data for more than <span class="No-Break">one contract:</span><pre class="source-code">
+def get_historical_data_for_many(self, request_id,
+    contracts, duration, bar_size,
+    col_to_use="close"):
+        dfs = []
+        for contract in contracts:
+            data = self.get_historical_data(
+                request_id, contract, duration,
+                bar_size)
+            dfs.append(data)
+            request_id += 1
+        return (
+            pd.concat(dfs)
+            .reset_index()
+            .pivot(
+                index="time",
+                 columns="symbol",
+                 values=col_to_use
+            )
+        )</pre><p class="list-inset">The result of the changes is<a id="_idIndexMarker759"></a> the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">client.py</strong></span><span class="No-Break">:</span></p><pre class="source-code">import time
+import pandas as pd
+from ibapi.client import EClient
+TRADE_BAR_PROPERTIES = ["time", "open", "high", "low",
+    "close", "volume"]
+class IBClient(EClient):
+    def __init__(self, wrapper):
+        EClient.__init__(self, wrapper)
+    def get_historical_data(self, request_id,
+        contract, duration, bar_size):
+            self.reqHistoricalData(
+                reqId=request_id,
+                contract=contract,
+                endDateTime="",
+                durationStr=duration,
+                barSizeSetting=bar_size,
+                whatToShow="MIDPOINT",
+                useRTH=1,
+                formatDate=1,
+                keepUpToDate=False,
+                chartOptions=[],
+            )
+            time.sleep(5)
+            bar_sizes = ["day", "D", "week", "W",
+                "month"]
+            if any(x in bar_size for x in bar_sizes):
+                fmt = "%Y%m%d"
+            else:
+                fmt = "%Y%m%d %H:%M:%S %Z"
+            data = self.historical_data[request_id]
+            df = pd.DataFrame(data,
+                columns=TRADE_BAR_PROPERTIES)
+            df.set_index(pd.to_datetime(df.time,
+                format=fmt), inplace=True)
+            df.drop("time", axis=1, inplace=True)
+            df["symbol"] = contract.symbol
+            df.request_id = request_id
+            return df
+        def get_historical_data_for_many(self,
+            request_id, contracts, duration, bar_size,
+            col_to_use="close"):
+                dfs = []
+                for contract in contracts:
+                data = self.get_historical_data(
+                    request_id, contract, duration,
+                     bar_size)
+                dfs.append(data)
+                request_id += 1
+                return (pd.concat(dfs)
+            .reset_index()
+            .pivot(
+                index="time",
+                columns="symbol",
+                values=col_to_use
+            )
+        )</pre></li>				<li>Next, open the <strong class="source-inline">wrapper.py</strong> file and <a id="_idIndexMarker760"></a>add the following line of code to the <strong class="source-inline">__init__</strong> method in the <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+self.historical_data = {}</pre></li>				<li>Then add the following method to the <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def historicalData(self, request_id, bar):
+    bar_data = (
+        bar.date,
+        bar.open,
+        bar.high,
+        bar.low,
+        bar.close,
+        bar.volume,
+    )
+    if request_id not in self.historical_data.keys():
+        self.historical_data[request_id] = []
+    self.historical_data[request_id].append(bar_data)</pre><p class="list-inset">The result of the changes is<a id="_idIndexMarker761"></a> the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">wrapper.py</strong></span><span class="No-Break">:</span></p><pre class="source-code">from ibapi.wrapper import EWrapper
+class IBWrapper(EWrapper):
+    def __init__(self):
+        EWrapper.__init__(self)
+        self.historical_data = {}
+    def historicalData(self, request_id, bar):
+        bar_data = (
+            bar.date,
+            bar.open,
+            bar.high,
+            bar.low,
+            bar.close,
+            bar.volume,
+        )
+        if request_id not in self.historical_data.keys():
+            self.historical_data[request_id] = []
+        self.historical_data[request_id].append(
+            bar_data)</pre></li>			</ol>
+			<h2 id="_idParaDest-297"><a id="_idTextAnchor306"></a>How it works…</h2>
+			<p>Getting historical data through<a id="_idIndexMarker762"></a> the IB API clearly demonstrates the request-callback architecture. We get historical data by first requesting it, then processing it through <span class="No-Break">a callback.</span></p>
+			<h3>Requesting historic data</h3>
+			<p>The <strong class="source-inline">get_historical_data</strong> method accepts four parameters: <strong class="source-inline">request_id</strong>, <strong class="source-inline">contract</strong>, <strong class="source-inline">duration</strong>, and <strong class="source-inline">bar_size</strong>. <strong class="source-inline">request_id</strong> is an arbitrary, but unique identifier for the data request, <strong class="source-inline">contract</strong> specifies the financial instrument for which historical data is being<a id="_idIndexMarker763"></a> requested, <strong class="source-inline">duration</strong> indicates the time span for the historical data, and <strong class="source-inline">bar_size</strong> defines the granularity of <span class="No-Break">the data.</span></p>
+			<p>The valid duration strings are <span class="No-Break">as follows:</span></p>
+			<div>
+				<div id="_idContainer205" class="IMG---Figure">
+					<img src="image/B21323_10_05.jpg" alt="Figure 10.5: Valid duration strings for requesting historical data" width="156" height="186"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.5: Valid duration strings for requesting historical data</p>
+			<p>The valid bar size strings are <span class="No-Break">as follows:</span></p>
+			<div>
+				<div id="_idContainer206" class="IMG---Figure">
+					<img src="image/B21323_10_06.jpg" alt="Figure 10.6: Valid bar sizes for requesting historical data" width="521" height="208"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.6: Valid bar sizes for requesting historical data</p>
+			<p>The method begins by calling <strong class="source-inline">reqHistoricalData</strong>, which is a method provided by the IB API to request historical data. The parameters passed to this function include <strong class="source-inline">request_id</strong>, the <strong class="source-inline">contract</strong> object, an empty string for <strong class="source-inline">endDateTime</strong> (indicating the request is for the most recent <a id="_idIndexMarker764"></a>data up to the current date), the <strong class="source-inline">duration</strong> of historical data, <strong class="source-inline">bar_size</strong>, and other settings such as <strong class="source-inline">whatToShow</strong> (indicating the type of data required), <strong class="source-inline">useRTH</strong> (data within regular trading hours), <strong class="source-inline">formatDate</strong> (the format of the returned date), and <strong class="source-inline">keepUpToDate</strong> (indicating no need for live updates). These are hardcoded in our implementation, but you can modify them to allow the user to pass their <span class="No-Break">own options.</span></p>
+			<p>The available kinds of historic data type strings (<strong class="source-inline">whatToShow</strong>) are <span class="No-Break">as follows:</span></p>
+			<div>
+				<div id="_idContainer207" class="IMG---Figure">
+					<img src="image/B21323_10_07.jpg" alt="Figure 10.7: Valid data types to return for historical data" width="1169" height="460"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.7: Valid data types to return for historical data</p>
+			<p>After sending the request, the method pauses execution for five seconds to allow time for the data to be retrieved and stored in the <strong class="source-inline">historical_data</strong> dictionary, keyed <span class="No-Break">by </span><span class="No-Break"><strong class="source-inline">request_id</strong></span><span class="No-Break">.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">The five-second delay is arbitrary and does not guarantee that all data has been received. You can extend this delay or implement more sophisticated methods to check whether data exists in the <strong class="source-inline">historicData</strong> method in the <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class.</span></p>
+			<p>The method then determines how to parse the incoming time string depending on whether the requested data<a id="_idIndexMarker765"></a> <span class="No-Break">is intraday.</span></p>
+			<p>Next, the method retrieves the historical data and creates a pandas DataFrame from it. The DataFrame is structured with columns defined by <strong class="source-inline">TRADE_BAR_PROPERTIES</strong>. The index of the DataFrame is set to the time column, which is formatted, and the original time column is dropped. Additionally, a new <strong class="source-inline">symbol</strong> column is added to the DataFrame, containing the symbol of the contract, and <strong class="source-inline">request_id</strong> is stored as an attribute of <span class="No-Break">the DataFrame.</span></p>
+			<h3>Receiving historic data</h3>
+			<p>The <strong class="source-inline">historicalData</strong> method is a callback and is automatically invoked for each bar of data received from IB following a call to <strong class="source-inline">reqHistoricalData</strong>. When <strong class="source-inline">reqHistoricalData</strong> is called to request historical market data, the IB API responds by sending back this data in individual bar units, with each bar triggering the <strong class="source-inline">historicalData</strong> method. This <a id="_idIndexMarker766"></a>method then processes and stores each piece <span class="No-Break">of data.</span></p>
+			<p><strong class="source-inline">historicalData</strong> receives two parameters: <strong class="source-inline">request_id</strong> and <strong class="source-inline">bar</strong>. The <strong class="source-inline">request_id</strong> parameter is the unique identifier associated with the specific request for historical data, which allows the method to differentiate between data from different requests. The <strong class="source-inline">bar</strong> parameter is an object that contains the historical bar data for the instrument. Within the method, the bar data is structured into a tuple that contains the date (<strong class="source-inline">bar.date</strong>), the opening price (<strong class="source-inline">bar.open</strong>), the highest price (<strong class="source-inline">bar.high</strong>), the lowest price (<strong class="source-inline">bar.low</strong>), the closing price (<strong class="source-inline">bar.close</strong>), and the trading volume (<strong class="source-inline">bar.volume</strong>) for that specific <span class="No-Break">time period.</span></p>
+			<p>The method then checks whether the <strong class="source-inline">request_id</strong> already exists as a key in the <strong class="source-inline">historical_data</strong> dictionary. If it does not exist the method initializes an empty list under this key. This step ensures that there is a structure in place to store the historical data for each <span class="No-Break">unique request.</span></p>
+			<p>Finally, the method appends the <strong class="source-inline">bar_data</strong> tuple to the list associated with the <strong class="source-inline">request_id</strong> in the <strong class="source-inline">historical_data</strong> dictionary. This action effectively stores the historical bar data, allowing the method to accumulate the historical data points for each request <span class="No-Break">over time.</span></p>
+			<p>The <strong class="source-inline">get_historical_data_for_many</strong> method loops through each provided contract, requests the historical <a id="_idIndexMarker767"></a>data, and concatenates their resulting DataFrames together. The method returns a pivoted DataFrame, which moves the data in <strong class="source-inline">col_to_use</strong> into the rows and each requested contract into <span class="No-Break">the columns.</span></p>
+			<h2 id="_idParaDest-298"><a id="_idTextAnchor307"></a>There’s more…</h2>
+			<p>We now have the code built to request and receive historical market data. Open the <strong class="source-inline">app.py</strong> file and add the following code block under the definitions of <span class="No-Break">the contracts:</span></p>
+			<pre class="source-code">
+data = app.get_historical_data(
+    request_id=99,
+    contract=aapl,
+    duration='2 D',
+    bar_size='30 secs'
+)</pre>			<p>The result of the changes is the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+import threading
+import time
+from wrapper import IBWrapper
+from client import IBClient
+from contract import stock, future, option
+class IBApp(IBWrapper, IBClient):
+    def __init__(self, ip, port, client_id):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.connect(ip, port, client_id)
+        thread = threading.Thread(target=self.run,
+            daemon=True)
+        thread.start()
+        time.sleep(2)
+if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=10)
+    aapl = stock("AAPL", "SMART", "USD")
+    gbl = future("GBL", "EUREX", "202403")
+    pltr = option("PLTR", "BOX", "20240315", 20, "C")
+    data = app.get_historical_data(
+        request_id=99,
+        contract=aapl,
+        duration='2 D',
+        bar_size='30 secs'
+    )
+    time.sleep(30)
+    app.disconnect()</pre>			<p>After running this code, <strong class="source-inline">data</strong> will<a id="_idIndexMarker768"></a> contain a pandas DataFrame with the requested historic <span class="No-Break">market data:</span></p>
+			<div>
+				<div id="_idContainer208" class="IMG---Figure">
+					<img src="image/B21323_10_08.jpg" alt="Figure 10.8: A pandas DataFrame containing requested historic market data" width="615" height="336"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.8: A pandas DataFrame containing requested historic market data</p>
+			<p class="callout-heading">Tip</p>
+			<p class="callout">If you’re using an <strong class="bold">Interactive Development Environment </strong>(<strong class="bold">IDE</strong>) such as <strong class="bold">PyCharm</strong> or <strong class="bold">VSCode</strong>, you can execute the<a id="_idIndexMarker769"></a> code in debug mode <a id="_idIndexMarker770"></a>during development. Debug mode<a id="_idIndexMarker771"></a> lets you pause the<a id="_idIndexMarker772"></a> execution of the code to inspect <span class="No-Break">the variables.</span></p>
+			<h2 id="_idParaDest-299"><a id="_idTextAnchor308"></a>See also</h2>
+			<p>To learn more about historical market data, see the documentation at this URL: <a href="https://interactivebrokers.github.io/tws-api/historical_data.html">https://interactivebrokers.github.io/tws-api/historical_data.html</a>. For specifics on the following topics, see the <span class="No-Break">associated documentation:</span></p>
+			<ul>
+				<li>Requesting historical market data: <a href="https://interactivebrokers.github.io/tws-api/historical_bars.html#hd_request">https://interactivebrokers.github.io/tws-api/historical_bars.html#hd_request</a> </li>
+				<li>Receiving historical market <span class="No-Break">data: </span><a href="https://interactivebrokers.github.io/tws-api/historical_bars.html#hd_receive"><span class="No-Break">https://interactivebrokers.github.io/tws-api/historical_bars.html#hd_receive</span></a></li>
+				<li>Duration, bar sizes, historical data types available, and available data per instrument: <a href="https://interactivebrokers.github.io/tws-api/historical_bars.html#hd_duration">https://interactivebrokers.github.io/tws-api/historical_bars.html#hd_duration</a> </li>
+			</ul>
+			<h1 id="_idParaDest-300"><a id="_idTextAnchor309"></a>Getting a market data snapshot</h1>
+			<p>In the previous recipe, we learned how to get historical data. In some situations, we may need the current market price. In <a href="B21323_12.xhtml#_idTextAnchor360"><span class="No-Break"><em class="italic">Chapter 12</em></span></a><em class="italic">, Deploy Strategies to a Live Environment</em>, we’ll use the <a id="_idIndexMarker773"></a>current market price to create methods to target specific values or percentage allocations in <span class="No-Break">our portfolio.</span></p>
+			<p>The API uses tick types, each representing a specific category of market data, such as last trade price, volume, or bid and ask. These tick types let us access real-time pricing information, which is important for making informed trading decisions. This recipe will show you how to get real-time <span class="No-Break">market data.</span></p>
+			<h2 id="_idParaDest-301"><a id="_idTextAnchor310"></a>Getting ready…</h2>
+			<p>We assume you’ve created the <strong class="source-inline">app.py</strong>, <strong class="source-inline">client.py</strong>, and <strong class="source-inline">wrapper.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-302"><a id="_idTextAnchor311"></a>How to do it…</h2>
+			<p>We’ll update <strong class="source-inline">app.py</strong>, <strong class="source-inline">client.py</strong>, and <strong class="source-inline">wrapper.py</strong> to request the last price for <span class="No-Break">a contract.</span></p>
+			<ol>
+				<li>Open <strong class="source-inline">client.py</strong> and include the following method in the <strong class="source-inline">IBClient</strong> class after the <span class="No-Break"><strong class="source-inline">get_historical_data_for_many</strong></span><span class="No-Break"> method:</span><pre class="source-code">
+def get_market_data(self, request_id, contract,
+    tick_type=4):
+    self.reqMktData(
+        reqId=request_id,
+        contract=contract,
+        genericTickList="",
+        snapshot=True,
+        regulatorySnapshot=False,
+        mktDataOptions=[]
+    )
+    time.sleep(5)
+    self.cancelMktData(reqId=request_id)
+    return self.market_data[request_id].get(tick_type)</pre></li>				<li>Open <strong class="source-inline">wrapper.py</strong> and include the following method in the <strong class="source-inline">IBWrapper</strong> class after the <span class="No-Break"><strong class="source-inline">historicalData</strong></span><span class="No-Break"> method:</span><pre class="source-code">
+def tickPrice(self, request_id, tick_type, price,
+    attrib):
+        if request_id not in self.market_data.keys():
+            self.market_data[request_id] = {}
+            self.market_data[request_id][tick_type] = 
+            float(price)</pre></li>				<li>Add an instance variable in the <strong class="source-inline">__init__</strong> method under <strong class="source-inline">self.historical_data = {}</strong>:<pre class="source-code">
+self.market_data = {}</pre></li>			</ol>
+			<h2 id="_idParaDest-303"><a id="_idTextAnchor312"></a>How it works…</h2>
+			<p>The <strong class="source-inline">get_market_data</strong> method fetches<a id="_idIndexMarker774"></a> a specific tick type from the IB API. It initiates a market data request for a given financial contract, which we identify by <strong class="source-inline">request_id</strong>, and requests all available ticks by using an empty string for the <strong class="source-inline">genericTickList</strong> argument. The function opts for a single data snapshot, rather than a continuous stream and pauses for five seconds to allow data reception and processing. After the pause, it cancels the data request to free up the request ID. Finally, the function retrieves and returns the specific market data from a dictionary using the request ID and tick type as keys. We default to tick type <strong class="source-inline">4</strong>, which is the last <span class="No-Break">traded price.</span></p>
+			<p>In the <strong class="source-inline">tickPrice</strong> callback, it first checks whether the <strong class="source-inline">request_id</strong> exists in the <strong class="source-inline">market_data</strong> dictionary and if not, it initializes an empty dictionary for that ID. It then updates the dictionary, setting the <strong class="source-inline">tick_type</strong> key to the received <strong class="source-inline">price</strong>, converted to <span class="No-Break">a float.</span></p>
+			<p>The <strong class="source-inline">tickPrice</strong> method will typically retrieve seven different <span class="No-Break">tick types:</span></p>
+			<div>
+				<div id="_idContainer209" class="IMG---Figure">
+					<img src="image/B21323_10_09.jpg" alt="Figure 10.9: Different tick types returned by the IB API" width="392" height="129"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.9: Different tick types returned by the IB API</p>
+			<h2 id="_idParaDest-304"><a id="_idTextAnchor313"></a>There’s more…</h2>
+			<p>To get the last closing price for AAPL, add <a id="_idIndexMarker775"></a>the following code to <strong class="source-inline">app.py</strong> after we define our <span class="No-Break">AAPL contract:</span></p>
+			<pre class="source-code">
+data = app.get_market_data(
+    request_id=99,
+    contract=aapl
+)</pre>			<p>The <strong class="source-inline">data</strong> variable contains a float representing the last traded price <span class="No-Break">of AAPL.</span></p>
+			<h2 id="_idParaDest-305"><a id="_idTextAnchor314"></a>See also</h2>
+			<p>To learn more about how to request and receive market data using the IB API, see the <span class="No-Break">following resources:</span></p>
+			<ul>
+				<li>A list of different tick types: <a href="https://interactivebrokers.github.io/tws-api/tick_types.html">https://interactivebrokers.github.io/tws-api/tick_types.html</a> </li>
+				<li>Requesting market data: <a href="https://interactivebrokers.github.io/tws-api/md_request.html">https://interactivebrokers.github.io/tws-api/md_request.html</a> </li>
+				<li>Receiving market data: <a href="https://interactivebrokers.github.io/tws-api/md_receive.html">https://interactivebrokers.github.io/tws-api/md_receive.html</a> </li>
+			</ul>
+			<h1 id="_idParaDest-306"><a id="_idTextAnchor315"></a>Streaming live market data</h1>
+			<p>Requesting tick-by-tick data involves a real-time, granular approach to market data acquisition. This process begins by invoking the <strong class="source-inline">reqTickByTickData</strong> method, where we specify the unique request identifier, the financial instrument’s contract details, and the type of tick data we are interested in (such as <strong class="source-inline">BidAsk</strong>). Upon this request, the IB API starts<a id="_idIndexMarker776"></a> transmitting data for each individual market <strong class="bold">tick</strong>, which is a single change or update in <span class="No-Break">market data.</span></p>
+			<p>Unlike bulk historical data retrieval, this method provides data almost instantaneously as market events occur, which lets us build near real-time algorithmic trading applications. The received data is handled through a callback function that is triggered for each tick, capturing detailed information such as price, size, and the time of the tick. By the end of this receipe, you’ll be able to stream near-real-time market data from the <span class="No-Break">IB API.</span></p>
+			<h2 id="_idParaDest-307"><a id="_idTextAnchor316"></a>Getting ready…</h2>
+			<p>We assume you’ve created the <strong class="source-inline">app.py</strong>, <strong class="source-inline">client.py</strong>, and <strong class="source-inline">wrapper.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<h2 id="_idParaDest-308"><a id="_idTextAnchor317"></a>How to do it…</h2>
+			<p>We’ll update <strong class="source-inline">app.py</strong>, <strong class="source-inline">client.py</strong>, and <strong class="source-inline">wrapper.py</strong> to request historic <span class="No-Break">market data.</span></p>
+			<ol>
+				<li>Open <strong class="source-inline">client.py</strong> and include the following import at the top of <span class="No-Break">the file:</span><pre class="source-code">
+from dataclasses import dataclass, field</pre></li>				<li>Then add a <strong class="source-inline">dataclass</strong> to represent each price tick below the <span class="No-Break"><strong class="source-inline">TRADE_BAR_PROPERTIES</strong></span><span class="No-Break"> constant:</span><pre class="source-code">
+@dataclass
+class Tick:
+    time: int
+    bid_price: float
+    ask_price: float
+    bid_size: float
+    ask_size: float
+    timestamp_: pd.Timestamp = field(init=False)
+    def __post_init__(self):
+        self.timestamp_ = pd.to_datetime(self.time,
+            unit="s")
+        self.bid_price = float(self.bid_price)
+        self.ask_price = float(self.ask_price)
+        self.bid_size = int(self.bid_size)
+        self.ask_size = int(self.ask_size)</pre></li>				<li>Inside the <strong class="source-inline">IBClient</strong> class in the <strong class="source-inline">client.py</strong> file, add the functions that will start and stop the <span class="No-Break">streaming </span><span class="No-Break"><a id="_idIndexMarker777"></a></span><span class="No-Break">data:</span><pre class="source-code">
+def get_streaming_data(self, request_id, contract):
+    self.reqTickByTickData(
+        reqId=request_id,
+        contract=contract,
+        tickType="BidAsk",
+        numberOfTicks=0,
+        ignoreSize=True
+    )
+    time.sleep(10)
+    while True:
+        if self.stream_event.is_set():
+            yield Tick(
+                *self.streaming_data[request_id])
+            self.stream_event.clear()
+def stop_streaming_data(self, request_id):
+    self.cancelTickByTickData(reqId=request_id)</pre><p class="list-inset">The result of the changes is<a id="_idIndexMarker778"></a> the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">client.py</strong></span><span class="No-Break">:</span></p><pre class="source-code">import time
+import pandas as pd
+from dataclasses import dataclass, field
+from ibapi.client import EClient
+TRADE_BAR_PROPERTIES = ["time", "open", "high", "low",
+    "close", "volume"]
+@dataclass
+class Tick:
+    time: int
+    bid_price: float
+    ask_price: float
+    bid_size: float
+    ask_size: float
+    timestamp_: pd.Timestamp = field(init=False)
+    def __post_init__(self):
+        self.timestamp_ = pd.to_datetime(self.time,
+            unit="s")
+        self.bid_price = float(self.bid_price)
+        self.ask_price = float(self.ask_price)
+        self.bid_size = int(self.bid_size)
+        self.ask_size = int(self.ask_size)
+class IBClient(EClient):
+    def __init__(self, wrapper):
+        EClient.__init__(self, wrapper)
+    &lt;snip&gt;
+    def get_streaming_data(self, request_id, contract):
+        self.reqTickByTickData(
+            reqId=request_id,
+            contract=contract,
+            tickType="BidAsk",
+            numberOfTicks=0,
+            ignoreSize=True
+        )
+        time.sleep(10)
+        while True:
+            if self.stream_event.is_set():
+                yield Tick(
+                    *self.streaming_data[request_id])
+                self.stream_event.clear()
+    def stop_streaming_data(self, request_id):
+        self.cancelTickByTickData(reqId=request_id)</pre></li>				<li>Open <strong class="source-inline">wrapper.py</strong> and include the following import at the top of <span class="No-Break">the file:</span><pre class="source-code">
+import threading</pre></li>				<li>Add the following lines of<a id="_idIndexMarker779"></a> code to the <strong class="source-inline">__init__</strong> method in the <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+self.streaming_data = {}
+self.stream_event = threading.Event()</pre></li>				<li>Next, add the following method to the <span class="No-Break"><strong class="source-inline">IBWrapper</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def tickByTickBidAsk(
+        self,
+        request_id,
+        time,
+        bid_price,
+        ask_price,
+        bid_size,
+        ask_size,
+        tick_atrrib_last
+):
+    tick_data = (
+        time,
+        bid_price,
+        ask_price,
+        bid_size,
+        ask_size,
+    )
+    self.streaming_data[request_id] = tick_data
+    self.stream_event.set()</pre><p class="list-inset">The result of the changes is<a id="_idIndexMarker780"></a> the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">wrapper.py</strong></span><span class="No-Break">:</span></p><pre class="source-code">import threading
+from ibapi.wrapper import EWrapper
+class IBWrapper(EWrapper):
+    def __init__(self):
+        EWrapper.__init__(self)
+        self.nextValidOrderId = None
+        self.historical_data = {}
+        self.streaming_data = {}
+        self.stream_event = threading.Event()
+    &lt;snip&gt;
+    def tickByTickBidAsk(
+            self,
+            request_id,
+            time,
+            bid_price,
+            ask_price,
+            bid_size,
+            ask_size,
+            tick_atrrib_last
+    ):
+        tick_data = (
+            time,
+            bid_price,
+            ask_price,
+            bid_size,
+            ask_size,
+        )
+        self.streaming_data[request_id] = tick_data
+        self.stream_event.set()</pre></li>			</ol>
+			<h2 id="_idParaDest-309"><a id="_idTextAnchor318"></a>How it works…</h2>
+			<p>Getting streaming data through the IB API requires two steps: first we request it, then we process it through a callback. The<a id="_idIndexMarker781"></a> tick-by-tick data we stream is the data that corresponds to the data shown in the TWS Time and <span class="No-Break">Sales window.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">Time and Sales refers to a real-time data feed that provides detailed information about executed trades for a specific financial instrument. This feed includes the exact time of each trade, the price at which it was executed, and the size of the trade. Time and Sales data is useful for traders who want to analyze order book dynamics in <span class="No-Break">real time.</span></p>
+			<h3>Requesting streaming data</h3>
+			<p>We start by defining <a id="_idIndexMarker782"></a>a Python <strong class="bold">dataclass</strong> called <strong class="source-inline">Tick</strong>. A Python <strong class="bold">dataclass</strong> is a decorator that automatically generates <a id="_idIndexMarker783"></a>special methods such as <strong class="source-inline">__init__</strong>, <strong class="source-inline">__repr__</strong>, and <strong class="source-inline">__eq__</strong> for classes, primarily used for storing data, simplifying, and reducing <span class="No-Break">boilerplate code.</span></p>
+			<p>The <strong class="source-inline">Tick</strong> <strong class="bold">dataclass</strong> represents market data ticks with attributes for time, bid and ask prices, and sizes. An additional attribute, <strong class="source-inline">timestamp_</strong>, is defined as a pandas <strong class="source-inline">Timestamp</strong> and excluded from automatic <strong class="source-inline">__init__</strong> method generation using <strong class="source-inline">field(init=False)</strong>. The <strong class="source-inline">__post_init__</strong> method of the <strong class="bold">dataclass</strong> converts the <strong class="source-inline">time</strong> attribute from a Unix timestamp to a more readable pandas <strong class="source-inline">Timestamp</strong> format, <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">to_datetime</strong></span><span class="No-Break">.</span></p>
+			<p>The <strong class="source-inline">get_streaming_data</strong> method requires a request ID and a contract to start streaming data. The method requests and yields real-time bid and ask tick data for a specified financial instrument, represented by the <span class="No-Break"><strong class="source-inline">contract</strong></span><span class="No-Break"> parameter.</span></p>
+			<p>The method begins by calling <strong class="source-inline">reqTickByTickData</strong>, a function of the IB API that requests real-time tick-by-tick<a id="_idIndexMarker784"></a> data. The parameters passed to this function include <span class="No-Break">the following:</span></p>
+			<ul>
+				<li><strong class="source-inline">reqId</strong>: A unique identifier for the <span class="No-Break">data request.</span></li>
+				<li><strong class="source-inline">contract</strong>: Specifies the financial instrument for which data is <span class="No-Break">being requested.</span></li>
+				<li><strong class="source-inline">tickType</strong>: Specifies the type of data to stream. Available options are <strong class="source-inline">Last</strong>, <strong class="source-inline">AllLast</strong>, <strong class="source-inline">BidAsk</strong>, <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">MidPoint</strong></span><span class="No-Break">.</span></li>
+				<li><strong class="source-inline">numberOfTicks</strong>: A flag to request a specific set of historic ticks or to stream <span class="No-Break">until canceled.</span></li>
+				<li><strong class="source-inline">ignoreSize</strong>: Whether updates to bid and ask sizes <span class="No-Break">are required.</span></li>
+			</ul>
+			<p>Following the data request, we delay execution for 10 seconds to ensure that some data is received and buffered before the method starts <span class="No-Break">yielding data.</span></p>
+			<p>The method then enters an infinite loop, continuously checking if the thread event <strong class="source-inline">stream_event</strong> is set and when it is, the method yields the <strong class="source-inline">Tick</strong> object with the latest data for the given <strong class="source-inline">request_id</strong>, and then clears the event, readying it for the next batch <span class="No-Break">of data.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">A Python generator is a special type of<a id="_idIndexMarker785"></a> function that returns an iterator, allowing for the generation of items on the fly rather than storing them all in memory at once. When a generator function is called, it doesn’t execute its code immediately. Instead, it returns a generator object that can be iterated over. Each iteration over a generator object resumes the function’s execution from where it last yielded a value, using the <strong class="source-inline">yield</strong> statement, until it either encounters another <strong class="source-inline">yield</strong> or reaches the end of the function, at which point it raises a <span class="No-Break"><strong class="source-inline">StopIteration</strong></span><span class="No-Break"> exception.</span></p>
+			<h3>Receiving streaming data</h3>
+			<p>Depending on the <strong class="source-inline">tickType</strong> requested in the <strong class="source-inline">reqTickByTickData</strong>, IB will use a different callback function. They are <a id="_idIndexMarker786"></a><span class="No-Break">as follows:</span></p>
+			<div>
+				<div id="_idContainer210" class="IMG---Figure">
+					<img src="image/B21323_10_10.jpg" alt="Figure 10.10: Callbacks used for each tick type requested" width="345" height="86"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.10: Callbacks used for each tick type requested</p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">We only implement <strong class="source-inline">tickByTickBidAsk</strong> to respond to the <strong class="source-inline">BidAsk</strong> tick type. You can read more about the type of data that is returned in each of the callbacks at this <span class="No-Break">URL: </span><a href="https://interactivebrokers.github.io/tws-api/tick_data.html%0D"><span class="No-Break">https://interactivebrokers.github.io/tws-api/tick_data.html</span></a></p>
+			<p>We override the <strong class="source-inline">tickByTickBidAsk</strong> provided by the IB API. This callback method is invoked for every tick. Upon invocation, the method first constructs a tuple, <strong class="source-inline">tick_data</strong>, comprising the time, bid price, ask price, bid size, and <span class="No-Break">ask size.</span></p>
+			<p>After receiving a tick, the method constructs a <strong class="source-inline">tick_data</strong> tuple with the bid and ask prices and respective volumes. The method then updates a dictionary <strong class="source-inline">streaming_data</strong>, keyed by <strong class="source-inline">request_id</strong>, with this tick data and sets a <strong class="source-inline">stream_event</strong> threading event, signaling that new data has been received and is ready for processing in the <span class="No-Break"><strong class="source-inline">get_streaming_data</strong></span><span class="No-Break"> method.</span></p>
+			<h2 id="_idParaDest-310"><a id="_idTextAnchor319"></a>There’s more…</h2>
+			<p>We now have the code built to request and receive streaming tick data. Open the <strong class="source-inline">app.py</strong> file and add the following code block under the definitions of <span class="No-Break">the contracts:</span></p>
+			<pre class="source-code">
+eur = future("EUR", "CME", "202312")
+for tick in app.get_streaming_data(99, es):
+    print(tick)</pre>			<p>The result of the changes is the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+import threading
+import time
+from wrapper import IBWrapper
+from client import IBClient
+from contract import future
+class IBApp(IBWrapper, IBClient):
+    def __init__(self, ip, port, client_id):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.connect(ip, port, client_id)
+        thread = threading.Thread(target=self.run,
+            daemon=True)
+        thread.start()
+        time.sleep(2)
+if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=10)
+    eur = future("EUR", "CME", "202312")
+    for tick in app.get_streaming_data(99, eur):
+        print(tick)
+    time.sleep(30)
+    app.disconnect()</pre>			<p>After running this code, you’ll <a id="_idIndexMarker787"></a>see a list of <strong class="source-inline">Tick</strong> objects printed to the console with the details of <span class="No-Break">each tick:</span></p>
+			<div>
+				<div id="_idContainer211" class="IMG---Figure">
+					<img src="image/B21323_10_11.jpg" alt="Figure 10.11: Streaming tick data as Tick objects" width="1229" height="207"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.11: Streaming tick data as Tick objects</p>
+			<h2 id="_idParaDest-311"><a id="_idTextAnchor320"></a>See also</h2>
+			<p>To learn more about the<a id="_idIndexMarker788"></a> available types of streaming data, check the following URL: <a href="https://interactivebrokers.github.io/tws-api/market_data.html">https://interactivebrokers.github.io/tws-api/market_data.html</a>. For specifics, check the <span class="No-Break">following URLs:</span></p>
+			<ul>
+				<li>Level 1 (top of book) streaming and snapshot data. This is another option for streaming real-time data that was not covered in this <span class="No-Break">recipe: </span><a href="https://interactivebrokers.github.io/tws-api/md_request.html"><span class="No-Break">https://interactivebrokers.github.io/tws-api/md_request.html</span></a><span class="No-Break">.</span></li>
+				<li>Streaming tick data covered in this <span class="No-Break">recipe: </span><a href="https://interactivebrokers.github.io/tws-api/tick_data.html"><span class="No-Break">https://interactivebrokers.github.io/tws-api/tick_data.html</span></a><span class="No-Break">.</span></li>
+			</ul>
+			<h1 id="_idParaDest-312"><a id="_idTextAnchor321"></a>Storing live tick data in a local SQL database</h1>
+			<p>We discussed storing financial market data in <a href="B21323_04.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 4</em></span></a><em class="italic">,</em> <em class="italic">Store Financial Market Data on Your Computer</em>. In this chapter, we learned several ways of downloading different types of market data for free and <a id="_idIndexMarker789"></a>storing it in a variety of formats. In <a href="B21323_13.xhtml#_idTextAnchor393"><span class="No-Break"><em class="italic">Chapter 13</em></span></a><em class="italic">, Advanced Recipes for Market Data and Strategy Management</em>, we’ll look at how to use the cutting-edge ArcticDB library to store petabytes of market data. For now, we’ll extend the<a id="_idIndexMarker790"></a> recipes in this chapter and the recipes in <a href="B21323_04.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 4</em></span></a> to store the streaming tick data in a local <span class="No-Break">SQLite database.</span></p>
+			<h2 id="_idParaDest-313"><a id="_idTextAnchor322"></a>Getting ready…</h2>
+			<p>We assume you’ve read the <em class="italic">Storing Data On-Disk with SQLite</em> recipe in <a href="B21323_04.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 4</em></span></a><em class="italic">,</em> <em class="italic">Store Financial Market Data on Your Computer</em>. If you haven’t, please review it now. We also assume you’ve created the <strong class="source-inline">app.py</strong>, <strong class="source-inline">client.py</strong>, <strong class="source-inline">wrapper.py</strong> , and <strong class="source-inline">utils.py</strong> files in the <strong class="source-inline">trading-app</strong> directory. If not, do <span class="No-Break">it now.</span></p>
+			<p>We’ll also move some of the <a id="_idIndexMarker791"></a>code currently in <strong class="source-inline">client.py</strong>, to the <strong class="source-inline">utils.py</strong> file. Copy the following code<a id="_idIndexMarker792"></a> from <strong class="source-inline">client.py</strong> and paste it <span class="No-Break">into </span><span class="No-Break"><strong class="source-inline">utils.py</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+import pandas as pd
+from dataclasses import dataclass, field
+TRADE_BAR_PROPERTIES = ["time", "open", "high", "low",
+    "close", "volume"]
+@dataclass
+class Tick:
+    time: int
+    bid_price: float
+    ask_price: float
+    bid_size: float
+    ask_size: float
+    timestamp_: pd.Timestamp = field(init=False)
+    def __post_init__(self):
+        self.timestamp_ = pd.to_datetime(self.time,
+            unit="s")
+        self.bid_price = float(self.bid_price)
+        self.ask_price = float(self.ask_price)
+        self.bid_size = int(self.bid_size)
+        self.ask_size = int(self.ask_size)</pre>			<p>Now, remove the code from the <strong class="source-inline">client.py</strong> file and import it from <strong class="source-inline">utils.py</strong>. The result of the changes is the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">client.py</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+import time
+import pandas as pd
+from utils import Tick, TRADE_BAR_PROPERTIES
+from ibapi.client import EClient
+class IBClient(EClient):
+    &lt;snip&gt;</pre>			<h2 id="_idParaDest-314"><a id="_idTextAnchor323"></a>How to do it…</h2>
+			<p>We’ll add methods to our <strong class="source-inline">IBApp</strong> class that will<a id="_idIndexMarker793"></a> create the SQLite database, generate a connection to our database, and insert<a id="_idIndexMarker794"></a> tick data into <span class="No-Break">the table.</span></p>
+			<ol>
+				<li>Add the <strong class="source-inline">connection</strong> method to the <strong class="source-inline">IBApp</strong> class in <strong class="source-inline">app.py</strong> and decorate it with the <span class="No-Break"><strong class="source-inline">property</strong></span><span class="No-Break"> decorator:</span><pre class="source-code">
+@property
+def connection(self):
+    return sqlite3.connect("tick_data.sqlite",
+        isolation_level=None)</pre></li>				<li>Add the <strong class="source-inline">create_table</strong> method to the <span class="No-Break"><strong class="source-inline">IBApp</strong></span><span class="No-Break"> class:</span><pre class="source-code">
+def create_table(self):
+    cursor = self.connection.cursor()
+    cursor.execute(
+    "CREATE TABLE IF NOT EXISTS bid_ask_data (
+        timestamp datetime, symbol string,
+        bid_price real, ask_price real,
+        bid_size integer, ask_size integer)")</pre></li>				<li>Add the <strong class="source-inline">stream_to_sqlite</strong> method to the <strong class="source-inline">IBApp</strong> class. Don’t worry, we’ll go<a id="_idIndexMarker795"></a> through it in <span class="No-Break">detail </span><span class="No-Break"><a id="_idIndexMarker796"></a></span><span class="No-Break">next:</span><pre class="source-code">
+def stream_to_sqlite(self, request_id, contract,
+    run_for_in_seconds=23400):
+        cursor = self.connection.cursor()
+        end_time = time.time() + run_for_in_seconds + 10
+        for tick in app.get_streaming_data(request_id,
+            contract):
+                query = "INSERT INTO bid_ask_data (
+                    timestamp, symbol, bid_price,
+                    ask_price, bid_size, ask_size)
+                    VALUES (?, ?, ?, ?, ?, ?)"
+                values = (
+                tick.timestamp_.strftime(
+                   "%Y-%m-%d %H:%M:%S"),
+                contract.symbol,
+                tick.bid_price,
+                tick.ask_price,
+                tick.bid_size,
+                tick.ask_size
+            )
+            cursor.execute(query, values)
+            if time.time() &gt;= end_time:
+                break
+        self.stop_streaming_data(request_id)</pre></li>				<li>In the <strong class="source-inline">__init__</strong> method <a id="_idIndexMarker797"></a>of the <strong class="source-inline">IBApp</strong> class, add the following line under the calls to <strong class="source-inline">IBWrapper</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">IBClient</strong></span><span class="No-Break">:</span><pre class="source-code">
+self.create_table()</pre><p class="list-inset">The result of the<a id="_idIndexMarker798"></a> changes is the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">IBApp</strong></span><span class="No-Break">:</span></p><pre class="source-code">class IBApp(IBWrapper, IBClient):
+    def __init__(self, ip, port, client_id):
+        IBWrapper.__init__(self)
+        IBClient.__init__(self, wrapper=self)
+        self.create_table()
+        self.connect(ip, port, client_id)
+        thread = threading.Thread(target=self.run,
+            daemon=True)
+        thread.start()
+        time.sleep(2)
+    @property
+    def connection(self):
+        return sqlite3.connect("tick_data.sqlite",
+            isolation_level=None)
+    def create_table(self):
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "CREATE TABLE IF NOT EXISTS bid_ask_data (
+                timestamp datetime, symbol string,
+                bid_price real, ask_price real,
+                bid_size integer, ask_size integer)")
+    def stream_to_sqlite(self, request_id, contract,
+        run_for_in_seconds=23400):
+            cursor = self.connection.cursor()
+            end_time = time.time() + run_for_in_seconds + 10
+        for tick in app.get_streaming_data(request_id,
+            contract):
+                query = "INSERT INTO bid_ask_data (
+                    timestamp, symbol, bid_price,
+                    ask_price, bid_size, ask_size) VALUES (
+                        ?, ?, ?, ?, ?, ?)"
+                values = (
+                    tick.timestamp_.strftime(
+                        "%Y-%m-%d %H:%M:%S"),
+                    contract.symbol,
+                    tick.bid_price,
+                    tick.ask_price,
+                    tick.bid_size,
+                    tick.ask_size
+                )
+                cursor.execute(query, values)
+                if time.time() &gt;= end_time:
+                    break
+            self.stop_streaming_data(request_id)</pre></li>			</ol>
+			<h2 id="_idParaDest-315"><a id="_idTextAnchor324"></a>How it works…</h2>
+			<p>We first create a class property <a id="_idIndexMarker799"></a>called <strong class="source-inline">connection</strong>, which establishes and returns a connection to our SQLite<a id="_idIndexMarker800"></a> database. The <strong class="source-inline">@property</strong> decorator is used to create a property, allowing the <strong class="source-inline">connection</strong> method to be accessed like an attribute without the need to call it as <span class="No-Break">a method.</span></p>
+			<p>When the <strong class="source-inline">connection</strong> property is accessed, it creates a connection to an SQLite database file named <strong class="source-inline">tick_data.sqlite</strong>. The <strong class="source-inline">isolation_level=None</strong> parameter sets the transaction isolation level to <strong class="source-inline">None</strong>, which means that the <strong class="bold">autocommit</strong> mode is enabled. In <strong class="bold">autocommit</strong> mode, changes<a id="_idIndexMarker801"></a> to the database are committed immediately after each statement, without needing to explicitly call <strong class="source-inline">commit</strong> after each <span class="No-Break">database operation.</span></p>
+			<p>The <strong class="source-inline">create_table</strong> method creates a database table named <strong class="source-inline">bid_ask_data</strong>. When this method is called, it first establishes a database cursor, which is an intermediary for executing database commands. The code then executes a <strong class="source-inline">create</strong> SQL command using the <strong class="source-inline">execute</strong> method, which creates the table if it does not exist. When <strong class="source-inline">IBApp</strong> is initialized, we call <strong class="source-inline">self.create_table</strong>, which creates the table if it does <span class="No-Break">not exist.</span></p>
+			<p>The <strong class="source-inline">stream_to_sqlite</strong> method stores the tick data in our SQLite database for a specified duration. It starts by creating a database cursor from the established SQLite connection. The method calculates an <strong class="source-inline">end_time</strong> value by adding the specified <strong class="source-inline">run_for_in_seconds</strong> duration (defaulting to 23,400 seconds, or 6.5 hours) to the current time, plus an additional 10 second buffer which makes up for the time we wait for the tick stream to start. It then enters a loop, retrieving streaming data from the <strong class="source-inline">get_streaming_data</strong> method, which yields <strong class="source-inline">Tick</strong> objects containing market data for the given <strong class="source-inline">request_id</strong> and <strong class="source-inline">contract</strong>. For each tick received, the method constructs a SQL insert query to add the tick data into the <strong class="source-inline">bid_ask_data</strong> table, formatting the timestamp and including relevant data such as the contract’s symbol, bid price, ask price, bid size, and ask size. The loop continues until the current time exceeds the calculated <strong class="source-inline">end_time</strong>, at which point it breaks, limiting the data streaming to the <span class="No-Break">specified duration.</span></p>
+			<h2 id="_idParaDest-316"><a id="_idTextAnchor325"></a>There’s more…</h2>
+			<p>We now have the code built to store streaming <a id="_idIndexMarker802"></a>tick data. Add the following code block under the definitions of <span class="No-Break">the </span><span class="No-Break"><a id="_idIndexMarker803"></a></span><span class="No-Break">contracts:</span></p>
+			<pre class="source-code">
+es = future("ES", "CME", "202312")
+app.stream_to_sqlite(99, es, run_for_in_seconds=30)</pre>			<p>The result of the changes is the following code <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">app.py</strong></span><span class="No-Break">:</span></p>
+			<pre class="source-code">
+&lt;snip&gt;
+if __name__ == "__main__":
+    app = IBApp("127.0.0.1", 7497, client_id=10)
+    es = future("ES", "CME", "202312")
+    app.stream_to_sqlite(99, es, run_for_in_seconds=30)
+    app.disconnect()</pre>			<p>We can inspect the data stored in our SQLite database with DB Browser for SQLite. It’s a free tool that gives us a graphical interface to inspect data in SQLite databases. You can download it here: https://sqlitebrowser.org/. Once installed, open up the <strong class="source-inline">tick_data.sqlite</strong> file and navigate to the <strong class="bold">Browse Data</strong> tab and you’ll see the <span class="No-Break">tick data.</span></p>
+			<div>
+				<div id="_idContainer212" class="IMG---Figure">
+					<img src="image/B21323_10_12.jpg" alt="Figure 10.12: Browsing bid ask tick data in our SQLite database" width="1360" height="867"/>
+				</div>
+			</div>
+			<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 10.12: Browsing bid ask tick data in our SQLite database</p>
+			<h2 id="_idParaDest-317"><a id="_idTextAnchor326"></a>See also</h2>
+			<p>The SQLite documentation<a id="_idIndexMarker804"></a> was covered in <a href="B21323_04.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 4</em></span></a><em class="italic">,</em> <em class="italic">Store Financial Market Data on Your Computer</em>, but if you’re interested in more<a id="_idIndexMarker805"></a> details about the <strong class="source-inline">Connection</strong> and <strong class="source-inline">Cursor</strong> objects, you can check the <span class="No-Break">following URLs:</span></p>
+			<ul>
+				<li>Documentation for the SQLite <strong class="source-inline">connect</strong> <span class="No-Break">method: </span><a href="https://docs.python.org/3/library/sqlite3.html#sqlite3.connect"><span class="No-Break">https://docs.python.org/3/library/sqlite3.html#sqlite3.connect</span></a></li>
+				<li>Documentation for the SQLite <strong class="source-inline">Cursor</strong> object: <a href="https://docs.python.org/3/library/sqlite3.html#cursor-objects">https://docs.python.org/3/library/sqlite3.html#cursor-objects</a> </li>
+			</ul>
+		</div>
+	</div>
+</div>
+</body>
+</html>
